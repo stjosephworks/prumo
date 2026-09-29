@@ -38,9 +38,10 @@ API renames a field, the client keeps compiling against its own copy, and the fa
 `undefined` on a screen.
 
 **Importing the entity type from the API package looks like the obvious fix and is unsound.** Responses
-are entities passed through `ClassSerializerInterceptor`, so every `@Exclude`d property is missing from the
-JSON while remaining on the entity type. The shared type would promise `tenantId` on a payload that never
-carries it: a type that lies, which is worse than the duplication it removes.
+pass through the route's output schema, which drops every field it does not list, so a property can remain
+on the entity type while missing from the JSON; and a `Date` on the entity arrives as an ISO string. The
+shared type would promise `tenantId` on a payload that never carries it: a type that lies, which is worse
+than the duplication it removes.
 
 **The contract lives in one directory, not beside each feature, so that one template serves both
 architectures.** The monorepo form moves `api-contract/` whole into `packages/api-contract` and changes one

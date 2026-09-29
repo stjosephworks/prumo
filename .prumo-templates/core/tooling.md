@@ -2,8 +2,8 @@
 
 ## Rule
 
-Base the TypeScript configuration on `nestjs/typescript-starter`: `module` and `moduleResolution` both
-`nodenext`, `target` `ES2023`, `strict` on, `strictPropertyInitialization` off.
+Configure TypeScript with `module` and `moduleResolution` both `nodenext`, `target` `ES2023`, `strict` on,
+`strictPropertyInitialization` off.
 
 Add `noUncheckedIndexedAccess`. Do not add `exactOptionalPropertyTypes`.
 
@@ -13,13 +13,16 @@ modules.
 Run Biome's recommended preset, configured in `biome.jsonc`. Write a one-line reason in the configuration
 for any rule added or disabled.
 
-In `api`, enable `javascript.parser.unsafeParameterDecoratorsEnabled` and turn `style.useImportType` off.
+In `api`, enable `experimentalDecorators` and `emitDecoratorMetadata`, enable Biome's
+`javascript.parser.unsafeParameterDecoratorsEnabled`, turn `style.useImportType` off, and turn
+`performance.noBarrelFile` on. Run TypeScript through SWC: `@swc-node/register` in development,
+`unplugin-swc` in tests, `@swc/cli` for the build. Never `tsx`.
 
 In a client using shadcn, turn `a11y.noLabelWithoutControl` and `a11y.useSemanticElements` off for
 `components/ui/` only, through an override. Keep both on everywhere else.
 
-**Never import a class with `import type` where Nest reads its type at runtime**: a constructor
-dependency, or a DTO received through a decorated handler parameter.
+**Never import a class with `import type` where tsyringe reads its type at runtime**: a constructor
+dependency injected without `@inject`.
 
 Run `biome check --staged --write` in `.githooks/pre-commit`. Run `tsc --noEmit` in `.githooks/pre-push`.
 Wire both with `"prepare": "node .githooks/install.mjs"`, which sets `core.hooksPath` inside a Git repository,
@@ -27,13 +30,12 @@ does nothing outside one, and fails when Git is present and the setting cannot b
 
 ## Rationale
 
-Following Nest's starter is not deference: it is what keeps the generator and the convention in agreement,
-so a freshly generated project needs no correction afterwards. `nodenext` also happens to be one of the
-three values MikroORM v7 accepts, so the ORM and the framework ask for the same thing.
+`nodenext` is one of the three values MikroORM v7 accepts, and it is what Node itself resolves.
 
-`strictPropertyInitialization` is off because a DTO's properties are filled by validation rather than by a
-constructor, so the flag reports an error about something correct. The cost is real and wider than DTOs:
-with it off, **any** class may declare a property that is never assigned and the compiler stays quiet.
+`strictPropertyInitialization` is off because an entity's columns are filled by hydration or by the
+database, not by its constructor, so the flag reports an error about something correct. The cost is real
+and wider than entities: with it off, **any** class may declare a property that is never assigned and the
+compiler stays quiet.
 
 `noUncheckedIndexedAccess` is added because `rows[0]` treated as present is the most common source of a
 runtime `undefined`. `exactOptionalPropertyTypes` is left out because it is the one strictness flag whose
@@ -48,17 +50,21 @@ the machine, which is what pre-push is.
 `biome.jsonc` rather than `biome.json`, because the reason has to live beside the rule and JSON cannot hold
 a comment.
 
-**Biome cannot parse Nest without the parser option.** Decorators on constructor and handler parameters
-(`@Inject()`, `@Body()`, `@CurrentUser()`) belong to the legacy proposal, and Biome reports every one as a
-syntax error, not a lint warning, until the option is on.
+**Biome cannot parse the API without the parser option.** `@inject(TOKEN)` on a constructor parameter
+belongs to the legacy decorator proposal, and Biome reports every one as a syntax error, not a lint warning,
+until the option is on.
 
-**`useImportType` breaks injection, and nothing reports it.** Nest resolves a dependency from the type the
-compiler emits into the constructor's metadata. `import type` is erased from the output, so the emitted type
-becomes `Function` and the application refuses to boot. The rule's autofix makes that rewrite across the
-codebase in one pass; in this template it did, and lint, typecheck, build and every service test still
-passed. **On a DTO it is worse:** `ValidationPipe` receives `Object`, validates nothing, and raises nothing,
-so `whitelist` and `forbidNonWhitelisted` silently stop existing. Written by hand, the same `import type`
-does the same damage, which is why the rule forbids the import and not only the lint rule.
+**`useImportType` breaks injection, and nothing reports it.** tsyringe resolves a dependency injected by
+class from the type the compiler emits into the constructor's metadata. `import type` is erased from the
+output, so the emitted type becomes `Object`, and resolving the class fails with *TypeInfo not known for
+"Object"*. It type-checks, and because a use case is resolved per request, it fails on the first request to
+that route rather than at boot. The rule's autofix would make that rewrite across the codebase in one pass,
+and written by hand the same `import type` does the same damage, which is why the rule forbids the import and
+not only the lint rule.
+
+**SWC and never `tsx`** because tsyringe needs the decorator metadata, and esbuild, which `tsx` runs on, does
+not emit it: a class injected by type fails in development only, while build and tests pass. SWC is the one
+transformer that emits it in all three places, and `tsc` only checks types.
 
 **The shadcn override is scoped because both rules are right in application code.** A generated `Label`
 receives `htmlFor` through props the rule cannot see, and shadcn's `Field` uses `role="group"` deliberately.
@@ -87,13 +93,11 @@ Configuration changes:
 ❌  "noUnusedVariables": "off"
 ```
 
-Importing what Nest reads at runtime:
+Importing what tsyringe reads at runtime:
 
 ```
-✅  import { UsersService } from './users.service'
-    import { UpdateProfileDto } from './dto/update-profile.dto'
-❌  import type { UsersService } from './users.service'        // boot fails: Function
-❌  import type { UpdateProfileDto } from './dto/update-profile.dto' // nothing is validated
+✅  import { EntityManager } from '@mikro-orm/postgresql'
+❌  import type { EntityManager } from '@mikro-orm/postgresql'   // TypeInfo not known for "Object"
 ```
 
 Reading an array:
@@ -110,9 +114,8 @@ Reading an array:
 **The hooks.** Formatting cannot reach a commit unformatted, and a type error cannot reach the remote,
 unless somebody uses `--no-verify`, or never ran an install and so never got `core.hooksPath` configured.
 
-**Boot, partially.** A constructor dependency imported as a type fails at boot. **A DTO imported as a type
-does not fail anywhere**, not at boot and not in a service test, so it is caught only by a request test
-that sends an invalid body, or by review.
+**Route tests.** A constructor dependency imported as a type fails the first request that resolves it, so a
+route test covering that use case catches it. A use case tested only through its fake does not.
 
 **Review only.** That a disabled rule carries its reason, and that `strictPropertyInitialization` being
-off did not leave an uninitialised property somewhere outside a DTO.
+off did not leave an uninitialised property somewhere outside an entity.

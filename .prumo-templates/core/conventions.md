@@ -2,8 +2,9 @@
 
 ## Rule
 
-Name every source file in kebab-case, with the role suffix the generator uses: `users.service.ts`,
-`users.controller.ts`, `create-user.dto.ts`, `button.tsx`.
+Name every source file in kebab-case. In `api`, add the role suffix, always: `profile.entity.ts`,
+`update-profile.use-case.ts`, `update-profile.dto.ts`, `users.controller.ts`. A component is
+`button.tsx`.
 
 Write a comment only when it carries a fact the code cannot carry about itself. Before writing one, ask
 whether a careful reader could recover it anyway. If they could, delete it.
@@ -19,9 +20,11 @@ tag or a change log; git holds all three.
 
 ## Rationale
 
-kebab-case is what `nest g resource` and shadcn's CLI both emit, so anything else adds a rename step after
-every generation, and a correction after generation is what people forget. It also never touches a problem
-PascalCase lives with: macOS and Windows are case-insensitive, so renaming `OrderList.tsx` to
+kebab-case is what shadcn's CLI emits, so anything else adds a rename step after every generation, and a
+correction after generation is what people forget. The suffix is always written because in `api` the same
+name lives in several layers: `update-profile` is a DTO and a use case, `profile` an entity, a schema, a port
+and an adapter, and without it an editor shows four tabs called `profile.ts`. kebab-case also never touches
+a problem PascalCase lives with: macOS and Windows are case-insensitive, so renaming `OrderList.tsx` to
 `orderList.tsx` does not register as a change in git, and the file ends up cased differently in the
 repository and on a Linux clone.
 
@@ -44,8 +47,8 @@ Every source file, in every type.
 Naming:
 
 ```
-✅  create-user.dto.ts      users.service.ts      order-list.tsx
-❌  CreateUserDto.ts        UsersService.ts       OrderList.tsx
+✅  create-user.dto.ts      create-user.use-case.ts      order-list.tsx
+❌  CreateUserDto.ts        create-user.ts               OrderList.tsx
 ```
 
 A comment that earns its place:

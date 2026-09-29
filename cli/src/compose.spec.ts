@@ -24,8 +24,8 @@ describe('composeWorkspace', () => {
     const biome = await readFile(join(target, 'apps/api/biome.jsonc'), 'utf8')
 
     expect(biome).toContain('"extends": "//"')
-    expect(biome).toMatch(/\/\/ Nest injects by the emitted constructor type.*\n\s*"style"/)
-    expect(biome).toMatch(/\/\/ Nest decorates constructor and handler parameters.*\n\s*"parser"/)
+    expect(biome).toMatch(/\/\/ tsyringe injects by the emitted constructor type.*\n\s*"style"/)
+    expect(biome).toMatch(/\/\/ Ports are injected with `@inject\(TOKEN\)`.*\n\s*"parser"/)
   })
 
   it('gives the root one command for every app and one per app it holds', async () => {
@@ -59,7 +59,7 @@ describe('composeWorkspace', () => {
 
     expect(existsSync(join(target, 'apps/api/pnpm-workspace.yaml'))).toBe(false)
     expect(existsSync(join(target, 'apps/api/tsconfig.tsbuildinfo'))).toBe(false)
-    expect(root).toContain("'@scarf/scarf': false")
+    expect(root).toContain('ssh2: false')
   })
 })
 
@@ -149,7 +149,7 @@ describe('composeWorkspace with every type', () => {
     const workspace = await readFile(join(target, 'pnpm-workspace.yaml'), 'utf8')
     const site = await readFile(join(target, 'apps/site/package.json'), 'utf8')
 
-    expect(workspace).toContain("'@scarf/scarf': false")
+    expect(workspace).toContain('ssh2: false')
     expect(workspace).toContain('sharp: false')
     expect(existsSync(join(target, 'apps/site/pnpm-workspace.yaml'))).toBe(false)
     expect(site).not.toContain('@app/api-contract')

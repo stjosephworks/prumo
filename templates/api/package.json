@@ -3,53 +3,43 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "build": "nest build",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
+    "build": "swc src -d dist --strip-leading-paths --delete-dir-on-start --ignore \"**/*.spec.ts,**/*.d.ts\"",
+    "start": "node dist/infra/http/server.js",
+    "start:dev": "node --watch -r @swc-node/register src/infra/http/server.ts",
     "dev": "node scripts/database.mjs --check && node scripts/ports.mjs -- pnpm start:dev",
-    "start:prod": "node dist/main",
     "lint": "biome check",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "db:setup": "node scripts/database.mjs",
-    "db:migrate": "nest build && auth migrate --config dist/auth/auth.js --yes && mikro-orm migration:up",
+    "db:migrate": "pnpm build && auth migrate --config dist/infra/auth/auth.cli.js --yes && mikro-orm migration:up",
     "db:migration:create": "mikro-orm migration:create",
     "prepare": "node .githooks/install.mjs"
   },
   "dependencies": {
     "@better-auth/expo": "1.7.4",
+    "@fastify/cors": "11.3.0",
+    "@fastify/swagger": "9.9.0",
+    "@fastify/swagger-ui": "6.1.1",
     "@mikro-orm/core": "7.2.0",
     "@mikro-orm/migrations": "7.2.0",
-    "@mikro-orm/nestjs": "7.1.0",
     "@mikro-orm/postgresql": "7.2.0",
-    "@nestjs/common": "12.0.1",
-    "@nestjs/config": "12.0.0",
-    "@nestjs/core": "12.0.1",
-    "@nestjs/platform-express": "12.0.1",
-    "@nestjs/swagger": "12.0.1",
-    "@nestjs/terminus": "12.0.0",
     "better-auth": "1.7.4",
-    "class-transformer": "0.5.1",
-    "class-validator": "0.15.1",
-    "nestjs-pino": "5.1.0",
+    "fastify": "5.12.5",
+    "fastify-type-provider-zod": "7.0.0",
     "pg": "8.23.0",
-    "pino": "10.3.1",
-    "pino-http": "11.0.0",
     "reflect-metadata": "0.2.2",
-    "rxjs": "7.8.2"
+    "tsyringe": "4.10.0",
+    "zod": "4.6.4"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
     "@mikro-orm/cli": "7.2.0",
-    "@nestjs/cli": "12.0.0",
-    "@nestjs/schematics": "12.0.1",
-    "@nestjs/testing": "12.0.1",
     "@swc-node/register": "1.12.1",
+    "@swc/cli": "0.8.1",
     "@swc/core": "1.16.2",
     "@testcontainers/postgresql": "12.1.0",
-    "@types/express": "5.0.6",
     "@types/node": "24.13.4",
     "@types/pg": "8.23.1",
     "@vitest/coverage-v8": "4.1.11",
@@ -64,8 +54,8 @@
   },
   "mikro-orm": {
     "configPaths": [
-      "./src/mikro-orm.config.ts",
-      "./dist/mikro-orm.config.js"
+      "./src/infra/database/mikroorm/mikro-orm.config.ts",
+      "./dist/infra/database/mikroorm/mikro-orm.config.js"
     ]
   }
 }
