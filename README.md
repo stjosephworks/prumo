@@ -81,7 +81,7 @@ is asked, and the exit code is 0 only when `ok` is true.
 
 | Type | What you get |
 |---|---|
-| `api` | NestJS, MikroORM on PostgreSQL, Better Auth in a schema of its own, Swagger, Vitest with Testcontainers |
+| `api` | Fastify with a domain/infra structure, tsyringe, Zod, MikroORM on PostgreSQL, Better Auth in a schema of its own, Swagger UI, Vitest with Testcontainers |
 | `web` | Vite, React, TanStack Router and Query, Tailwind, shadcn/ui, forms validated with Zod |
 | `mobile` | Expo with Expo Router, NativeWind, MMKV, and the session kept in `expo-secure-store` |
 | `site` | Next on the App Router, static by default, for pages that have to be indexed |

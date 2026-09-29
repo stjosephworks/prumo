@@ -82,7 +82,7 @@ with generic code, which is the code that belonged in the package.
 **A Vite app and a Next app consume the package as source with no configuration**: Next 16 needs no
 `transpilePackages`; a page importing it builds, stays static, and renders the imported value. Its `exports` points at `src/index.ts`,
 `tsc` with `moduleResolution: bundler` typechecks through it, and `vite build` bundles it, verified in a composed
-workspace. The API does not import the package, so Nest never compiles it.
+workspace. The API does not import the package, so its SWC build never compiles it.
 
 **Expo resolves workspace packages automatically from SDK 52**, with no `watchFolders` or
 `nodeModulesPaths` configuration. Older guidance about configuring Metro by hand no longer applies. Verified with

@@ -54,7 +54,7 @@ its own.
 | Area | Holds | Ships when |
 |---|---|---|
 | `core/` | What crosses every type: TypeScript config, Biome and the pre-commit hook, Vitest, file naming, code style | **always** |
-| `api/` | NestJS rules and conventions | type is `api` |
+| `api/` | Fastify rules and the domain/infra structure: ports, use cases, DTOs, the HTTP edge | type is `api` |
 | `database/` | Database rules and performance. Separate from `api/` so a future worker or lambda can take it without being an API | type is `api` |
 | `client/` | What every client shares: calling the API, the error type, queries, forms | type is `web`, `mobile` or `site` |
 | `web/` | Vite + React rules | type is `web` |
