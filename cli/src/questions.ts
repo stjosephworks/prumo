@@ -11,6 +11,8 @@ export type Flags = {
   monorepo: boolean
   multiTenant: boolean
   singleTenant: boolean
+  mcp: boolean
+  noMcp: boolean
 }
 
 const TYPES: AppType[] = ['api', 'web', 'mobile', 'site']
@@ -41,6 +43,10 @@ function parseTypes(value: string): AppType[] {
 export async function resolveAnswers(flags: Flags, asker: Asker | undefined): Promise<Answers> {
   if (flags.alone && flags.monorepo) {
     throw new CliError('invalid_input', 'Choose --alone or --monorepo, not both.')
+  }
+
+  if (flags.mcp && flags.noMcp) {
+    throw new CliError('invalid_input', 'Choose --mcp or --no-mcp, not both.')
   }
 
   if (flags.multiTenant && flags.singleTenant) {
@@ -94,5 +100,21 @@ export async function resolveAnswers(flags: Flags, asker: Asker | undefined): Pr
     }
   }
 
-  return { name, types, architecture, multiTenant }
+  // MCP authorizes through a sign-in and a consent page, which only a web app can serve.
+  const mcpCapable = types.includes('api') && types.includes('web')
+  let mcp = false
+
+  if (!mcpCapable) {
+    if (flags.mcp) {
+      throw new CliError('invalid_input', '--mcp needs both api and web in --types.')
+    }
+  } else if (flags.mcp || flags.noMcp) {
+    mcp = flags.mcp
+  } else if (asker !== undefined) {
+    mcp = await asker.mcp()
+  } else {
+    missing('--mcp or --no-mcp')
+  }
+
+  return { name, types, architecture, multiTenant, mcp }
 }

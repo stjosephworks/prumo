@@ -47,6 +47,8 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
       monorepo: { type: 'boolean', default: false },
       'multi-tenant': { type: 'boolean', default: false },
       'single-tenant': { type: 'boolean', default: false },
+      mcp: { type: 'boolean', default: false },
+      'no-mcp': { type: 'boolean', default: false },
       'skip-install': { type: 'boolean', default: false },
       json: { type: 'boolean', default: false },
     },
@@ -67,6 +69,8 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
       monorepo: values.monorepo,
       multiTenant: values['multi-tenant'],
       singleTenant: values['single-tenant'],
+      mcp: values.mcp,
+      noMcp: values['no-mcp'],
     },
     interactive ? terminalAsker(validateProjectName) : undefined,
   )

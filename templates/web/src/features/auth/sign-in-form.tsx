@@ -31,13 +31,20 @@ export function SignInForm({ auth, redirect }: { auth: AuthClient; redirect: str
   const { errors, isSubmitting } = form.formState
 
   async function onSubmit(values: SignInValues) {
-    const { error } = await auth.signIn.email(values)
+    const result = await auth.signIn.email(values)
 
-    if (error !== null) {
-      applyServerError(ApiError.fromAuthError(error), ['email', 'password'], form.setError)
+    if (result.error !== null) {
+      applyServerError(ApiError.fromAuthError(result.error), ['email', 'password'], form.setError)
       return
     }
 
+    // prumo:mcp
+    // Signing in during an MCP client's authorization: Better Auth has already sent the browser on.
+    if (result.data.redirect) {
+      return
+    }
+
+    // prumo:end-mcp
     // Invalidating is not enough: nothing observes the session, and the protected route's ensureQueryData
     // would keep returning the cached null. Refetching replaces it before the route reads it.
     await queryClient.refetchQueries({ queryKey: sessionQuery(auth).queryKey })

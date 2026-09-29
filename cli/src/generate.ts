@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { type AppType, composeWorkspace, copyTemplate } from './compose.ts'
 import { type Answers, writeContext } from './context.ts'
 import { setJsonc } from './jsonc.ts'
+import { applyMcp } from './mcp.ts'
 import { schemeFor } from './names.ts'
 import { CliError } from './output.ts'
 
@@ -97,6 +98,7 @@ export async function generate({
 
   if (answers.architecture === 'alone' && only !== undefined) {
     await copyTemplate(join(templates, only), target)
+    await applyMcp(target, only, answers.mcp)
     await nameProject(target, answers.name)
     await writeLocalEnv(target, only)
 
@@ -113,6 +115,7 @@ export async function generate({
       target,
       types: answers.types,
       mobileScheme: schemeFor(answers.name),
+      mcp: answers.mcp,
     })
     await nameProject(target, answers.name)
 
@@ -137,5 +140,11 @@ export async function generate({
     run('pnpm', ['install'], target, childOutput)
     // Rewriting the contract import changes import grouping and line length; only the formatter can settle both.
     run('pnpm', ['exec', 'biome', 'check', '--write'], target, childOutput)
+
+    // The route tree is generated from the route files, and cutting MCP removed one.
+    if (answers.types.includes('web')) {
+      const web = answers.architecture === 'alone' ? target : join(target, 'apps', 'web')
+      run('pnpm', ['exec', 'tsr', 'generate'], web, childOutput)
+    }
   }
 }

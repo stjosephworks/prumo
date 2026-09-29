@@ -1,5 +1,9 @@
+import { cimd } from '@better-auth/cimd' // prumo:mcp
+import { fetchClientMetadataResource } from '@better-auth/cimd/node' // prumo:mcp
 import { expo } from '@better-auth/expo'
+import { mcp } from '@better-auth/mcp' // prumo:mcp
 import { type BetterAuthPlugin, betterAuth } from 'better-auth'
+import { jwt } from 'better-auth/plugins' // prumo:mcp
 import { Pool } from 'pg'
 import type { Env } from '@/infra/config/env'
 
@@ -11,6 +15,13 @@ export type AuthHooks = {
 
 export const AUTH = Symbol('Auth')
 
+// prumo:mcp
+// The protected resource MCP clients ask a token for; access tokens carry it as their audience.
+export function mcpResource(env: Pick<Env, 'BETTER_AUTH_URL'>): string {
+  return `${env.BETTER_AUTH_URL}/api/mcp`
+}
+
+// prumo:end-mcp
 export function createAuth(
   env: Pick<
     Env,
@@ -25,6 +36,18 @@ export function createAuth(
   const mobile = env.MOBILE_APP_SCHEME
   const plugins: BetterAuthPlugin[] = mobile === undefined ? [] : [expo()]
 
+  // prumo:mcp
+  plugins.push(
+    jwt(),
+    mcp({
+      loginPage: `${env.WEB_ORIGIN}/sign-in`,
+      consentPage: `${env.WEB_ORIGIN}/consent`,
+      resource: mcpResource(env),
+    }),
+    cimd({ fetchClientMetadataResource, metadataProfile: 'mcp-2026-07-28' }),
+  )
+
+  // prumo:end-mcp
   return betterAuth({
     baseURL: env.BETTER_AUTH_URL,
     basePath: '/api/auth',

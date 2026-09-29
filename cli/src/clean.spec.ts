@@ -18,7 +18,10 @@ describe('clean', () => {
     await rm(root, { recursive: true, force: true })
   })
 
-  async function project(answers: Omit<Answers, 'name' | 'multiTenant'>, databaseUrl = URL) {
+  async function project(
+    answers: Omit<Answers, 'name' | 'multiTenant' | 'mcp'>,
+    databaseUrl = URL,
+  ) {
     root = await mkdtemp(join(tmpdir(), 'prumo-clean-'))
     const target = join(root, 'acme')
 
@@ -27,7 +30,7 @@ describe('clean', () => {
       knowledge,
       target,
       install: false,
-      answers: { name: 'acme', multiTenant: false, ...answers },
+      answers: { name: 'acme', multiTenant: false, mcp: false, ...answers },
     })
 
     const api = answers.architecture === 'alone' ? target : join(target, 'apps/api')
@@ -121,7 +124,13 @@ describe('clean', () => {
       knowledge,
       target,
       install: false,
-      answers: { name: 'acme', types: ['site'], architecture: 'alone', multiTenant: false },
+      answers: {
+        name: 'acme',
+        types: ['site'],
+        architecture: 'alone',
+        multiTenant: false,
+        mcp: false,
+      },
     })
 
     expect((await planClean({ cwd: target, templates, force: false })).items).toEqual([])
