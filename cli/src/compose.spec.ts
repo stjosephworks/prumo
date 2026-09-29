@@ -24,8 +24,8 @@ describe('composeWorkspace', () => {
     const biome = await readFile(join(target, 'apps/api/biome.jsonc'), 'utf8')
 
     expect(biome).toContain('"extends": "//"')
-    expect(biome).toMatch(/\/\/ Nest injects by the emitted constructor type.*\n\s*"style"/)
-    expect(biome).toMatch(/\/\/ Nest decorates constructor and handler parameters.*\n\s*"parser"/)
+    expect(biome).toMatch(/\/\/ tsyringe injects by the emitted constructor type.*\n\s*"style"/)
+    expect(biome).toMatch(/\/\/ Ports are injected with `@inject\(TOKEN\)`.*\n\s*"parser"/)
   })
 
   it('gives the root one command for every app and one per app it holds', async () => {

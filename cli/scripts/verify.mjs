@@ -81,7 +81,7 @@ async function verifyApi() {
     await step('api: start and answer readiness', async () =>
       withServer(
         'node',
-        ['dist/main'],
+        ['dist/infra/http/server.js'],
         api,
         `http://localhost:${appPort}/api/health/live`,
         {},
