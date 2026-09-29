@@ -19,6 +19,7 @@ import { registerAuthHook } from '@/infra/http/hooks/auth.hook'
 import { registerRequestContext } from '@/infra/http/hooks/request-context.hook'
 
 const DOCS = '/api/docs'
+const VERSIONED = '/api/v'
 
 function logger(env: Env) {
   if (env.NODE_ENV === 'test') {
@@ -27,8 +28,18 @@ function logger(env: Env) {
 
   return {
     level: env.LOG_LEVEL,
+    redact: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'],
     transport: env.NODE_ENV === 'development' ? { target: 'pino-pretty' } : undefined,
   }
+}
+
+function requireResponseSchemas(app: FastifyInstance): void {
+  // Without a response schema Fastify falls back to JSON.stringify, and every column of the entity leaves.
+  app.addHook('onRoute', (route) => {
+    if (route.url.startsWith(VERSIONED) && route.schema?.response === undefined) {
+      throw new Error(`${String(route.method)} ${route.url} declares no response schema`)
+    }
+  })
 }
 
 async function registerDocs(app: FastifyInstance): Promise<void> {
@@ -59,6 +70,7 @@ export async function buildApp(container: DependencyContainer): Promise<FastifyI
   app.setSerializerCompiler(serializerCompiler)
 
   registerErrorHandler(app)
+  requireResponseSchemas(app)
   registerRequestContext(app, container.resolve(EntityManager))
 
   await app.register(cors, {

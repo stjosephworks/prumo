@@ -1,6 +1,4 @@
 allowBuilds:
-  # Its install script only sends usage telemetry; it arrives through @nestjs/swagger's swagger-ui-dist.
-  '@scarf/scarf': false
   # Its platform binary arrives as an optional dependency, so the install script is not needed.
   '@swc/core': false
   # These three arrive through Testcontainers, and the suite runs without their native builds.

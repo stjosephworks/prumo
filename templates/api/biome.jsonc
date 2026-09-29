@@ -7,7 +7,9 @@
     "rules": {
       "preset": "recommended",
       // tsyringe injects by the emitted constructor type; `import type` erases it and breaks injection silently.
-      "style": { "useImportType": "off" }
+      "style": { "useImportType": "off" },
+      // A file that only re-exports is how an invisible import cycle forms.
+      "performance": { "noBarrelFile": "error" }
     }
   },
   "javascript": {

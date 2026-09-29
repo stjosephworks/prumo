@@ -62,7 +62,7 @@ function fieldErrors(error: FastifyError): FieldErrors | undefined {
   return fields
 }
 
-function statusOf(error: FastifyError): number {
+export function statusOf(error: FastifyError): number {
   if (error instanceof DomainError) {
     return STATUS_OF[error.kind]
   }
