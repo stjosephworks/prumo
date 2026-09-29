@@ -18,8 +18,11 @@ CLI from the compiled `dist/infra/auth/auth.cli.js`, before our migrations. `pnp
 that order.
 
 Set `advanced.database.generateId` to `'uuid'`. Reference `auth.user(id)` from an application table with a
-real foreign key and `ON DELETE RESTRICT`. Better Auth's tables follow Better Auth's conventions, not
-`database/entities.md`.
+real foreign key and `ON DELETE RESTRICT`, declared in its schema as a to-one relation to `AuthUser` with
+`mapToPk: true`, so the domain still holds a plain `userId`. `AuthUser`, in `auth-user.schema.ts`, maps only
+the id and is the one Better Auth table the ORM knows. Keep `schemaGenerator.ignoreSchema: ['auth']` and
+`skipTables: ['auth.user']` in `mikro-orm.factory.ts`. Better Auth's tables follow Better Auth's conventions,
+not `database/entities.md`.
 
 Create what the application keeps about a user in `databaseHooks.user.create.after`, through a use case:
 `src/infra/di/index.ts` passes the hook into `createAuth`.
@@ -40,8 +43,13 @@ instead of building a request.
 
 Better Auth's ids are `text` by default, which no `uuid` column can reference; `generateId: 'uuid'` fixes
 that. What stays different is not ours to fix: camelCase columns and `gen_random_uuid()`. Rewriting another
-library's schema fights its CLI on every upgrade. Its migrations run first because an application table
-references its tables.
+library's schema fights its CLI on every upgrade. Better Auth's migrations run first because an application
+table references its tables.
+
+The ORM compares its entities with everything in the database, so without `ignoreSchema` it reads Better
+Auth's tables as leftovers and every generated migration drops them, with every login in them. The foreign
+key is declared rather than written by hand in a migration because the ORM would otherwise drop that too,
+every time. `AuthUser` exists only as that anchor.
 
 **The sign-up hook is not atomic:** the user and the application's row are written over two connections, so
 a failure between them leaves a user without a profile. The result is a visible 404, not corrupted data. And
@@ -60,8 +68,8 @@ Every route, every use case that acts for a user, and `src/infra/auth/`, where B
 ✅  execute(currentUser(request).id)
 ❌  execute(request)
 
-✅  foreign key ("user_id") references "auth"."user" ("id") on delete restrict
-❌  "user_id" uuid not null                        nothing stops an orphan
+✅  userId: { kind: 'm:1', entity: () => 'AuthUser' as never, mapToPk: true, deleteRule: 'restrict' }
+❌  userId: { type: 'uuid' }                         nothing stops an orphan
 ```
 
 ## Enforcement
@@ -69,6 +77,8 @@ Every route, every use case that acts for a user, and `src/infra/auth/`, where B
 **Boot.** The hook is global, so a route is unprotected only by an explicit `public: true`.
 
 **Tests.** `users.controller.spec.ts` signs up through the real route and proves 401 without a session.
+`mikro-orm.factory.spec.ts` asserts that a migrated database leaves the schema generator nothing to change,
+so a configuration that would drop Better Auth's schema, or the foreign key, fails the suite.
 
 **The database.** A row referencing a user that does not exist is refused.
 

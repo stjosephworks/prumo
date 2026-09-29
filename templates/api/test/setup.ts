@@ -73,7 +73,9 @@ beforeAll(async () => {
 
   const metadata = orm.getMetadata().getAll()
   const own = Object.values(metadata)
-    .filter((meta) => meta.tableName !== undefined && meta.pivotTable !== true)
+    .filter(
+      (meta) => meta.tableName !== undefined && meta.pivotTable !== true && meta.schema !== 'auth',
+    )
     .map((meta) => `"${meta.tableName}"`)
 
   tables = [...own, 'auth."user"', 'auth.session', 'auth.account', 'auth.verification']

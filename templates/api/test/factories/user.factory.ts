@@ -9,7 +9,7 @@ export async function createUser(
 ): Promise<string> {
   const id = randomUUID()
 
-  // auth.user belongs to Better Auth and has no entity here, so the QueryBuilder cannot reach it.
+  // auth.user belongs to Better Auth, and the ORM maps only its id, so the row is written in SQL.
   await em
     .getConnection()
     .execute(
