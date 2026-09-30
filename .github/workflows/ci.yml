@@ -69,6 +69,8 @@ jobs:
         working-directory: ${{ runner.temp }}/packaged
 
   generated:
+    # Explicit, because the rulesets require these names and a matrix key added later would change the default.
+    name: generated (${{ matrix.name }}, ${{ matrix.types }}, ${{ matrix.architecture }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
