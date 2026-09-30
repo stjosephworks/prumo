@@ -5,7 +5,15 @@ export const ProfileSchema = new EntitySchema({
   class: Profile,
   properties: {
     id: { type: 'uuid', primary: true, defaultRaw: 'uuidv7()' },
-    userId: { type: 'uuid', unique: true },
+    userId: {
+      kind: 'm:1',
+      // EntitySchema cannot type a to-one relation held as its primary key on a string property.
+      entity: () => 'AuthUser' as never,
+      mapToPk: true,
+      fieldName: 'user_id',
+      unique: true,
+      deleteRule: 'restrict',
+    },
     displayName: { type: 'text' },
     locale: { type: 'text', default: 'en' },
     timezone: { type: 'text', default: 'UTC' },
