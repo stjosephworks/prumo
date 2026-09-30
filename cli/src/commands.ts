@@ -21,6 +21,8 @@ export const COMMANDS: CommandHelp[] = [
       { flag: '--monorepo', description: 'A workspace, even for a single type' },
       { flag: '--multi-tenant', description: 'Tenant-aware api, web and mobile' },
       { flag: '--single-tenant', description: 'No tenancy' },
+      { flag: '--mcp', description: 'An MCP server on the api, authorized through the web' },
+      { flag: '--no-mcp', description: 'No MCP server' },
       { flag: '--skip-install', description: 'Do not run pnpm install' },
       JSON_OPTION,
     ],

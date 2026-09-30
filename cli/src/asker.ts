@@ -7,6 +7,7 @@ export type Asker = {
   types: () => Promise<AppType[]>
   architecture: () => Promise<Answers['architecture']>
   multiTenant: () => Promise<boolean>
+  mcp: () => Promise<boolean>
 }
 
 const TYPES: AppType[] = ['api', 'web', 'mobile', 'site']
@@ -47,5 +48,12 @@ export function terminalAsker(validateName: (name: string) => string | undefined
       ),
     multiTenant: async () =>
       answered(await prompt.confirm({ message: 'Is it multi-tenant?', initialValue: false })),
+    mcp: async () =>
+      answered(
+        await prompt.confirm({
+          message: 'Let AI assistants use the API through MCP, signed in as the user?',
+          initialValue: false,
+        }),
+      ),
   }
 }

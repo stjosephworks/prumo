@@ -17,6 +17,8 @@ const flags = (overrides: Partial<Flags>): Flags => ({
   monorepo: false,
   multiTenant: false,
   singleTenant: false,
+  mcp: false,
+  noMcp: false,
   ...overrides,
 })
 
@@ -29,12 +31,31 @@ describe('resolveAnswers outside a terminal', () => {
   })
 
   it('makes a workspace of several types and refuses --alone for them', async () => {
-    const answers = await resolveAnswers(flags({ types: 'api,web', singleTenant: true }), undefined)
+    const answers = await resolveAnswers(
+      flags({ types: 'api,web', singleTenant: true, noMcp: true }),
+      undefined,
+    )
 
     expect(answers.architecture).toBe('monorepo')
     await expect(
-      resolveAnswers(flags({ types: 'api,web', alone: true, singleTenant: true }), undefined),
+      resolveAnswers(
+        flags({ types: 'api,web', alone: true, singleTenant: true, noMcp: true }),
+        undefined,
+      ),
     ).rejects.toThrow('--alone holds a single type')
+  })
+
+  it('asks about MCP only when there is an api and a web to authorize through', async () => {
+    await expect(
+      resolveAnswers(flags({ types: 'api,web', singleTenant: true }), undefined),
+    ).rejects.toThrow('--mcp or --no-mcp')
+    await expect(
+      resolveAnswers(flags({ types: 'api', singleTenant: true, mcp: true }), undefined),
+    ).rejects.toThrow('--mcp needs both api and web')
+
+    const answers = await resolveAnswers(flags({ types: 'api', singleTenant: true }), undefined)
+
+    expect(answers.mcp).toBe(false)
   })
 
   it('does not ask a site whether it is multi-tenant', async () => {
@@ -64,6 +85,10 @@ describe('resolveAnswers in a terminal', () => {
         asked.push('multiTenant')
         return true
       },
+      mcp: async () => {
+        asked.push('mcp')
+        return true
+      },
       ...answers,
     }
 
@@ -81,6 +106,7 @@ describe('resolveAnswers in a terminal', () => {
       types: ['api'],
       architecture: 'monorepo',
       multiTenant: true,
+      mcp: false,
     })
   })
 
@@ -119,7 +145,13 @@ describe('generate', () => {
       knowledge,
       target,
       install: false,
-      answers: { name: 'acme-app', types: ['mobile'], architecture: 'alone', multiTenant: false },
+      answers: {
+        name: 'acme-app',
+        types: ['mobile'],
+        architecture: 'alone',
+        multiTenant: false,
+        mcp: false,
+      },
     })
 
     const app = JSON.parse(await readFile(join(target, 'app.json'), 'utf8'))
@@ -128,7 +160,12 @@ describe('generate', () => {
 
     expect(app.expo).toMatchObject({ name: 'acme-app', slug: 'acme-app', scheme: 'acmeapp' })
     expect(JSON.parse(await readFile(join(target, 'package.json'), 'utf8')).name).toBe('acme-app')
-    expect(config).toEqual({ types: ['mobile'], architecture: 'alone', multiTenant: false })
+    expect(config).toEqual({
+      types: ['mobile'],
+      architecture: 'alone',
+      multiTenant: false,
+      mcp: false,
+    })
     expect(index).toContain('[mobile/storage.md](mobile/storage.md)')
     expect(index).toContain('[client/data.md](client/data.md)')
     expect(existsSync(join(target, '.prumo/api'))).toBe(false)
@@ -151,7 +188,13 @@ describe('generate', () => {
         knowledge,
         target,
         install: false,
-        answers: { name: 'acme', types: ['api'], architecture: 'alone', multiTenant: false },
+        answers: {
+          name: 'acme',
+          types: ['api'],
+          architecture: 'alone',
+          multiTenant: false,
+          mcp: false,
+        },
       })
     }
 
@@ -181,6 +224,7 @@ describe('generate', () => {
         types: ['api', 'mobile'],
         architecture: 'monorepo',
         multiTenant: true,
+        mcp: false,
       },
     })
 
@@ -225,7 +269,13 @@ describe('generate', () => {
       knowledge,
       target,
       install: false,
-      answers: { name: 'acme', types: ['site'], architecture: 'alone', multiTenant: false },
+      answers: {
+        name: 'acme',
+        types: ['site'],
+        architecture: 'alone',
+        multiTenant: false,
+        mcp: false,
+      },
     })
 
     expect(await readFile(join(target, '.env'), 'utf8')).toMatch(/^SITE_PORT=3200$/m)
@@ -240,7 +290,13 @@ describe('generate', () => {
         knowledge,
         target: resolve(import.meta.dirname, '..'),
         install: false,
-        answers: { name: 'bin', types: ['site'], architecture: 'alone', multiTenant: false },
+        answers: {
+          name: 'bin',
+          types: ['site'],
+          architecture: 'alone',
+          multiTenant: false,
+          mcp: false,
+        },
       }),
     ).rejects.toThrow('not empty')
   })

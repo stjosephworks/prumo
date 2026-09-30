@@ -7,6 +7,7 @@ export type Answers = {
   types: AppType[]
   architecture: 'alone' | 'monorepo'
   multiTenant: boolean
+  mcp: boolean
 }
 
 const CLIENTS: AppType[] = ['web', 'mobile', 'site']
@@ -21,6 +22,7 @@ export function areasFor(answers: Answers): string[] {
     ...CLIENTS.filter(has),
     ...(answers.architecture === 'monorepo' ? ['monorepo'] : []),
     ...(answers.multiTenant ? ['multi-tenancy'] : []),
+    ...(answers.mcp ? ['mcp'] : []),
   ]
 }
 
@@ -54,6 +56,7 @@ export async function writeContext(
     types: answers.types,
     architecture: answers.architecture,
     multiTenant: answers.multiTenant,
+    mcp: answers.mcp,
   }
 
   await writeFile(join(prumo, 'config.json'), `${JSON.stringify(config, null, 2)}\n`)

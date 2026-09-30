@@ -13,6 +13,7 @@ import type { DependencyContainer } from 'tsyringe'
 import { ENV, type Env } from '@/infra/config/env'
 import { authController } from '@/infra/http/controllers/auth.controller'
 import { healthController } from '@/infra/http/controllers/health.controller'
+import { mcpController } from '@/infra/http/controllers/mcp.controller' // prumo:mcp
 import { usersController } from '@/infra/http/controllers/users.controller'
 import { registerErrorHandler } from '@/infra/http/errors/error-handler'
 import { registerAuthHook } from '@/infra/http/hooks/auth.hook'
@@ -87,9 +88,12 @@ export async function buildApp(container: DependencyContainer): Promise<FastifyI
 
   registerAuthHook(app)
 
-  await app.register(authController, { prefix: '/api/auth' })
+  await app.register(authController)
   await app.register(healthController, { prefix: '/api/health' })
   await app.register(usersController, { prefix: '/api/v1/users' })
+  // prumo:mcp
+  await app.register(mcpController, { prefix: '/api/mcp' })
+  // prumo:end-mcp
 
   return app
 }

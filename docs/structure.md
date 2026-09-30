@@ -25,6 +25,7 @@ This document describes **where files live and what they are called**. What goes
     site/            ← type site
     monorepo/        ← architecture monorepo
     multi-tenancy/   ← multi-tenant projects only
+    mcp/             ← projects that answered yes to MCP
 ```
 
 **`.prumo/` holds two natures, and the split is deliberate.** `INDEX.md` and `config.json` are
@@ -47,9 +48,9 @@ it or refresh it are planned after V1.
 
 ## Areas
 
-Areas do not mirror types. Four of the nine are not types at all: `database/` follows a type, `client/`
-follows any of three, `monorepo/` follows the architecture, and `multi-tenancy/` follows a third axis of
-its own.
+Areas do not mirror types. Five of the ten are not types at all: `database/` follows a type, `client/`
+follows any of three, `monorepo/` follows the architecture, `multi-tenancy/` follows a third axis of its
+own, and `mcp/` a fourth, asked only when there is an api and a web.
 
 | Area | Holds | Ships when |
 |---|---|---|
@@ -62,6 +63,7 @@ its own.
 | `site/` | Next rules, for indexed pages | type is `site` |
 | `monorepo/` | Workspace organisation | architecture is `monorepo` |
 | `multi-tenancy/` | `tenant_id` across the layers, tenant resolution, isolation | the project is multi-tenant |
+| `mcp/` | The MCP server, its tools, and the OAuth that authorizes them | the project has an api and a web and answered yes to MCP |
 
 This table is the inclusion rule, and it lives in the CLI as one explicit table, not as a manifest
 per area, and not as convention-plus-exceptions.

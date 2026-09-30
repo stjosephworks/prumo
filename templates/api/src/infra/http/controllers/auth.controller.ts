@@ -1,40 +1,36 @@
-import { fromNodeHeaders } from 'better-auth/node'
 import type { FastifyInstance } from 'fastify'
 import { AUTH, type Auth } from '@/infra/auth/auth.factory'
+import { sendFetchResponse, toFetchRequest } from '@/infra/http/fetch-bridge'
 
-// Better Auth answers Fetch requests; Fastify has already parsed the body, so the request is rebuilt
-// rather than handed over raw, as Better Auth's Fastify guide does.
 export async function authController(fastify: FastifyInstance): Promise<void> {
   const auth = fastify.container.resolve<Auth>(AUTH)
+  const routes = { config: { public: true }, schema: { hide: true } } as const
+
+  // prumo:mcp
+  // OAuth's token endpoint takes a form. It is kept as text and handed to Better Auth as sent.
+  fastify.addContentTypeParser(
+    'application/x-www-form-urlencoded',
+    { parseAs: 'string' },
+    (_request, body, done) => done(null, body),
+  )
+  // prumo:end-mcp
 
   fastify.route({
+    ...routes,
     method: ['GET', 'POST'],
-    url: '/*',
-    config: { public: true },
-    schema: { hide: true },
-    handler: async (request, reply) => {
-      const url = new URL(request.url, `${request.protocol}://${request.host}`)
-      const response = await auth.handler(
-        new Request(url, {
-          method: request.method,
-          headers: fromNodeHeaders(request.headers),
-          ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
-        }),
-      )
-
-      reply.status(response.status)
-
-      for (const [key, value] of response.headers) {
-        if (key !== 'set-cookie') {
-          reply.header(key, value)
-        }
-      }
-
-      for (const cookie of response.headers.getSetCookie()) {
-        reply.header('set-cookie', cookie)
-      }
-
-      return reply.send(response.body === null ? null : await response.text())
-    },
+    url: '/api/auth/*',
+    handler: async (request, reply) =>
+      sendFetchResponse(reply, await auth.handler(toFetchRequest(request))),
   })
+
+  // prumo:mcp
+  // OAuth discovery lives at the root, outside Better Auth's base path, and still reaches its handler.
+  fastify.route({
+    ...routes,
+    method: 'GET',
+    url: '/.well-known/*',
+    handler: async (request, reply) =>
+      sendFetchResponse(reply, await auth.handler(toFetchRequest(request))),
+  })
+  // prumo:end-mcp
 }

@@ -52,7 +52,7 @@ terminal a missing answer is an error rather than a default, so nothing importan
 silence:
 
 ```sh
-npx @stjoseph/prumo new my-app --types api,web --single-tenant
+npx @stjoseph/prumo new my-app --types api,web --single-tenant --no-mcp
 ```
 
 | Flag | What it answers |
@@ -60,6 +60,7 @@ npx @stjoseph/prumo new my-app --types api,web --single-tenant
 | `--types api,web,mobile,site` | What the project contains. More than one type makes a workspace |
 | `--alone` or `--monorepo` | How a single type is laid out |
 | `--multi-tenant` or `--single-tenant` | Whether the application serves several tenants |
+| `--mcp` or `--no-mcp` | With an api and a web: whether AI assistants reach the API through MCP, signed in as the user |
 | `--skip-install` | Stops after writing the files |
 
 ## Commands
