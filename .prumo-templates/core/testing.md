@@ -2,11 +2,13 @@
 
 ## Rule
 
-Run tests with Vitest, **except in `mobile`, which runs Jest with the `jest-expo` preset.** Put a test beside the
-file it tests, named `*.spec.ts`.
+Run tests with Vitest, **except in `mobile`, which runs Jest with the `jest-expo` preset.** Put every test under
+`test/`, at the path of the file it tests with `src/` replaced by `test/`, named `*.spec.ts`. Put what tests share
+(setup, factories, fakes, a fake transport) under `test/support/`. Import code with `@/` and support with `@test/`,
+never with a relative path.
 
 **Do not mock the database.** In `api`, test a use case against an in-memory fake of its port, a class of
-ours in `test/fakes/` that implements the port's interface. Test a repository adapter against the real
+ours in `test/support/fakes/` that implements the port's interface. Test a repository adapter against the real
 Postgres, and a route through `buildApp()` and `inject()`, also against the real Postgres.
 
 Do not mock `EntityManager` or any concrete class from a library.
@@ -21,8 +23,14 @@ Assert behaviour, not execution. A test that calls a function without asserting 
 
 ## Rationale
 
-A mirrored test tree has to be moved when the code moves, and nobody moves it, so the old path survives
-as an orphan that still passes. Co-located, a test travels with its file without anyone thinking about it.
+`src/` holds only what ships, so a folder of product code reads as the product, and everything that exists only
+to test it lives in one tree with its setup and fakes beside it. Mirroring `src/` keeps finding a test mechanical:
+the path is the file's own. The aliases keep an import independent of how deep a test sits, so moving a test never
+breaks one.
+
+**What it costs:** a mirrored tree has to move when the code moves. A test left behind still passes, as an orphan
+whose path no longer matches any file, and nothing reports it. Moving a file means moving its test in the same
+change.
 **A fake of our port is not a mock of the database.** The port is an interface we wrote, the fake
 implements it, and the compiler keeps the two in step; the use case under test has no idea a database
 exists. Mocking `EntityManager` would mean imitating identity map, unit of work and flush: the hardest thing
@@ -68,9 +76,13 @@ factories) belongs to the database area, not here.
 Placement:
 
 ```
-✅  features/orders/order-list.tsx
-    features/orders/order-list.spec.tsx
-❌  tests/features/orders/order-list.test.tsx
+✅  src/features/orders/order-list.tsx
+    test/features/orders/order-list.spec.tsx
+❌  src/features/orders/order-list.spec.tsx       beside the file
+❌  test/order-list.spec.tsx                      not at the file's path
+
+✅  import { renderApp } from '@test/support/render-app'
+❌  import { renderApp } from '../../support/render-app'
 ```
 
 What a test of the API uses:
@@ -94,8 +106,11 @@ Asserting:
 **Compiler.** A fake implements the port's interface, so a port that changes breaks every fake that no
 longer matches.
 
-**Review only.** That a test asserts something, that a new module arrived with tests at all, and that
-nobody introduced a mock of a library class.
+**Configuration.** Each runner collects only `test/**`. That also means a spec written beside its file under
+`src/` is never run, and nothing says so.
+
+**Review only.** That a test asserts something, that a new module arrived with tests at all, that nobody
+introduced a mock of a library class, that no spec sits under `src/`, and that a moved file took its test along.
 
 **The known gap:** with no threshold, coverage can fall and CI stays green. Review is the only defence, and
 review tires. If a floor is ever added, the honest form is on the diff (new code arrives tested) rather
