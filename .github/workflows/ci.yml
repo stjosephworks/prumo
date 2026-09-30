@@ -57,7 +57,7 @@ jobs:
           npm install ${{ runner.temp }}/*.tgz
         working-directory: ${{ runner.temp }}
       - name: Generate from the installed package
-        run: ./node_modules/.bin/prumo new packaged --types api,web --single-tenant --skip-install
+        run: ./node_modules/.bin/prumo new packaged --types api,web --single-tenant --no-mcp --skip-install
         working-directory: ${{ runner.temp }}
       - name: Assert what npm is known to delete arrived anyway
         run: |
@@ -69,6 +69,8 @@ jobs:
         working-directory: ${{ runner.temp }}/packaged
 
   generated:
+    # Explicit, because the rulesets require these names and a matrix key added later would change the default.
+    name: generated (${{ matrix.name }}, ${{ matrix.types }}, ${{ matrix.architecture }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -86,9 +88,11 @@ jobs:
           - name: a-site
             types: site
             architecture: alone
+          # The one project with MCP: every other one proves the templates run with it cut out.
           - name: everything
             types: api,web,mobile,site
             architecture: monorepo
+            flags: --mcp
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -102,7 +106,7 @@ jobs:
       - run: pnpm install
         working-directory: cli
       - name: Generate ${{ matrix.name }}
-        run: node ${{ github.workspace }}/cli/src/cli.ts new ${{ matrix.name }} --types ${{ matrix.types }} --single-tenant
+        run: node ${{ github.workspace }}/cli/src/cli.ts new ${{ matrix.name }} --types ${{ matrix.types }} --single-tenant ${{ matrix.flags }}
         working-directory: ${{ runner.temp }}
       - name: Verify ${{ matrix.name }}
         run: >

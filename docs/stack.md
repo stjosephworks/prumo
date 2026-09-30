@@ -1,6 +1,6 @@
 # The locked stack
 
-Settled on 2026-09-09, one question at a time.
+Settled on 2026-09-09, one question at a time. The API layer was replaced on 2026-09-29, the same way.
 
 **Treat this as given.** If you believe an entry is wrong, say so once, clearly, then follow it.
 
@@ -15,7 +15,8 @@ Settled on 2026-09-09, one question at a time.
 | **Delete** | Hard delete is the default. `deleted_at` requires a stated reason: audit, user-facing recovery, legal retention. |
 | **Timezone** | UTC in the database. `timestamptz` on every time column, without exception. Conversion at the edge only. |
 | **Database** | PostgreSQL 18 or later. Not a variable. |
-| **Errors** | Exceptions, handled Nest's way, with `HttpException` and exception filters. No `Result` type. |
+| **API architecture** | Ports and adapters. `src/domain` holds entities, ports, use cases, DTOs and errors, and imports neither the ORM nor the HTTP framework. `src/infra` holds the adapters and the edges. The rule that the domain does not import the infrastructure is a **written convention, not a checked one**. |
+| **Errors** | Exceptions. No `Result` type. A domain error extends `DomainError` and carries a `kind`; one error handler in `infra/http` maps `kind` to a status and answers Problem Details. |
 
 ---
 
@@ -27,7 +28,7 @@ These accumulate. Every one is a machine a generated project will not run on.
 |---|---|
 | PostgreSQL 18 | `uuidv7()`, which shipped in September 2025 |
 | Node 22.17 | MikroORM v7 |
-| TypeScript 6.0 | `nestjs/typescript-starter`, which declares `^6.0.2`. It supersedes the 5.8 floor MikroORM v7 required |
+| TypeScript 6.0 | Every template is pinned to and proved on it. MikroORM v7 alone would require 5.8 |
 
 ---
 
@@ -36,13 +37,16 @@ These accumulate. Every one is a machine a generated project will not run on.
 | Area | Choice |
 |---|---|
 | **Monorepo** | pnpm workspaces, with native `catalog:` for versions. **No Turborepo.** Applies only when the architecture is `monorepo`. |
-| **Language** | TypeScript **6**, based on `nestjs/typescript-starter`: `module` and `moduleResolution` `nodenext`, `target` `ES2023`, `strict` on, `strictPropertyInitialization` **off**. Plus `noUncheckedIndexedAccess`. **Not** `exactOptionalPropertyTypes`. |
+| **Language** | TypeScript **6**: `module` and `moduleResolution` `nodenext`, `target` `ES2023`, `strict` on, `strictPropertyInitialization` **off**. Plus `noUncheckedIndexedAccess`. **Not** `exactOptionalPropertyTypes`. The API adds `experimentalDecorators` and `emitDecoratorMetadata`, which tsyringe needs. |
 | **Quality** | Biome. Pre-commit is `.githooks/pre-commit` running `biome check --staged --write`, wired by `"prepare": "node .githooks/install.mjs"`, which sets `core.hooksPath` inside a Git repository and does nothing outside one. No husky, no lint-staged. |
-| **API** | NestJS. DTOs are classes validated by `class-validator` + `class-transformer` through `ValidationPipe`; `@nestjs/swagger` reads the same decorators. |
-| **ORM** | MikroORM v7, with `@mikro-orm/postgresql`, `@mikro-orm/migrations`, `@mikro-orm/nestjs`. Entities use `defineEntity` **with a class**: the schema is in the `defineEntity` call and carries no ORM decorators. The class carries `@Exclude` and `@ApiProperty`, for serialization and documentation. |
-| **Auth** | Better Auth, mounted directly on a controller with `@All('*path')` passing the request to `toNodeHandler(auth)`, plus a hand-written global guard. Own Postgres schema, own connection, own migration CLI, `generateId: 'uuid'`. httpOnly cookie on web **and** mobile, kept in `expo-secure-store`. No community Nest bridge. |
-| **Observability** | Structured logs and a health check. **No error reporting and no tracing by default**. See *Documented, not installed* below. |
-| **Testing** | Vitest, Testcontainers, Testing Library. |
+| **API** | Fastify 5, with `fastify-type-provider-zod`. One plugin per module is the controller. DTOs are Zod schemas in the domain: `z.strictObject` for input, so an unknown field is a 400, and `z.object` for output, so a field the schema does not list never leaves. `@fastify/swagger` builds the OpenAPI document from the same schemas and `@fastify/swagger-ui` serves it outside production. |
+| **Dependency injection** | tsyringe. A port is an interface plus a `Symbol` token in the same file, injected with `@inject(TOKEN)`; each module registers its adapters in `infra/di/<module>.di.ts`. `reflect-metadata` is the first import of every entry point. |
+| **Build (API)** | SWC for everything that runs: `@swc-node/register` in development, `unplugin-swc` in tests, `@swc/cli` for the build, which also rewrites the `@/` alias. `tsc` only checks types. CommonJS output. |
+| **ORM** | MikroORM v7, with `@mikro-orm/postgresql` and `@mikro-orm/migrations`. An entity is a plain class in the domain with no ORM import; `new EntitySchema({ class })` maps it in the infrastructure. One fork per request through `RequestContext`, and a `TransactionManager` port for work that must be atomic. |
+| **Auth** | Better Auth, mounted by the catch-all `/api/auth/*` route from Better Auth's Fastify guide, which rebuilds the request for `auth.handler`. A global `preHandler` hook protects every route; a public one says so with `config: { public: true }`. Own Postgres schema, own connection, own migration CLI, `generateId: 'uuid'`. httpOnly cookie on web **and** mobile, kept in `expo-secure-store`. |
+| **MCP** | **Only when the project has an api and a web and answers yes**, a fourth axis beside Type, Architecture and Multi-tenancy. Then: an MCP server at `/api/mcp` on `@modelcontextprotocol/server` 2, stateless, 2026-07-28 protocol only; tools call the same use cases as routes. Better Auth is the OAuth 2.1 authorization server through `@better-auth/mcp`, `@better-auth/cimd` and `jwt()`, with sign-in and consent on the web app. The templates ship with it, and the CLI cuts it out of a project that answered no. |
+| **Observability** | Structured logs from Fastify's built-in Pino, carrying the request id, and a health check. **No error reporting and no tracing by default**. See *Documented, not installed* below. |
+| **Testing** | Vitest, Testcontainers, Testing Library. A use case is tested against an in-memory fake of its port, an adapter against a real Postgres, a route through `inject()`. |
 | **Web** | Vite, React, TanStack Router, TanStack Query, Tailwind, shadcn/ui, react-hook-form with **Zod** as the resolver. |
 | **Mobile** | Expo with prebuild, Expo Router, NativeWind, Reanimated, MMKV, `expo-secure-store`. |
 | **Site** | Next with the **App Router**, never the Pages Router. Tailwind and shadcn/ui. Static by default, revalidated where content changes, dynamic only with a stated reason. Data is fetched on the server. |
@@ -62,27 +66,29 @@ decision made on the developer's behalf, inside a project they own.
 
 | Capability | Documented adapter | Default |
 |---|---|---|
-| Error reporting and tracing | `@sentry/nestjs`, see `api/observability.md` | not installed |
+| Error reporting and tracing | `@sentry/node`, with its Fastify integration, see `api/observability.md` | not installed |
 
 ---
 
 ## Deliberately dropped
 
-Sixteen entries left the previous stack. Each was removed for a stated reason, not trimmed for taste.
+Eighteen entries left the stack. Each was removed for a stated reason, not trimmed for taste.
 
 | Dropped | Because |
 |---|---|
-| `Result` / neverthrow | The restart removed `Result`. Nest's error model is exceptions, and two error models in one codebase is worse than either. |
+| NestJS | Replaced on 2026-09-29 by a structure of our own on Fastify, so the API no longer depends on a large framework. `class-validator`, `class-transformer`, `@nestjs/swagger`, `@nestjs/terminus`, `nestjs-pino` and `@mikro-orm/nestjs` left with it. |
+| `Result` / neverthrow | Fastify, MikroORM and Better Auth all throw, and two error models in one codebase is worse than either. |
 | ts-pattern | Existed for the `Result` union. `switch` with a `never` default gives the same exhaustiveness for free. |
-| dependency-cruiser | Enforced the hexagonal layering, which is gone. The restart measured it *producing* a useless file to satisfy `no-circular`. |
-| Fastify + type provider + Scalar + Pino | Replaced by NestJS. |
+| dependency-cruiser | Ports and adapters came back, and keeping the domain free of the infrastructure was left to convention. It had also been measured *producing* a useless file to satisfy `no-circular`. |
+| Scalar | `@fastify/swagger-ui` is maintained by the Fastify organisation. Scalar releases almost daily, and with exact pins that is a manual upgrade every week. |
+| tsx | esbuild does not emit decorator metadata, so a class injected by type fails with `TypeInfo not known` in development only. |
 | The porting rule | Removed explicitly by the restart. |
-| Drizzle + drizzle-kit | Replaced by MikroORM. Still on 0.x with an unreleased breaking v1, and absent from Nest's documentation. |
+| Drizzle + drizzle-kit | Replaced by MikroORM. Still on 0.x with an unreleased breaking v1. |
 | Turborepo | Its value is caching, and a two-package monorepo does not hurt yet. |
 | syncpack | pnpm catalogs do the job natively. |
 | knip | Finds nothing on a day-zero project. |
 | husky + lint-staged | `biome check --staged` and `core.hooksPath` replace both, with no dependency. |
-| `@t3-oss/env-core` | Zod-based, and Zod left the API. Its distinctive value, keeping server secrets out of a client bundle, does not apply to an API with no bundle. |
+| `@t3-oss/env-core` | Its distinctive value, keeping server secrets out of a client bundle, does not apply to an API with no bundle. Zod validates the environment by hand in thirty lines. |
 | Zustand | TanStack Query owns server state; what remains is usually context-sized. |
 | FlashList | FlatList handles small lists, and the swap is local when they grow. |
 | MSW | Mocks a network that does not exist yet. |

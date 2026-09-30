@@ -38,9 +38,9 @@ elsewhere, and an import breaks with nothing having changed. The repetition this
 every entry is the identical line `"react": "catalog:"`, not a version to keep in sync.
 
 An app depending on another app is tempting (importing a type from the API looks like the way to stop
-duplicating the contract), and it is wrong twice. **The type is the wrong one:** a response is an entity
-passed through `ClassSerializerInterceptor`, so every excluded property is absent from the JSON and present
-on the type, promising fields the payload never carries. **And an app is deployable:** the dependency means
+duplicating the contract), and it is wrong twice. **The type is the wrong one:** a response passes through
+the route's output schema, which drops every field it does not list, so a property can be present on the
+type and absent from the JSON, promising fields the payload never carries. **And an app is deployable:** the dependency means
 building one requires the other, CI needs both for either, and the boundary between two things with
 separate lifecycles stops existing.
 

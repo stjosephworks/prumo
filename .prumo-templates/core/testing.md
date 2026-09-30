@@ -2,13 +2,16 @@
 
 ## Rule
 
-Run tests with Vitest, **except in `mobile`, which runs Jest with the `jest-expo` preset.** Put a test beside the
-file it tests, named `*.spec.ts`.
+Run tests with Vitest, **except in `mobile`, which runs Jest with the `jest-expo` preset.** Put every test under
+`test/`, at the path of the file it tests with `src/` replaced by `test/`, named `*.spec.ts`. Put what tests share
+(setup, factories, fakes, a fake transport) under `test/support/`. Import code with `@/` and support with `@test/`,
+never with a relative path.
 
-**Do not mock the database.** Test code that touches it against the real one. Write a test without a
-database only for code without a database.
+**Do not mock the database.** In `api`, test a use case against an in-memory fake of its port, a class of
+ours in `test/support/fakes/` that implements the port's interface. Test a repository adapter against the real
+Postgres, and a route through `buildApp()` and `inject()`, also against the real Postgres.
 
-Do not mock `EntityManager`, a repository, or any concrete class from a library.
+Do not mock `EntityManager` or any concrete class from a library.
 
 **In a client, replace the network through the injected transport**: pass a fake `fetch` to `createClient`.
 Do not add a request-mocking library. Test a component that shows an error by rendering it and asserting
@@ -20,19 +23,24 @@ Assert behaviour, not execution. A test that calls a function without asserting 
 
 ## Rationale
 
-A mirrored test tree has to be moved when the code moves, and nobody moves it, so the old path survives
-as an orphan that still passes. Co-located, a test travels with its file without anyone thinking about it.
-`.spec.ts` follows the generator, so no rename step is needed after generating a module.
+`src/` holds only what ships, so a folder of product code reads as the product, and everything that exists only
+to test it lives in one tree with its setup and fakes beside it. Mirroring `src/` keeps finding a test mechanical:
+the path is the file's own. The aliases keep an import independent of how deep a test sits, so moving a test never
+breaks one.
 
-**There are no interfaces to mock.** The architecture has no ports, so a service talks to MikroORM's
-concrete `EntityManager`. Mocking it means imitating identity map, unit of work and flush: the hardest
-thing in a suite to write and the least trustworthy. Each time the imitation is wrong, the test passes and
+**What it costs:** a mirrored tree has to move when the code moves. A test left behind still passes, as an orphan
+whose path no longer matches any file, and nothing reports it. Moving a file means moving its test in the same
+change.
+**A fake of our port is not a mock of the database.** The port is an interface we wrote, the fake
+implements it, and the compiler keeps the two in step; the use case under test has no idea a database
+exists. Mocking `EntityManager` would mean imitating identity map, unit of work and flush: the hardest thing
+in a suite to write and the least trustworthy. Each time that imitation is wrong, the test passes and
 production does not, and **a test that passes for the wrong reason is worse than no test, because it grants
-permission not to look.**
+permission not to look.** So the SQL is proved where it lives, in the adapter, against the real database.
 
 A real Postgres is already provided, one per worker, with its schema built from the migrations. That also
-dissolves the *unit or integration* argument every project has and nobody wins: the answer is mechanical;
-the code touches the database or it does not.
+dissolves the *unit or integration* argument every project has and nobody wins: the answer is mechanical. A
+use case gets a fake, an adapter gets the database, a route gets both through the real application.
 
 A client has no database, and a `web` generated `alone` has no API beside it to test against. The transport is
 already a parameter (the integration layer takes it from the app) so a fake `fetch` needs no library and
@@ -68,32 +76,41 @@ factories) belongs to the database area, not here.
 Placement:
 
 ```
-✅  features/orders/order-list.tsx
-    features/orders/order-list.spec.tsx
-❌  tests/features/orders/order-list.test.tsx
+✅  src/features/orders/order-list.tsx
+    test/features/orders/order-list.spec.tsx
+❌  src/features/orders/order-list.spec.tsx       beside the file
+❌  test/order-list.spec.tsx                      not at the file's path
+
+✅  import { renderApp } from '@test/support/render-app'
+❌  import { renderApp } from '../../support/render-app'
 ```
 
-What a service test uses:
+What a test of the API uses:
 
 ```
-✅  const em = await testEntityManager()      // real Postgres
+✅  new UpdateProfileUseCase(new InMemoryProfileRepository())      a use case: our fake
+✅  new MikroOrmProfileRepository(testOrm().em.fork())             an adapter: real Postgres
+❌  new UpdateProfileUseCase({ findByUserId: vi.fn(), save: vi.fn() })
 ❌  const em = { findOne: vi.fn(), flush: vi.fn() }
 ```
 
 Asserting:
 
 ```
-✅  expect(await service.activate(id)).toMatchObject({ status: 'active' })
-❌  await service.activate(id)                 // covers the line, checks nothing
+✅  expect(await activate.execute(id)).toMatchObject({ status: 'active' })
+❌  await activate.execute(id)                 // covers the line, checks nothing
 ```
 
 ## Enforcement
 
-**Structural.** With no mock of the database available as a convention, a service test has to use the real
-one.
+**Compiler.** A fake implements the port's interface, so a port that changes breaks every fake that no
+longer matches.
 
-**Review only.** That a test asserts something, that a new module arrived with tests at all, and that
-nobody introduced a mock of a library class.
+**Configuration.** Each runner collects only `test/**`. That also means a spec written beside its file under
+`src/` is never run, and nothing says so.
+
+**Review only.** That a test asserts something, that a new module arrived with tests at all, that nobody
+introduced a mock of a library class, that no spec sits under `src/`, and that a moved file took its test along.
 
 **The known gap:** with no threshold, coverage can fall and CI stays green. Review is the only defence, and
 review tires. If a floor is ever added, the honest form is on the diff (new code arrives tested) rather

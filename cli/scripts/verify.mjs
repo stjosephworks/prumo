@@ -17,6 +17,7 @@ const webPort = 4173
 const sitePort = 3200
 
 const appDir = (type) => (workspace ? join(project, 'apps', type) : project)
+const config = JSON.parse(readFileSync(join(project, '.prumo', 'config.json'), 'utf8'))
 
 function run(command, args, cwd, env = {}) {
   return execFileSync(command, args, { cwd, encoding: 'utf8', env: { ...process.env, ...env } })
@@ -81,19 +82,40 @@ async function verifyApi() {
     await step('api: start and answer readiness', async () =>
       withServer(
         'node',
-        ['dist/main'],
+        ['dist/infra/http/server.js'],
         api,
         `http://localhost:${appPort}/api/health/live`,
         {},
         async () => {
           const ready = await (await fetch(`http://localhost:${appPort}/api/health/ready`)).json()
           if (ready.status !== 'ok') throw new Error(`readiness is ${JSON.stringify(ready)}`)
+          if (config.mcp === true) await verifyMcpDiscovery()
           if (workspace && types.includes('web')) await verifyContract()
         },
       ),
     )
   } finally {
     step('api: compose down', () => compose(api, 'down', '-v'))
+  }
+}
+
+// An MCP client starts from here: a 401 names this document, and it names the authorization server.
+async function verifyMcpDiscovery() {
+  const metadata = await (
+    await fetch(`http://localhost:${appPort}/.well-known/oauth-protected-resource`)
+  ).json()
+
+  if (metadata.resource !== `http://localhost:${appPort}/api/mcp`) {
+    throw new Error(`protected resource metadata is ${JSON.stringify(metadata)}`)
+  }
+
+  const refused = await fetch(`http://localhost:${appPort}/api/mcp`, { method: 'POST' })
+
+  if (
+    refused.status !== 401 ||
+    !refused.headers.get('www-authenticate')?.includes('resource_metadata')
+  ) {
+    throw new Error(`POST /api/mcp without a token answered ${refused.status}`)
   }
 }
 
