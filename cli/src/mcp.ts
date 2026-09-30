@@ -10,9 +10,9 @@ const FILES: Partial<Record<AppType, string[]>> = {
   api: [
     'src/infra/mcp',
     'src/infra/http/controllers/mcp.controller.ts',
-    'src/infra/http/controllers/mcp.controller.spec.ts',
+    'test/infra/http/controllers/mcp.controller.spec.ts',
   ],
-  web: ['src/features/oauth', 'src/routes/_authenticated/consent.tsx'],
+  web: ['src/features/oauth', 'src/routes/_authenticated/consent.tsx', 'test/features/oauth'],
 }
 
 const DEPENDENCIES: Partial<Record<AppType, string[]>> = {
