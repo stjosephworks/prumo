@@ -1,0 +1,138 @@
+import { existsSync } from 'node:fs'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
+import { planClean } from '../src/clean.ts'
+import type { Answers } from '../src/context.ts'
+import { generate } from '../src/generate.ts'
+
+const templates = resolve(import.meta.dirname, '../../templates')
+const knowledge = resolve(import.meta.dirname, '../../.prumo-templates')
+const URL = 'postgresql://app:app@localhost:5432/acme'
+
+describe('clean', () => {
+  let root: string
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true })
+  })
+
+  async function project(
+    answers: Omit<Answers, 'name' | 'multiTenant' | 'mcp'>,
+    databaseUrl = URL,
+  ) {
+    root = await mkdtemp(join(tmpdir(), 'prumo-clean-'))
+    const target = join(root, 'acme')
+
+    await generate({
+      templates,
+      knowledge,
+      target,
+      install: false,
+      answers: { name: 'acme', multiTenant: false, mcp: false, ...answers },
+    })
+
+    const api = answers.architecture === 'alone' ? target : join(target, 'apps/api')
+    const env = await readFile(join(api, '.env'), 'utf8')
+    await writeFile(
+      join(api, '.env'),
+      env.replace(/^DATABASE_URL=MISSING$/m, `DATABASE_URL=${databaseUrl}`),
+    )
+
+    return { target, api }
+  }
+
+  const read = (path: string) => readFile(path, 'utf8')
+
+  it('finds every item of a fresh workspace, and removes them all', async () => {
+    const { target, api } = await project({ types: ['api', 'web'], architecture: 'monorepo' })
+    const plan = await planClean({ cwd: join(target, 'apps/web'), templates, force: false })
+
+    expect(plan.items.map((item) => [item.id, item.status])).toEqual([
+      ['api-dev-check', 'pending'],
+      ['api-db-setup', 'pending'],
+      ['api-env-example', 'pending'],
+      ['api-readme-setup', 'pending'],
+      ['api-readme-row', 'pending'],
+      ['root-dev-check', 'pending'],
+      ['root-readme', 'pending'],
+      ['api-database-script', 'pending'],
+    ])
+
+    await plan.apply()
+
+    const apiScripts = JSON.parse(await read(join(api, 'package.json'))).scripts
+    const rootScripts = JSON.parse(await read(join(target, 'package.json'))).scripts
+
+    expect(plan.items.every((item) => item.status === 'removed')).toBe(true)
+    expect(apiScripts.dev).toBe('node scripts/ports.mjs -- pnpm start:dev')
+    expect(apiScripts['db:setup']).toBeUndefined()
+    expect(rootScripts.dev).toBe('node scripts/ports.mjs --all -- pnpm -r --parallel dev')
+    expect(existsSync(join(api, 'scripts/database.mjs'))).toBe(false)
+    expect(existsSync(join(api, 'scripts/ports.mjs')), 'the ports check is not one-time').toBe(true)
+    expect(await read(join(api, '.env.example'))).toMatch(
+      /^DATABASE_URL=postgresql:\/\/app:app@localhost:5432\/app$/m,
+    )
+    expect(await read(join(api, 'README.md'))).not.toMatch(/MISSING|db:setup/)
+    expect(await read(join(target, 'README.md'))).not.toContain('offers to create one')
+
+    const again = await planClean({ cwd: target, templates, force: false })
+    expect(again.items.every((item) => item.status === 'absent')).toBe(true)
+  })
+
+  it('keeps what the team changed and cleans the rest of an alone API', async () => {
+    const { target, api } = await project({ types: ['api'], architecture: 'alone' })
+    const pkgPath = join(api, 'package.json')
+    const pkg = JSON.parse(await read(pkgPath))
+
+    pkg.scripts.dev = 'node scripts/database.mjs --check --local && pnpm start:dev'
+    await writeFile(pkgPath, JSON.stringify(pkg, null, 2))
+    await writeFile(join(api, 'scripts/database.mjs'), '// ours now\n')
+
+    const plan = await planClean({ cwd: target, templates, force: false })
+    const status = Object.fromEntries(plan.items.map((item) => [item.id, item.status]))
+
+    expect(status).toMatchObject({
+      'api-dev-check': 'modified',
+      'api-db-setup': 'pending',
+      'api-database-script': 'modified',
+    })
+    expect(status['root-dev-check']).toBeUndefined()
+
+    await plan.apply()
+
+    expect(JSON.parse(await read(pkgPath)).scripts.dev).toBe(pkg.scripts.dev)
+    expect(await read(join(api, 'scripts/database.mjs'))).toBe('// ours now\n')
+  })
+
+  it('refuses while the database is still MISSING, unless forced', async () => {
+    const { target } = await project({ types: ['api'], architecture: 'alone' }, 'MISSING')
+
+    await expect(planClean({ cwd: target, templates, force: false })).rejects.toThrow(
+      'DATABASE_URL is still MISSING',
+    )
+    await expect(planClean({ cwd: target, templates, force: true })).resolves.toBeDefined()
+  })
+
+  it('has nothing to clean in a project without an API', async () => {
+    root = await mkdtemp(join(tmpdir(), 'prumo-clean-'))
+    const target = join(root, 'acme')
+
+    await generate({
+      templates,
+      knowledge,
+      target,
+      install: false,
+      answers: {
+        name: 'acme',
+        types: ['site'],
+        architecture: 'alone',
+        multiTenant: false,
+        mcp: false,
+      },
+    })
+
+    expect((await planClean({ cwd: target, templates, force: false })).items).toEqual([])
+  })
+})

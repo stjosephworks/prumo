@@ -6,13 +6,15 @@
   "linter": {
     "rules": {
       "preset": "recommended",
-      // Nest injects by the emitted constructor type; `import type` erases it and breaks injection silently.
-      "style": { "useImportType": "off" }
+      // tsyringe injects by the emitted constructor type; `import type` erases it and breaks injection silently.
+      "style": { "useImportType": "off" },
+      // A file that only re-exports is how an invisible import cycle forms.
+      "performance": { "noBarrelFile": "error" }
     }
   },
   "javascript": {
     "formatter": { "quoteStyle": "single", "semicolons": "asNeeded" },
-    // Nest decorates constructor and handler parameters; Biome cannot parse those without this.
+    // Ports are injected with `@inject(TOKEN)` on constructor parameters; Biome cannot parse those without this.
     "parser": { "unsafeParameterDecoratorsEnabled": true }
   }
 }

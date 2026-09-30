@@ -6,5 +6,5 @@
     "rootDir": "src",
     "types": ["node"]
   },
-  "exclude": ["src/**/*.spec.ts"]
+  "include": ["src"]
 }

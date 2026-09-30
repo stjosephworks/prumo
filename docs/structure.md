@@ -25,6 +25,7 @@ This document describes **where files live and what they are called**. What goes
     site/            ← type site
     monorepo/        ← architecture monorepo
     multi-tenancy/   ← multi-tenant projects only
+    mcp/             ← projects that answered yes to MCP
 ```
 
 **`.prumo/` holds two natures, and the split is deliberate.** `INDEX.md` and `config.json` are
@@ -47,14 +48,14 @@ it or refresh it are planned after V1.
 
 ## Areas
 
-Areas do not mirror types. Four of the nine are not types at all: `database/` follows a type, `client/`
-follows any of three, `monorepo/` follows the architecture, and `multi-tenancy/` follows a third axis of
-its own.
+Areas do not mirror types. Five of the ten are not types at all: `database/` follows a type, `client/`
+follows any of three, `monorepo/` follows the architecture, `multi-tenancy/` follows a third axis of its
+own, and `mcp/` a fourth, asked only when there is an api and a web.
 
 | Area | Holds | Ships when |
 |---|---|---|
 | `core/` | What crosses every type: TypeScript config, Biome and the pre-commit hook, Vitest, file naming, code style | **always** |
-| `api/` | NestJS rules and conventions | type is `api` |
+| `api/` | Fastify rules and the domain/infra structure: ports, use cases, DTOs, the HTTP edge | type is `api` |
 | `database/` | Database rules and performance. Separate from `api/` so a future worker or lambda can take it without being an API | type is `api` |
 | `client/` | What every client shares: calling the API, the error type, queries, forms | type is `web`, `mobile` or `site` |
 | `web/` | Vite + React rules | type is `web` |
@@ -62,6 +63,7 @@ its own.
 | `site/` | Next rules, for indexed pages | type is `site` |
 | `monorepo/` | Workspace organisation | architecture is `monorepo` |
 | `multi-tenancy/` | `tenant_id` across the layers, tenant resolution, isolation | the project is multi-tenant |
+| `mcp/` | The MCP server, its tools, and the OAuth that authorizes them | the project has an api and a web and answered yes to MCP |
 
 This table is the inclusion rule, and it lives in the CLI as one explicit table, not as a manifest
 per area, and not as convention-plus-exceptions.

@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { cp, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 import { prependProperty, readJsonc, removeWhatBaseDeclares, setJsonc } from './jsonc.ts'
+import { applyMcp } from './mcp.ts'
 
 export type AppType = 'api' | 'web' | 'mobile' | 'site'
 
@@ -273,11 +274,13 @@ export async function composeWorkspace({
   target,
   types,
   mobileScheme = 'app',
+  mcp = false,
 }: {
   templates: string
   target: string
   types: AppType[]
   mobileScheme?: string
+  mcp?: boolean
 }): Promise<void> {
   await mkdir(target, { recursive: true })
   await copyTemplate(join(templates, 'workspace'), target)
@@ -285,7 +288,11 @@ export async function composeWorkspace({
   const apps: string[] = []
 
   for (const type of types) {
-    apps.push(await copyApp(templates, target, type))
+    const app = await copyApp(templates, target, type)
+
+    // Before the catalog is collected, so a dependency that leaves never reaches it.
+    await applyMcp(app, type, mcp)
+    apps.push(app)
   }
 
   const clients = CLIENTS.filter((client) => types.includes(client))

@@ -1,12 +1,13 @@
 {
   "name": "@stjoseph/prumo",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "description": "Scaffolds a TypeScript project and ships it the conventions it follows, in a .prumo/ folder any AI assistant reads.",
   "keywords": [
     "scaffolding",
     "cli",
     "typescript",
-    "nestjs",
+    "fastify",
+    "mcp",
     "expo",
     "monorepo",
     "conventions",
@@ -35,7 +36,7 @@
   "scripts": {
     "lint": "biome check",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --dir src",
+    "test": "vitest run --dir test",
     "prumo": "node src/cli.ts",
     "build": "tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
     "prepack": "pnpm build"
