@@ -1,6 +1,7 @@
 import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AppType } from './compose.ts'
+import { cliVersion } from './version.ts'
 
 export type Answers = {
   name: string
@@ -52,7 +53,9 @@ export async function writeContext(
 
   await writeFile(join(prumo, 'INDEX.md'), `# Conventions\n\n${lines.join('\n')}\n`)
 
+  // The version that wrote the project, so a tool reading it can tell a project made by an older Prumo.
   const config = {
+    prumo: cliVersion(),
     types: answers.types,
     architecture: answers.architecture,
     multiTenant: answers.multiTenant,
