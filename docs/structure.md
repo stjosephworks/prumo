@@ -15,7 +15,7 @@ This document describes **where files live and what they are called**. What goes
   CLAUDE.md          ← "@AGENTS.md" plus anything Claude-specific
   .prumo/
     INDEX.md         ← generated. One line per file. The tool's territory
-    config.json      ← what the project answered, written by the CLI
+    config.json      ← what the project answered, and the Prumo version that wrote it
     core/            ← always present
     api/             ← type api
     database/        ← type api
