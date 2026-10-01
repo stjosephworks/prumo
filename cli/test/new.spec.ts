@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { Asker } from '../src/asker.ts'
 import { generate } from '../src/generate.ts'
 import { type Flags, resolveAnswers } from '../src/questions.ts'
+import { cliVersion } from '../src/version.ts'
 
 const templates = resolve(import.meta.dirname, '../../templates')
 const knowledge = resolve(import.meta.dirname, '../../.prumo-templates')
@@ -160,7 +161,9 @@ describe('generate', () => {
 
     expect(app.expo).toMatchObject({ name: 'acme-app', slug: 'acme-app', scheme: 'acmeapp' })
     expect(JSON.parse(await readFile(join(target, 'package.json'), 'utf8')).name).toBe('acme-app')
+    // The version that wrote it, so a tool can tell a project made by an older Prumo.
     expect(config).toEqual({
+      prumo: cliVersion(),
       types: ['mobile'],
       architecture: 'alone',
       multiTenant: false,

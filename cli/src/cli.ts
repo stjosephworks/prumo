@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import * as prompt from '@clack/prompts'
 import { terminalAsker } from './asker.ts'
@@ -13,15 +12,9 @@ import { generate } from './generate.ts'
 import { validateProjectName } from './names.ts'
 import { CliError, errorEnvelope, writeEnvelope } from './output.ts'
 import { resolveAnswers } from './questions.ts'
+import { cliVersion } from './version.ts'
 
 type Result = { data: unknown; text: string; exitCode?: number }
-
-function version(): string {
-  // src/cli.ts and dist/cli.js both sit one level below package.json.
-  const pkg = JSON.parse(readFileSync(join(import.meta.dirname, '..', 'package.json'), 'utf8'))
-
-  return pkg.version as string
-}
 
 function help(name: string | undefined): Result {
   if (name === undefined) {
@@ -161,7 +154,7 @@ async function main(argv: string[]): Promise<void> {
       const [topic] = args.filter((arg) => !arg.startsWith('-'))
       result = help(topic)
     } else if (name === 'version') {
-      const current = version()
+      const current = cliVersion()
       result = { data: { version: current }, text: current }
     } else if (name === 'doctor') {
       const report = await doctor()
