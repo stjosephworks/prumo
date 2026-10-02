@@ -6,8 +6,8 @@ import { join } from 'node:path'
 import { type AppType, composeWorkspace, copyTemplate } from './compose.ts'
 import { type Answers, writeContext } from './context.ts'
 import { SHELL } from './doctor.ts'
+import { applyFeatures, enabledFor } from './features.ts'
 import { setJsonc } from './jsonc.ts'
-import { applyMcp } from './mcp.ts'
 import { schemeFor, targetProblem } from './names.ts'
 import { CliError } from './output.ts'
 
@@ -172,7 +172,7 @@ async function write({
 
   if (answers.architecture === 'alone' && only !== undefined) {
     await copyTemplate(join(templates, only), target)
-    await applyMcp(target, only, answers.mcp)
+    await applyFeatures(target, only, enabledFor(answers))
     await nameProject(target, answers.name)
     await writeLocalEnv(target, only)
 
@@ -188,7 +188,7 @@ async function write({
       templates,
       target,
       types: answers.types,
-      mcp: answers.mcp,
+      features: enabledFor(answers),
     })
     await nameProject(target, answers.name)
 

@@ -38,6 +38,14 @@ export function SignInForm({
     try {
       await auth.signIn(values)
     } catch (error) {
+      // prumo:email
+      // The password was right and the email is not confirmed yet: the code page offers a new code.
+      if ((error as { code?: string }).code === 'email_not_verified') {
+        await navigate({ to: '/verify-email', search: { email: values.email } })
+        return
+      }
+
+      // prumo:end-email
       applyServerError(error, ['email', 'password'], form.setError)
       return
     }
@@ -74,6 +82,11 @@ export function SignInForm({
       <p className="text-sm text-muted-foreground">
         No account? <Link to="/sign-up">Sign up</Link>
       </p>
+      {/* prumo:email */}
+      <p className="text-sm text-muted-foreground">
+        <Link to="/forgot-password">Forgot your password?</Link>
+      </p>
+      {/* prumo:end-email */}
     </form>
   )
 }

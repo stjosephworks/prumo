@@ -2,6 +2,7 @@ import { Migrator } from '@mikro-orm/migrations'
 import { defineConfig } from '@mikro-orm/postgresql'
 import type { Env } from '@/infra/config/env'
 import { AuthorizationSchema } from './entities/authorization.schema' // prumo:mcp
+import { EmailCodeSchema } from './entities/email-code.schema' // prumo:email
 import { ProfileSchema } from './entities/profile.schema'
 import { SessionSchema } from './entities/session.schema'
 import { UserSchema } from './entities/user.schema'
@@ -14,6 +15,7 @@ export function createOrmConfig(env: Pick<Env, 'DATABASE_URL' | 'NODE_ENV'>) {
       ProfileSchema,
       SessionSchema,
       AuthorizationSchema, // prumo:mcp
+      EmailCodeSchema, // prumo:email
     ],
     extensions: [Migrator],
     migrations: { path: './migrations', snapshot: false },

@@ -58,7 +58,7 @@ terminal a missing answer is an error rather than a default, so nothing importan
 silence:
 
 ```sh
-npx @stjoseph/prumo new my-app --types api,web --single-tenant --no-mcp
+npx @stjoseph/prumo new my-app --types api,web --single-tenant --no-mcp --email --no-social
 ```
 
 | Flag | What it answers |
@@ -67,6 +67,8 @@ npx @stjoseph/prumo new my-app --types api,web --single-tenant --no-mcp
 | `--alone` or `--monorepo` | How a single type is laid out |
 | `--multi-tenant` or `--single-tenant` | Whether the application serves several tenants. Multi-tenant ships the `multi-tenancy` conventions; the generated code itself is not tenant-aware yet |
 | `--mcp` or `--no-mcp` | With an api and a web: whether AI assistants reach the API through MCP, signed in as the user |
+| `--email` or `--no-email` | With an api: email verification and password reset, by a 6-digit code sent through the `Mailer` port, which writes to the log until you give it a provider |
+| `--social google,apple` or `--no-social` | With an api and a web or mobile: sign-in with Google, Apple, or both |
 | `--skip-install` | Stops after writing the files |
 
 ## Commands

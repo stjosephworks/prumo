@@ -3,13 +3,13 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { cutFeature, FEATURES } from '../src/features.ts'
 import { generate } from '../src/generate.ts'
-import { cutMcp, FILES } from '../src/mcp.ts'
 
 const templates = resolve(import.meta.dirname, '../../templates')
 const knowledge = resolve(import.meta.dirname, '../../.prumo-templates')
 
-describe('cutMcp', () => {
+describe('cutFeature', () => {
   const source = [
     "import { mcp } from 'mcp' // prumo:mcp",
     "import { kept } from 'kept'",
@@ -20,11 +20,13 @@ describe('cutMcp', () => {
   ].join('\n')
 
   it('removes every marked line and block when MCP is off', () => {
-    expect(cutMcp(source, false)).toBe(["import { kept } from 'kept'", 'always()'].join('\n'))
+    expect(cutFeature(source, 'mcp', false)).toBe(
+      ["import { kept } from 'kept'", 'always()'].join('\n'),
+    )
   })
 
   it('removes only the markers when MCP is on', () => {
-    expect(cutMcp(source, true)).toBe(
+    expect(cutFeature(source, 'mcp', true)).toBe(
       ["import { mcp } from 'mcp'", "import { kept } from 'kept'", 'mcpOnly()', 'always()'].join(
         '\n',
       ),
@@ -32,7 +34,22 @@ describe('cutMcp', () => {
   })
 
   it('refuses a block left open', () => {
-    expect(() => cutMcp('// prumo:mcp\nx()', false)).toThrow('open')
+    expect(() => cutFeature('// prumo:mcp\nx()', 'mcp', false)).toThrow('open')
+  })
+
+  it('reads a block marked in JSX', () => {
+    const jsx = ['<p>a</p>', '{/* prumo:email */}', '<p>b</p>', '{/* prumo:end-email */}'].join(
+      '\n',
+    )
+
+    expect(cutFeature(jsx, 'email', false)).toBe('<p>a</p>')
+    expect(cutFeature(jsx, 'email', true)).toBe(['<p>a</p>', '<p>b</p>'].join('\n'))
+  })
+
+  it('cuts only the feature it is asked to', () => {
+    const mixed = ['a() // prumo:email', 'b() // prumo:google', 'c()'].join('\n')
+
+    expect(cutFeature(mixed, 'email', false)).toBe(['b() // prumo:google', 'c()'].join('\n'))
   })
 })
 
@@ -58,6 +75,8 @@ describe('generate with and without MCP', () => {
         architecture: 'monorepo',
         multiTenant: false,
         mcp,
+        email: false,
+        social: [],
       },
     })
 
@@ -108,12 +127,14 @@ describe('generate with and without MCP', () => {
   })
 })
 
-describe('the MCP cut list', () => {
-  // A path that no longer exists would be cut from nothing, and what it named would ship without MCP.
-  it('names only paths the templates have', () => {
-    for (const [type, paths] of Object.entries(FILES)) {
-      for (const path of paths ?? []) {
-        expect(existsSync(join(templates, type, path)), `${type}/${path}`).toBe(true)
+describe('the cut lists', () => {
+  // A path that no longer exists would be cut from nothing, and what it named would ship without its feature.
+  it('name only paths the templates have', () => {
+    for (const [feature, spec] of Object.entries(FEATURES)) {
+      for (const [type, paths] of Object.entries(spec.files)) {
+        for (const path of paths ?? []) {
+          expect(existsSync(join(templates, type, path)), `${feature}: ${type}/${path}`).toBe(true)
+        }
       }
     }
   })

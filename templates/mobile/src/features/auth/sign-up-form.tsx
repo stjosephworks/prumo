@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
+import { useRouter } from 'expo-router' // prumo:email
 import { Controller, useForm } from 'react-hook-form'
 import { View } from 'react-native'
 import { z } from 'zod'
@@ -25,6 +26,7 @@ export function SignUpForm({
   onSignedUp: () => void
 }) {
   const queryClient = useQueryClient()
+  const router = useRouter() // prumo:email
   const form = useForm<SignUpValues>({
     resolver: zodResolver(schema),
     mode: 'onTouched',
@@ -34,12 +36,22 @@ export function SignUpForm({
   const { errors, isSubmitting } = form.formState
 
   async function onSubmit(values: SignUpValues) {
-    try {
-      await auth.signUp(values)
-    } catch (error) {
+    const result = await auth.signUp(values).catch((error: unknown) => {
       applyServerError(error, ['name', 'email', 'password'], form.setError)
+      return undefined
+    })
+
+    if (result === undefined) {
       return
     }
+
+    // prumo:email
+    if (result.verificationRequired) {
+      router.push({ pathname: '/verify-email', params: { email: values.email } })
+      return
+    }
+
+    // prumo:end-email
 
     await queryClient.invalidateQueries({ queryKey: sessionQuery(auth).queryKey })
     onSignedUp()

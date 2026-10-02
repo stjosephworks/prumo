@@ -41,6 +41,10 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
       'single-tenant': { type: 'boolean', default: false },
       mcp: { type: 'boolean', default: false },
       'no-mcp': { type: 'boolean', default: false },
+      email: { type: 'boolean', default: false },
+      'no-email': { type: 'boolean', default: false },
+      social: { type: 'string' },
+      'no-social': { type: 'boolean', default: false },
       'skip-install': { type: 'boolean', default: false },
       json: { type: 'boolean', default: false },
     },
@@ -76,6 +80,10 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
       singleTenant: values['single-tenant'],
       mcp: values.mcp,
       noMcp: values['no-mcp'],
+      email: values.email,
+      noEmail: values['no-email'],
+      social: values.social,
+      noSocial: values['no-social'],
     },
     interactive ? terminalAsker((input) => projectProblem(input, cwd)) : undefined,
     cwd,
@@ -87,7 +95,14 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
     )
   }
 
-  const { target, ...chosen } = answers
+  const { target, warnings, ...chosen } = answers
+
+  // Without --json a person is reading; with it, the warnings travel in the result instead.
+  if (!json) {
+    for (const warning of warnings) {
+      prompt.log.warn(warning)
+    }
+  }
 
   await generate({
     ...requireAssets(assetsFor(import.meta.dirname)),
@@ -101,7 +116,7 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
     prompt.outro(`Created ${answers.name}.`)
   }
 
-  return { data: { ...chosen, target, installed: install }, text: '' }
+  return { data: { ...chosen, target, installed: install, warnings }, text: '' }
 }
 
 async function runClean(args: string[], json: boolean): Promise<Result> {

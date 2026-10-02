@@ -1,8 +1,8 @@
 import { Migration } from '@mikro-orm/migrations';
 
-export class Migration20261002210631_create_authorization extends Migration {
+export class Migration20261002225916_create_authorization extends Migration {
 
-  override name = 'Migration20261002210631_create_authorization';
+  override name = 'Migration20261002225916_create_authorization';
 
   override up(): void | Promise<void> {
     this.addSql(`create table "authorization" ("id" uuid not null default uuidv7(), "client_id" text not null, "client_name" text not null, "redirect_uri" text not null, "code_challenge" text not null, "client_state" text null, "resource" text not null, "status" text not null, "user_id" uuid null, "code_hash" text null, "session_id" uuid null, "expires_at" timestamptz not null, "created_at" timestamptz not null default now(), "updated_at" timestamptz not null default now(), primary key ("id"));`);

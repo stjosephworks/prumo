@@ -19,6 +19,11 @@ export default function SignInScreen() {
           Sign up
         </Link>
       </View>
+      {/* prumo:email */}
+      <Link href="/forgot-password" className="text-sm text-neutral-900">
+        Forgot your password?
+      </Link>
+      {/* prumo:end-email */}
     </SafeAreaView>
   )
 }

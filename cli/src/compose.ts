@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
+import { applyFeatures, type Enabled, NONE } from './features.ts'
 import { prependProperty, readJsonc, removeWhatBaseDeclares, setJsonc } from './jsonc.ts'
-import { applyMcp } from './mcp.ts'
 
 export type AppType = 'api' | 'web' | 'mobile' | 'site'
 
@@ -273,12 +273,12 @@ export async function composeWorkspace({
   templates,
   target,
   types,
-  mcp = false,
+  features = NONE,
 }: {
   templates: string
   target: string
   types: AppType[]
-  mcp?: boolean
+  features?: Enabled
 }): Promise<void> {
   await mkdir(target, { recursive: true })
   await copyTemplate(join(templates, 'workspace'), target)
@@ -289,7 +289,7 @@ export async function composeWorkspace({
     const app = await copyApp(templates, target, type)
 
     // Before the catalog is collected, so a dependency that leaves never reaches it.
-    await applyMcp(app, type, mcp)
+    await applyFeatures(app, type, features)
     apps.push(app)
   }
 

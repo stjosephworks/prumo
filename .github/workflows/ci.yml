@@ -57,7 +57,7 @@ jobs:
           npm install ${{ runner.temp }}/*.tgz
         working-directory: ${{ runner.temp }}
       - name: Generate from the installed package
-        run: ./node_modules/.bin/prumo new packaged --types api,web --single-tenant --no-mcp --skip-install
+        run: ./node_modules/.bin/prumo new packaged --types api,web --single-tenant --no-mcp --no-email --no-social --skip-install
         working-directory: ${{ runner.temp }}
       - name: Assert what npm is known to delete arrived anyway
         run: |
@@ -79,6 +79,7 @@ jobs:
           - name: an-api
             types: api
             architecture: alone
+            flags: --no-email
           - name: a-web
             types: web
             architecture: alone
@@ -93,12 +94,12 @@ jobs:
             types: api
             architecture: monorepo
             tenancy: --multi-tenant
-            flags: --monorepo
+            flags: --monorepo --email
           # The one project with MCP: every other one proves the templates run with it cut out.
           - name: everything
             types: api,web,mobile,site
             architecture: monorepo
-            flags: --mcp
+            flags: --mcp --email --no-social
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -138,7 +139,7 @@ jobs:
       - run: pnpm build
         working-directory: cli
       - name: Generate on the floor
-        run: node ${{ github.workspace }}/cli/dist/cli.js new floor --types api,web --single-tenant --no-mcp
+        run: node ${{ github.workspace }}/cli/dist/cli.js new floor --types api,web --single-tenant --no-mcp --no-email --no-social
         working-directory: ${{ runner.temp }}
       - name: Verify on the floor
         run: >

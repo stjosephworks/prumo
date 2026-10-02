@@ -5,6 +5,7 @@ type ProblemDocument = {
   status?: number
   detail?: string
   requestId?: string
+  code?: string
   errors?: FieldErrors
 }
 
@@ -15,6 +16,8 @@ export class ApiError extends Error {
     readonly detail: string | undefined,
     readonly requestId: string | undefined,
     readonly errors: FieldErrors,
+    // A stable name for a refusal the client acts on, such as `email_not_verified`.
+    readonly code?: string,
   ) {
     super(detail ?? title)
   }
@@ -35,6 +38,7 @@ export class ApiError extends Error {
       problem.detail,
       problem.requestId ?? requestId,
       problem.errors ?? {},
+      problem.code,
     )
   }
 }

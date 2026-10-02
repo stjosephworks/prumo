@@ -30,12 +30,22 @@ export function SignUpForm({ auth }: { auth: Pick<AuthClient, 'signUp' | 'getSes
   const { errors, isSubmitting } = form.formState
 
   async function onSubmit(values: SignUpValues) {
-    try {
-      await auth.signUp(values)
-    } catch (error) {
+    const result = await auth.signUp(values).catch((error: unknown) => {
       applyServerError(error, ['name', 'email', 'password'], form.setError)
+      return undefined
+    })
+
+    if (result === undefined) {
       return
     }
+
+    // prumo:email
+    if (result.verificationRequired) {
+      await navigate({ to: '/verify-email', search: { email: values.email } })
+      return
+    }
+
+    // prumo:end-email
 
     // Invalidating is not enough: nothing observes the session, and the protected route's ensureQueryData
     // would keep returning the cached null. Refetching replaces it before the route reads it.

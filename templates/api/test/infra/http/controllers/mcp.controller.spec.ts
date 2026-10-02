@@ -1,13 +1,12 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { createServer } from 'node:net'
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
-import { testEnv, testOrm } from '@test/support/setup'
+import { testEnv } from '@test/support/setup'
+import { cookieHeader, testApp } from '@test/support/test-app'
 import type { FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { InvalidClientError } from '@/domain/oauth/errors/invalid-client.error'
 import { CLIENT_METADATA, type ClientMetadata } from '@/domain/oauth/ports/client-metadata.port'
-import { createContainer } from '@/infra/di'
-import { buildApp } from '@/infra/http/app'
 import { mcpResource } from '@/infra/mcp/mcp.server'
 
 const ORIGIN = 'http://localhost:5173'
@@ -17,6 +16,7 @@ const REDIRECT = 'https://client.example.com/callback'
 
 let app: FastifyInstance
 let env: ReturnType<typeof testEnv>
+let register: Awaited<ReturnType<typeof testApp>>['signUp']
 
 function freePort(): Promise<number> {
   return new Promise((resolve) => {
@@ -42,10 +42,10 @@ const clients = {
 beforeEach(async () => {
   const port = await freePort()
   env = { ...testEnv(), API_URL: `http://127.0.0.1:${port}` }
-  const container = createContainer({ env, orm: testOrm() })
-
-  container.register(CLIENT_METADATA, { useValue: clients })
-  app = await buildApp(container)
+  ;({ app, signUp: register } = await testApp({
+    env,
+    configure: (container) => container.register(CLIENT_METADATA, { useValue: clients }),
+  }))
   await app.listen({ port, host: '127.0.0.1' })
 })
 
@@ -54,18 +54,7 @@ afterEach(async () => {
 })
 
 async function signUp(): Promise<string> {
-  const response = await app.inject({
-    method: 'POST',
-    url: '/api/auth/sign-up',
-    headers: { origin: ORIGIN },
-    payload: {
-      name: 'Ana',
-      email: `${crypto.randomUUID()}@example.com`,
-      password: 'correct-horse-battery',
-    },
-  })
-
-  return response.cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ')
+  return cookieHeader((await register()).response)
 }
 
 function pkce() {
