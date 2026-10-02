@@ -71,7 +71,7 @@ describe('the ports check', () => {
 
     await writeFile(
       join(root, 'apps/api/.env'),
-      `PORT=${port}\nBETTER_AUTH_URL=http://localhost:${port}\nWEB_ORIGIN=http://localhost:${WEB}\n`,
+      `PORT=${port}\nAPI_URL=http://localhost:${port}\nWEB_ORIGIN=http://localhost:${WEB}\n`,
     )
 
     return root
@@ -114,7 +114,7 @@ describe('the ports check', () => {
     expect(out.data.ports.api).toBe(API + 1)
     expect(await env('apps/api/.env')).toMatch(new RegExp(`^PORT=${API + 1}$`, 'm'))
     expect(await env('apps/api/.env')).toMatch(
-      new RegExp(`^BETTER_AUTH_URL=http://localhost:${API + 1}$`, 'm'),
+      new RegExp(`^API_URL=http://localhost:${API + 1}$`, 'm'),
     )
     expect(await env('apps/web/.env')).toMatch(
       new RegExp(`^VITE_API_URL=http://localhost:${API + 1}$`, 'm'),

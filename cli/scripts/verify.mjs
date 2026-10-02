@@ -67,8 +67,7 @@ function apiEnv(api) {
   const url = `postgresql://app:app@localhost:${dbPort}/app`
   const env = example
     .replace(/^DATABASE_URL=.*$/m, `DATABASE_URL=${url}`)
-    .replace(/^AUTH_DATABASE_URL=.*$/m, `AUTH_DATABASE_URL=${url}`)
-    .replace(/^BETTER_AUTH_SECRET=.*$/m, `BETTER_AUTH_SECRET=${'v'.repeat(40)}`)
+    .replace(/^JWT_SECRET=.*$/m, `JWT_SECRET=${'v'.repeat(40)}`)
   writeFileSync(join(api, '.env'), env)
 }
 
@@ -79,6 +78,7 @@ async function verifyApi() {
   try {
     apiEnv(api)
     step('api: migrate', () => run('pnpm', ['db:migrate'], api))
+    step('api: build', () => run('pnpm', ['build'], api))
     await step('api: start and answer readiness', async () =>
       withServer(
         'node',

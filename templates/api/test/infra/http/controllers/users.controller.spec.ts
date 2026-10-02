@@ -11,7 +11,7 @@ let app: FastifyInstance
 async function signUp(): Promise<string[]> {
   const response = await app.inject({
     method: 'POST',
-    url: '/api/auth/sign-up/email',
+    url: '/api/auth/sign-up',
     headers: { origin: ORIGIN },
     payload: {
       name: 'Ana',
@@ -20,7 +20,7 @@ async function signUp(): Promise<string[]> {
     },
   })
 
-  expect(response.statusCode).toBe(200)
+  expect(response.statusCode).toBe(201)
 
   const cookies = response.headers['set-cookie']
   return Array.isArray(cookies) ? cookies : [cookies ?? '']
@@ -94,7 +94,7 @@ describe('users controller', () => {
       headers: { cookie, origin: ORIGIN },
     })
 
-    expect(response.statusCode).toBe(200)
+    expect(response.statusCode).toBe(204)
   })
 
   it('answers an unknown route with 404, not 401', async () => {

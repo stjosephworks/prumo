@@ -8,7 +8,7 @@ export const ProfileSchema = new EntitySchema({
     userId: {
       kind: 'm:1',
       // EntitySchema cannot type a to-one relation held as its primary key on a string property.
-      entity: () => 'AuthUser' as never,
+      entity: () => 'User' as never,
       mapToPk: true,
       fieldName: 'user_id',
       unique: true,

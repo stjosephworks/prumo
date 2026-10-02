@@ -1,21 +1,19 @@
-import { randomUUID } from 'node:crypto'
 import type { EntityManager } from '@mikro-orm/postgresql'
+import { User } from '@/domain/auth/entities/user.entity'
 
-type UserOverrides = Partial<{ name: string; email: string }>
+type UserOverrides = Partial<{ email: string; passwordHash: string }>
 
+// The hash is not a real one: a test that signs in goes through the sign-up route instead.
 export async function createUser(
   em: EntityManager,
   overrides: UserOverrides = {},
 ): Promise<string> {
-  const id = randomUUID()
+  const user = new User(
+    overrides.email ?? `${crypto.randomUUID()}@example.com`,
+    overrides.passwordHash ?? 'not-a-real-hash',
+  )
 
-  // auth.user belongs to Better Auth, and the ORM maps only its id, so the row is written in SQL.
-  await em
-    .getConnection()
-    .execute(
-      'insert into auth."user" (id, name, email, "emailVerified", "createdAt", "updatedAt") values (?, ?, ?, false, now(), now())',
-      [id, overrides.name ?? 'Test Person', overrides.email ?? `${id}@example.com`],
-    )
+  await em.persist(user).flush()
 
-  return id
+  return user.id
 }

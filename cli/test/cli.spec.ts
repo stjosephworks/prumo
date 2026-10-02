@@ -169,7 +169,7 @@ describe("the API template's database check", () => {
   })
 
   it('stops the API while the URL is MISSING and nobody can be asked', async () => {
-    const result = await check('DATABASE_URL=MISSING\nAUTH_DATABASE_URL=MISSING\n')
+    const result = await check('DATABASE_URL=MISSING\n')
 
     expect(result.status).toBe(1)
     expect(JSON.parse(result.stdout).error.code).toBe('database_missing')
@@ -180,6 +180,5 @@ describe("the API template's database check", () => {
     const example = await readFile(join(templates, 'api/.env.example'), 'utf8')
 
     expect(example).toMatch(/^DATABASE_URL=MISSING$/m)
-    expect(example).toMatch(/^AUTH_DATABASE_URL=MISSING$/m)
   })
 })

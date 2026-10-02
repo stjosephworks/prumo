@@ -11,7 +11,7 @@ pnpm install
 pnpm dev
 ```
 
-`.env` comes with the generated project, copied from `.env.example` with a random `BETTER_AUTH_SECRET`. It is not
+`.env` comes with the generated project, copied from `.env.example` with a random `JWT_SECRET`. It is not
 committed, so on a fresh clone run `cp .env.example .env` and replace the secret with 32 or more random characters.
 
 `DATABASE_URL` starts as `MISSING`. While it is, `pnpm dev` offers to create the database first: it asks for a name,
@@ -30,9 +30,8 @@ new port to `.env`, along with every URL that pointed at the old one. Without a 
 Ctrl+C stops everything `pnpm dev` started, not only what the terminal signals: the script remembers the processes
 it spawned, stops them, and frees the port. Anything it did not start is named and left alone.
 
-`pnpm db:migrate` builds first, then runs Better Auth's migrations and then the application's. Before
-migrating, Better Auth logs `Database schema mismatch` because its tables do not exist yet; the migration
-still completes.
+Authentication is the API's own: `/api/auth/sign-up`, `sign-in`, `refresh`, `sign-out` and `session`. The web
+receives httpOnly cookies; a native client sends `X-Auth-Transport: bearer` and receives the tokens in the body.
 
 ## Everyday commands
 
@@ -42,7 +41,7 @@ still completes.
 | `pnpm lint` | Biome |
 | `pnpm typecheck` | `tsc --noEmit`, also run before every push |
 | `pnpm db:setup` | Creates a development database in Docker, writes its URL into `.env`, and migrates |
-| `pnpm db:migrate` | Builds, then runs Better Auth's migrations and the application's |
+| `pnpm db:migrate` | Runs the migrations |
 | `pnpm db:migration:create` | Generates a migration from the entity diff, to be read and edited before committing |
 
 ## Conventions

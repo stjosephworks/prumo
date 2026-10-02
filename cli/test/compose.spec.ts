@@ -104,13 +104,11 @@ describe('composeWorkspace with web and mobile', () => {
     expect(web).toContain('"tailwindcss": "catalog:"')
   })
 
-  it('extracts one contract for both clients and turns the API’s mobile scheme on', async () => {
-    const env = await readFile(join(target, 'apps/api/.env.example'), 'utf8')
+  it('extracts one contract for both clients', async () => {
     const layout = await readFile(join(target, 'apps/mobile/src/app/_layout.tsx'), 'utf8')
 
     expect(existsSync(join(target, 'apps/mobile/src/api-contract'))).toBe(false)
     expect(layout).toContain("from '@app/api-contract'")
-    expect(env).toMatch(/^MOBILE_APP_SCHEME=app$/m)
   })
 })
 

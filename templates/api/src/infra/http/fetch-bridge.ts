@@ -1,5 +1,18 @@
-import { fromNodeHeaders } from 'better-auth/node'
 import type { FastifyReply, FastifyRequest } from 'fastify'
+
+function headersOf(request: FastifyRequest): Headers {
+  const headers = new Headers()
+
+  for (const [name, value] of Object.entries(request.headers)) {
+    for (const each of [value].flat()) {
+      if (each !== undefined) {
+        headers.append(name, each)
+      }
+    }
+  }
+
+  return headers
+}
 
 function bodyOf(body: unknown): string | undefined {
   if (body === undefined) {
@@ -9,15 +22,14 @@ function bodyOf(body: unknown): string | undefined {
   return typeof body === 'string' ? body : JSON.stringify(body)
 }
 
-// Better Auth and the MCP handler answer Fetch requests. Fastify has already parsed a JSON body, so the
-// request is rebuilt rather than handed over raw, as Better Auth's Fastify guide does; a body kept as a
-// string, such as a form, passes unchanged.
+// The MCP handler answers Fetch requests. Fastify has already parsed a JSON body, so the request is rebuilt
+// rather than handed over raw; a body kept as a string, such as a form, passes unchanged.
 export function toFetchRequest(request: FastifyRequest): Request {
   const body = bodyOf(request.body)
 
   return new Request(new URL(request.url, `${request.protocol}://${request.host}`), {
     method: request.method,
-    headers: fromNodeHeaders(request.headers),
+    headers: headersOf(request),
     ...(body === undefined ? {} : { body }),
   })
 }
