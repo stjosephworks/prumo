@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -59,10 +59,27 @@ describe('resolveAnswers outside a terminal', () => {
     expect(answers.mcp).toBe(false)
   })
 
-  it('does not ask a site whether it is multi-tenant', async () => {
+  it('does not ask a site whether it is multi-tenant, and refuses being told it is', async () => {
     const answers = await resolveAnswers(flags({ types: 'site' }), undefined)
 
     expect(answers).toMatchObject({ architecture: 'alone', multiTenant: false })
+    await expect(
+      resolveAnswers(flags({ types: 'site', multiTenant: true }), undefined),
+    ).rejects.toThrow('--multi-tenant needs one of api, web, mobile')
+  })
+
+  it('refuses an empty --types', async () => {
+    for (const types of ['', ',', ' , ']) {
+      await expect(resolveAnswers(flags({ types }), undefined)).rejects.toThrow('--types is empty')
+    }
+  })
+
+  it('refuses a name the workspace gives an app, or one npm would refuse', async () => {
+    for (const name of ['api', 'web', 'mobile', 'site', `a${'b'.repeat(214)}`]) {
+      await expect(resolveAnswers(flags({ name, types: 'site' }), undefined)).rejects.toMatchObject(
+        { code: 'invalid_input' },
+      )
+    }
   })
 })
 
@@ -108,6 +125,7 @@ describe('resolveAnswers in a terminal', () => {
       architecture: 'monorepo',
       multiTenant: true,
       mcp: false,
+      target: resolve('from-prompt'),
     })
   })
 
@@ -118,6 +136,45 @@ describe('resolveAnswers in a terminal', () => {
 
     expect(asked).toEqual([])
     expect(answers).toMatchObject({ name: 'acme', architecture: 'alone', multiTenant: false })
+  })
+
+  it('refuses a directory that cannot take the project before asking anything else', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'prumo-answers-'))
+
+    try {
+      await mkdir(join(root, 'taken'))
+      await writeFile(join(root, 'taken', 'file'), '')
+      await writeFile(join(root, 'a-file'), '')
+
+      for (const name of ['taken', 'a-file']) {
+        const { asker, asked } = scripted()
+
+        await expect(resolveAnswers(flags({ name }), asker, root)).rejects.toMatchObject({
+          code: 'target_not_empty',
+        })
+        expect(asked).toEqual([])
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('takes `.` as the current directory, named after it', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'prumo-answers-'))
+    const here = join(root, 'my-site')
+
+    try {
+      await mkdir(here)
+
+      expect(
+        await resolveAnswers(flags({ name: '.', types: 'site' }), undefined, here),
+      ).toMatchObject({ name: 'my-site', target: here })
+      await expect(
+        resolveAnswers(flags({ name: '.', types: 'site' }), undefined, root),
+      ).rejects.toThrow('taken from this directory')
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
   })
 
   it('does not ask the architecture when several types decide it', async () => {
@@ -302,5 +359,53 @@ describe('generate', () => {
         },
       }),
     ).rejects.toThrow('not empty')
+  })
+})
+
+describe('generate when it fails', () => {
+  let root: string
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true })
+  })
+
+  // A site template without its README fails after the files are copied, the way a failed install would.
+  async function brokenTemplates(): Promise<string> {
+    const broken = join(root, 'templates')
+
+    await mkdir(join(broken, 'site'), { recursive: true })
+    await writeFile(join(broken, 'site', 'package.json'), '{ "name": "site" }\n')
+
+    return broken
+  }
+
+  const answers = {
+    name: 'acme',
+    types: ['site' as const],
+    architecture: 'alone' as const,
+    multiTenant: false,
+    mcp: false,
+  }
+
+  it('removes the directory it created', async () => {
+    root = await mkdtemp(join(tmpdir(), 'prumo-broken-'))
+    const target = join(root, 'acme')
+
+    await expect(
+      generate({ templates: await brokenTemplates(), knowledge, target, answers, install: false }),
+    ).rejects.toThrow()
+    expect(existsSync(target)).toBe(false)
+  })
+
+  it('empties, and keeps, the empty directory it was given', async () => {
+    root = await mkdtemp(join(tmpdir(), 'prumo-broken-'))
+    const target = join(root, 'acme')
+
+    await mkdir(target)
+    await expect(
+      generate({ templates: await brokenTemplates(), knowledge, target, answers, install: false }),
+    ).rejects.toThrow()
+    expect(existsSync(target)).toBe(true)
+    expect(await readdir(target)).toEqual([])
   })
 })

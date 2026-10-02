@@ -17,12 +17,18 @@ export type Probe = {
   run: (command: string, args: string[]) => { ok: boolean; stdout: string }
 }
 
-const NODE_FLOOR = [22, 17, 0]
+const NODE_FLOOR = [22, 18, 0]
+
+// Every generated workspace approves dependency builds with `allowBuilds`, which pnpm added in 10.26.0.
+const PNPM_FLOOR = [10, 26, 0]
+
+// On Windows pnpm is a .cmd shim, and Node starts one only through a shell.
+export const SHELL = process.platform === 'win32'
 
 export const systemProbe: Probe = {
   nodeVersion: process.versions.node,
   run: (command, args) => {
-    const result = spawnSync(command, args, { encoding: 'utf8', timeout: 10_000 })
+    const result = spawnSync(command, args, { encoding: 'utf8', timeout: 10_000, shell: SHELL })
 
     return { ok: result.error === undefined && result.status === 0, stdout: result.stdout ?? '' }
   },
@@ -45,6 +51,36 @@ function firstLine(text: string): string {
   return text.trim().split('\n')[0] ?? ''
 }
 
+const TOOLS = {
+  pnpm: { why: 'installs and runs every generated project', floor: PNPM_FLOOR },
+  git: { why: 'every generated project starts as a repository', floor: undefined },
+}
+
+export type Tool = keyof typeof TOOLS
+
+export function toolChecks(probe: Probe, tools: Tool[]): Check[] {
+  return tools.map((id): Check => {
+    const { why, floor } = TOOLS[id]
+    const result = probe.run(id, ['--version'])
+    const version = firstLine(result.stdout)
+    const base = { id, label: id, required: true }
+
+    if (!result.ok) {
+      return { ...base, status: 'fail', detail: `not found; it ${why}` }
+    }
+
+    if (floor !== undefined && !atLeast(version, floor)) {
+      return {
+        ...base,
+        status: 'fail',
+        detail: `${version}; ${floor.join('.')} or later is required`,
+      }
+    }
+
+    return { ...base, status: 'ok', detail: version }
+  })
+}
+
 export async function doctor(probe: Probe = systemProbe): Promise<Report> {
   const checks: Check[] = []
 
@@ -54,24 +90,10 @@ export async function doctor(probe: Probe = systemProbe): Promise<Report> {
     required: true,
     ...(atLeast(probe.nodeVersion, NODE_FLOOR)
       ? { status: 'ok', detail: probe.nodeVersion }
-      : { status: 'fail', detail: `${probe.nodeVersion}; 22.17.0 or later is required` }),
+      : { status: 'fail', detail: `${probe.nodeVersion}; 22.18.0 or later is required` }),
   })
 
-  for (const [id, label, why] of [
-    ['pnpm', 'pnpm', 'installs and runs every generated project'],
-    ['git', 'git', 'every generated project starts as a repository'],
-  ] as const) {
-    const result = probe.run(id, ['--version'])
-
-    checks.push({
-      id,
-      label,
-      required: true,
-      ...(result.ok
-        ? { status: 'ok', detail: firstLine(result.stdout) }
-        : { status: 'fail', detail: `not found; it ${why}` }),
-    })
-  }
+  checks.push(...toolChecks(probe, ['pnpm', 'git']))
 
   const docker = probe.run('docker', ['--version'])
   const dockerRunning = docker.ok && probe.run('docker', ['info']).ok
