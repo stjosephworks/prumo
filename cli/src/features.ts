@@ -123,17 +123,60 @@ export const FEATURES: Record<Feature, Spec> = {
     },
     dependencies: {},
   },
-  social: { files: {}, dependencies: {} },
+  // Sign-in with a provider: the OpenID adapter, the trip there and back, and the identities it links, with their
+  // tables in a migration of their own. Google and Apple are cut by their markers alone.
+  social: {
+    files: {
+      api: [
+        'src/domain/auth/entities/identity.entity.ts',
+        'src/domain/auth/entities/social-sign-in.entity.ts',
+        'src/domain/auth/ports/identity-providers.port.ts',
+        'src/domain/auth/repositories/identity.repository.ts',
+        'src/domain/auth/repositories/social-sign-in.repository.ts',
+        'src/domain/auth/errors/provider-not-configured.error.ts',
+        'src/domain/auth/errors/provider-email-unverified.error.ts',
+        'src/domain/auth/errors/social-sign-in-failed.error.ts',
+        'src/domain/auth/use-cases/link-identity.use-case.ts',
+        'src/domain/auth/use-cases/start-social-sign-in.use-case.ts',
+        'src/domain/auth/use-cases/complete-social-sign-in.use-case.ts',
+        'src/domain/auth/use-cases/exchange-social-code.use-case.ts',
+        'src/infra/social',
+        'src/infra/di/social.di.ts',
+        'src/infra/http/controllers/social.controller.ts',
+        'src/infra/database/mikroorm/entities/identity.schema.ts',
+        'src/infra/database/mikroorm/entities/social-sign-in.schema.ts',
+        'src/infra/database/mikroorm/repositories/mikroorm-identity.repository.ts',
+        'src/infra/database/mikroorm/repositories/mikroorm-social-sign-in.repository.ts',
+        'migrations/Migration20261002231646_create_identity_social_sign_in.ts',
+        'test/domain/auth/use-cases/social.use-case.spec.ts',
+        'test/infra/social',
+        'test/infra/http/controllers/social.controller.spec.ts',
+        'test/support/fakes/social-fakes.ts',
+        'test/support/fake-oidc-server.ts',
+      ],
+      web: ['src/features/auth/social-buttons.tsx', 'test/features/auth/social-buttons.spec.tsx'],
+      mobile: [
+        'src/features/auth/social-buttons.tsx',
+        'test/features/auth/social-buttons.spec.tsx',
+      ],
+    },
+    dependencies: { api: ['openid-client'] },
+  },
   google: { files: {}, dependencies: {} },
   apple: { files: {}, dependencies: {} },
 }
 
 export function cutFeature(text: string, feature: Feature, keep: boolean, file = 'a file'): string {
-  // Inside JSX a comment is written {/* … */}, so a block may open and close either way.
-  const start = new RegExp(`^\\s*(// prumo:${feature}|\\{/\\* prumo:${feature} \\*/\\})$`)
-  const end = new RegExp(`^\\s*(// prumo:end-${feature}|\\{/\\* prumo:end-${feature} \\*/\\})$`)
+  // Inside JSX a comment is written {/* … */}, and in an env file with #, so a block may open and close any of
+  // these ways.
+  const start = new RegExp(
+    `^\\s*(// prumo:${feature}|\\{/\\* prumo:${feature} \\*/\\}|# prumo:${feature})$`,
+  )
+  const end = new RegExp(
+    `^\\s*(// prumo:end-${feature}|\\{/\\* prumo:end-${feature} \\*/\\}|# prumo:end-${feature})$`,
+  )
   // A marked import keeps its marker as a trailing comment, which the import sorter carries along.
-  const marked = new RegExp(`\\s*// prumo:${feature}$`)
+  const marked = new RegExp(`\\s*(//|#) prumo:${feature}$`)
   const kept: string[] = []
   let inBlock = false
 
@@ -180,6 +223,8 @@ export async function applyFeatures(app: string, type: AppType, enabled: Enabled
   const sources = [
     ...(await sourceFiles(join(app, 'src'))),
     ...(await sourceFiles(join(app, 'test'))),
+    // The settings a feature needs are cut with it.
+    join(app, '.env.example'),
   ]
   const manifest = join(app, 'package.json')
   let pkg = await readFile(manifest, 'utf8')

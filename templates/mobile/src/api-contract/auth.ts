@@ -16,6 +16,10 @@ export type VerifyEmailRequest = { email: string; code: string }
 export type ResetPasswordRequest = { email: string; code: string; password: string }
 
 // prumo:end-email
+// prumo:social
+export type SocialProvider = 'google' | 'apple'
+
+// prumo:end-social
 // An account that must confirm its email first gets no session from signing up, and says so.
 export type SignUpResult = { verificationRequired: boolean }
 
@@ -172,6 +176,16 @@ export function createAuthClient({
       await begin('/password/reset', request)
     },
     // prumo:end-email
+    // prumo:social
+    // Where to send the browser to sign in with a provider: the API takes it there and back. The web comes back
+    // signed in; a mobile app comes back with a code to exchange.
+    socialSignInUrl: (provider: SocialProvider, client: 'web' | 'mobile', returnTo = '/') =>
+      `${url(`/social/${provider}`)}?${new URLSearchParams({ client, returnTo })}`,
+
+    exchangeSocialCode: async (code: string): Promise<void> => {
+      await begin('/social/exchange', { code })
+    },
+    // prumo:end-social
 
     // The device forgets the tokens whether or not the request arrives: signing out locally is what was asked.
     async signOut(): Promise<void> {

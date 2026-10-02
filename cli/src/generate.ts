@@ -30,6 +30,24 @@ async function nameMobileApp(app: string, name: string): Promise<void> {
 
 const SECRET_LINE = /^JWT_SECRET=.*$/m
 
+const SCHEME_LINES = /^# The mobile app's scheme.*\nMOBILE_APP_SCHEME=.*\n/m
+
+// Social sign-in sends a mobile app back by its scheme, the one app.json was given. Without a mobile app the setting
+// names nothing, so it goes. Without social sign-in its marker already took it.
+async function settleMobileScheme(api: string, scheme: string | null): Promise<void> {
+  for (const file of ['.env.example', '.env']) {
+    const path = join(api, file)
+
+    if (existsSync(path)) {
+      await rewrite(path, (text) =>
+        scheme === null
+          ? text.replace(SCHEME_LINES, '')
+          : text.replace(/^MOBILE_APP_SCHEME=.*$/m, `MOBILE_APP_SCHEME=${scheme}`),
+      )
+    }
+  }
+}
+
 // `.env` stays out of git, so the example is the committed truth and a fresh project gets a copy it can start with.
 // Only the secret differs: a sample value is public, so every generated API draws its own.
 async function writeLocalEnv(app: string, type: AppType): Promise<void> {
@@ -198,6 +216,10 @@ async function write({
 
     if (answers.types.includes('api')) {
       await nameCompose(join(target, 'apps', 'api'), answers.name)
+      await settleMobileScheme(
+        join(target, 'apps', 'api'),
+        answers.types.includes('mobile') ? schemeFor(answers.name) : null,
+      )
     }
 
     if (answers.types.includes('mobile')) {

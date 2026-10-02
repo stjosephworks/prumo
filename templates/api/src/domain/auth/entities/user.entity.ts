@@ -24,4 +24,11 @@ export class User {
   changePassword(passwordHash: string): void {
     this.passwordHash = passwordHash
   }
+
+  // prumo:social
+  // A provider proved the address belongs to someone else than whoever chose this password.
+  removePassword(): void {
+    this.passwordHash = null
+  }
+  // prumo:end-social
 }

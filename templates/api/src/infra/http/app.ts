@@ -18,6 +18,7 @@ import { authEmailController } from '@/infra/http/controllers/auth-email.control
 import { healthController } from '@/infra/http/controllers/health.controller'
 import { mcpController } from '@/infra/http/controllers/mcp.controller' // prumo:mcp
 import { oauthController } from '@/infra/http/controllers/oauth.controller' // prumo:mcp
+import { socialController } from '@/infra/http/controllers/social.controller' // prumo:social
 import { usersController } from '@/infra/http/controllers/users.controller'
 import { registerErrorHandler } from '@/infra/http/errors/error-handler'
 import { registerAuthHook } from '@/infra/http/hooks/auth.hook'
@@ -100,6 +101,7 @@ export async function buildApp(container: DependencyContainer): Promise<FastifyI
 
   await app.register(authController, { prefix: '/api/auth' })
   await app.register(authEmailController, { prefix: '/api/auth' }) // prumo:email
+  await app.register(socialController, { prefix: '/api/auth/social' }) // prumo:social
   await app.register(healthController, { prefix: '/api/health' })
   await app.register(usersController, { prefix: '/api/v1/users' })
   // prumo:mcp

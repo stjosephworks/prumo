@@ -36,6 +36,19 @@ export function sessionDelivery(env: Pick<Env, 'API_URL'>) {
     reply.clearCookie(REFRESH_COOKIE, { ...cookie, path: REFRESH_PATH })
   }
 
+  function setCookies(reply: FastifyReply, tokens: SessionTokens): void {
+    reply.setCookie(ACCESS_COOKIE, tokens.accessToken.token, {
+      ...cookie,
+      path: '/',
+      expires: tokens.accessToken.expiresAt,
+    })
+    reply.setCookie(REFRESH_COOKIE, tokens.refreshToken, {
+      ...cookie,
+      path: REFRESH_PATH,
+      expires: tokens.refreshExpiresAt,
+    })
+  }
+
   // The web gets cookies and an empty body; a native client gets the tokens and no cookie.
   function deliver(
     request: FastifyRequest,
@@ -47,19 +60,10 @@ export function sessionDelivery(env: Pick<Env, 'API_URL'>) {
       return reply.code(status).send(asBody(tokens))
     }
 
-    reply.setCookie(ACCESS_COOKIE, tokens.accessToken.token, {
-      ...cookie,
-      path: '/',
-      expires: tokens.accessToken.expiresAt,
-    })
-    reply.setCookie(REFRESH_COOKIE, tokens.refreshToken, {
-      ...cookie,
-      path: REFRESH_PATH,
-      expires: tokens.refreshExpiresAt,
-    })
+    setCookies(reply, tokens)
 
     return reply.code(status === 201 ? 201 : 204).send()
   }
 
-  return { deliver, clearCookies }
+  return { deliver, setCookies, clearCookies }
 }

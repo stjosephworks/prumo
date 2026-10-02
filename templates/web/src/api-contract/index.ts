@@ -7,6 +7,7 @@ export {
   type SignInRequest,
   type SignUpRequest,
   type SignUpResult,
+  type SocialProvider, // prumo:social
   sessionQuery,
   type TokenStore,
   type Tokens,
