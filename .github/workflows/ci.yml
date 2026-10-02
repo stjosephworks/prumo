@@ -88,6 +88,12 @@ jobs:
           - name: a-site
             types: site
             architecture: alone
+          # One type laid out as a workspace, and the one multi-tenant project.
+          - name: a-tenant-workspace
+            types: api
+            architecture: monorepo
+            tenancy: --multi-tenant
+            flags: --monorepo
           # The one project with MCP: every other one proves the templates run with it cut out.
           - name: everything
             types: api,web,mobile,site
@@ -106,18 +112,44 @@ jobs:
       - run: pnpm install
         working-directory: cli
       - name: Generate ${{ matrix.name }}
-        run: node ${{ github.workspace }}/cli/src/cli.ts new ${{ matrix.name }} --types ${{ matrix.types }} --single-tenant ${{ matrix.flags }}
+        run: node ${{ github.workspace }}/cli/src/cli.ts new ${{ matrix.name }} --types ${{ matrix.types }} ${{ matrix.tenancy || '--single-tenant' }} ${{ matrix.flags }}
         working-directory: ${{ runner.temp }}
       - name: Verify ${{ matrix.name }}
         run: >
           node cli/scripts/verify.mjs ${{ runner.temp }}/${{ matrix.name }}
           --types ${{ matrix.types }} --architecture ${{ matrix.architecture }}
 
+  floor:
+    # The Node floor that engines promises. It runs the built CLI, as a user does,
+    # and the project it generates passes the same verification as the matrix above.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: cli/package.json
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.18.0
+          cache: pnpm
+          cache-dependency-path: cli/pnpm-lock.yaml
+      - run: pnpm install
+        working-directory: cli
+      - run: pnpm build
+        working-directory: cli
+      - name: Generate on the floor
+        run: node ${{ github.workspace }}/cli/dist/cli.js new floor --types api,web --single-tenant --no-mcp
+        working-directory: ${{ runner.temp }}
+      - name: Verify on the floor
+        run: >
+          node cli/scripts/verify.mjs ${{ runner.temp }}/floor
+          --types api,web --architecture monorepo
+
   publish:
     # Publishing is a version bump landing on main: this job compares cli/package.json with what the registry holds
     # and does nothing when they agree. It waits for every other job, because the matrix above is what proves a
     # generated project runs.
-    needs: [repository, packaged, generated]
+    needs: [repository, packaged, generated, floor]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     concurrency:

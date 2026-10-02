@@ -13,14 +13,18 @@ const JSON_OPTION = {
 export const COMMANDS: CommandHelp[] = [
   {
     name: 'new',
-    usage: 'prumo new [name] [options]',
-    summary: 'Generate a project and the .prumo/ context it follows',
+    usage: 'prumo new [name | .] [options]',
+    summary:
+      'Generate a project and the .prumo/ context it follows; `.` generates into this empty directory',
     options: [
       { flag: '--types <list>', description: 'Comma-separated: api, web, mobile, site' },
       { flag: '--alone', description: 'One project of one type' },
       { flag: '--monorepo', description: 'A workspace, even for a single type' },
-      { flag: '--multi-tenant', description: 'Tenant-aware api, web and mobile' },
-      { flag: '--single-tenant', description: 'No tenancy' },
+      {
+        flag: '--multi-tenant',
+        description: 'Ship the multi-tenancy conventions; the code itself is not tenant-aware',
+      },
+      { flag: '--single-tenant', description: 'No multi-tenancy conventions' },
       { flag: '--mcp', description: 'An MCP server on the api, authorized through the web' },
       { flag: '--no-mcp', description: 'No MCP server' },
       { flag: '--skip-install', description: 'Do not run pnpm install' },

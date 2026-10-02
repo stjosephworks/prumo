@@ -76,6 +76,9 @@ describe('prumo', () => {
       [['new', '--json'], 'needs_input'],
       [['new', 'Bad', '--types', 'api', '--json'], 'invalid_input'],
       [['clean', '--json'], 'not_a_project'],
+      [['--bogus', '--json'], 'usage'],
+      [['doctor', '--bogus', '--json'], 'usage'],
+      [['version', 'extra', '--json'], 'usage'],
     ]
 
     for (const [args, code] of cases) {

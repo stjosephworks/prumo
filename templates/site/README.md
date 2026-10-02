@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Node 22.17 or later, and pnpm. The build downloads its font from Google Fonts, so it needs network access.
+Node 22.18 or later, and pnpm 10.26 or later. The build downloads its font from Google Fonts, so it needs network access.
 
 ## Running it
 

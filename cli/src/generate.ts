@@ -1,13 +1,14 @@
 import { spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { readdir, readFile, writeFile } from 'node:fs/promises'
+import { readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { type AppType, composeWorkspace, copyTemplate } from './compose.ts'
 import { type Answers, writeContext } from './context.ts'
+import { SHELL } from './doctor.ts'
 import { setJsonc } from './jsonc.ts'
 import { applyMcp } from './mcp.ts'
-import { schemeFor } from './names.ts'
+import { schemeFor, targetProblem } from './names.ts'
 import { CliError } from './output.ts'
 
 async function rewrite(path: string, change: (text: string) => string): Promise<void> {
@@ -63,15 +64,56 @@ async function nameCompose(api: string, name: string): Promise<void> {
   })
 }
 
+// Ctrl+C reaches the child and Prumo alike. While a listener exists Prumo is not killed outright, so the run that
+// was stopped returns, its failure removes the half-written project, and the next run starts from nothing.
+let interrupted = false
+
+function interrupt(): void {
+  interrupted = true
+}
+
+function stopIfInterrupted(): void {
+  if (interrupted) {
+    throw new CliError('interrupted', 'Interrupted. Nothing was kept.')
+  }
+}
+
 function run(command: string, args: string[], cwd: string, output: ChildOutput): void {
+  stopIfInterrupted()
+
   // Under --json stdout belongs to the result document, so a child's output goes to stderr instead.
   const result = spawnSync(command, args, {
     cwd,
     stdio: output === 'inherit' ? 'inherit' : ['ignore', 2, 2],
+    shell: SHELL,
   })
 
+  // spawnSync holds the event loop, so the listener has not run yet; the child says it instead, either by dying of
+  // the signal or, as pnpm does, by catching it and exiting with 130.
+  if (result.signal === 'SIGINT' || result.status === 130) {
+    interrupted = true
+  }
+
+  stopIfInterrupted()
+
   if (result.status !== 0) {
-    throw new Error(`${command} ${args.join(' ')} failed in ${cwd}`)
+    const why =
+      result.error?.message ??
+      (result.signal !== null ? `stopped by ${result.signal}` : `exit code ${result.status}`)
+
+    throw new Error(`${command} ${args.join(' ')} failed in ${cwd}: ${why}`)
+  }
+}
+
+// Only what this run wrote goes: a directory it created, or the contents of the empty one it was given.
+async function discard(target: string, created: boolean): Promise<void> {
+  if (created) {
+    await rm(target, { recursive: true, force: true })
+    return
+  }
+
+  for (const entry of await readdir(target).catch(() => [])) {
+    await rm(join(target, entry), { recursive: true, force: true })
   }
 }
 
@@ -90,10 +132,42 @@ export async function generate({
   install: boolean
   childOutput?: ChildOutput
 }): Promise<void> {
-  if (existsSync(target) && (await readdir(target)).length > 0) {
-    throw new CliError('target_not_empty', `${target} already exists and is not empty.`)
+  const occupied = targetProblem(target)
+
+  if (occupied !== undefined) {
+    throw new CliError('target_not_empty', occupied)
   }
 
+  const created = !existsSync(target)
+
+  interrupted = false
+  process.on('SIGINT', interrupt)
+
+  try {
+    await write({ templates, knowledge, target, answers, install, childOutput })
+  } catch (error: unknown) {
+    await discard(target, created)
+    throw error
+  } finally {
+    process.off('SIGINT', interrupt)
+  }
+}
+
+async function write({
+  templates,
+  knowledge,
+  target,
+  answers,
+  install,
+  childOutput,
+}: {
+  templates: string
+  knowledge: string
+  target: string
+  answers: Answers
+  install: boolean
+  childOutput: ChildOutput
+}): Promise<void> {
   const [only] = answers.types
 
   if (answers.architecture === 'alone' && only !== undefined) {

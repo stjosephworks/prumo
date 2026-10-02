@@ -27,6 +27,10 @@ not `database/entities.md`.
 Create what the application keeps about a user in `databaseHooks.user.create.after`, through a use case:
 `src/infra/di/index.ts` passes the hook into `createAuth`.
 
+Pin every Better Auth package to one version, and declare `@better-auth/core` as a direct dependency at that
+version: `better-auth`, `auth` and every `@better-auth/*` plugin, in the api and in every client. Upgrade them in
+one change, never one package at a time.
+
 ## Rationale
 
 The route sits inside Fastify, so the request id and the logs cover the authentication flow. **The error
@@ -50,6 +54,11 @@ The ORM compares its entities with everything in the database, so without `ignor
 Auth's tables as leftovers and every generated migration drops them, with every login in them. The foreign
 key is declared rather than written by hand in a migration because the ORM would otherwise drop that too,
 every time. `AuthUser` exists only as that anchor.
+
+`better-auth` pins its core exactly, but each plugin only asks for a compatible core as a peer. Without a
+direct `@better-auth/core`, pnpm satisfies that peer with the newest core on the registry, so a core release
+installs a second core beside the pinned one, and the plugins stop typechecking against it. One version and
+a declared core leave pnpm a single core to install.
 
 **The sign-up hook is not atomic:** the user and the application's row are written over two connections, so
 a failure between them leaves a user without a profile. The result is a visible 404, not corrupted data. And
@@ -82,5 +91,8 @@ so a configuration that would drop Better Auth's schema, or the foreign key, fai
 
 **The database.** A row referencing a user that does not exist is refused.
 
-**Review only.** That each `public: true` is deliberate: the one mistake that is invisible at runtime, because
+**Typecheck.** Two cores in one project usually fail `pnpm typecheck` in `src/infra/auth/`.
+
+**Review only.** That an upgrade moves the whole Better Auth family, `@better-auth/core` included. And that
+each `public: true` is deliberate: the one mistake that is invisible at runtime, because
 the route works, for everyone.

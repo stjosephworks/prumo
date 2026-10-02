@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Node 22.17 or later, pnpm, and Docker Desktop running: the database and the tests both run in it.
+Node 22.18 or later, pnpm 10.26 or later, and Docker Desktop running: the database and the tests both run in it.
 
 ## Running it
 
