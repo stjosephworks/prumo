@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
-import { join, relative } from 'node:path'
+import { join, relative, sep } from 'node:path'
 import { prependProperty, readJsonc, removeWhatBaseDeclares, setJsonc } from './jsonc.ts'
 import { applyMcp } from './mcp.ts'
 
@@ -8,7 +8,7 @@ export type AppType = 'api' | 'web' | 'mobile' | 'site'
 
 const CLIENTS: AppType[] = ['web', 'mobile']
 
-// One exception to one-version-per-dependency, recorded in DECISIONS.md: stable NativeWind needs Tailwind 3.
+// One exception to one-version-per-dependency: stable NativeWind needs Tailwind 3.
 const NAMED_CATALOGS = [{ name: 'tailwind3', dependency: 'tailwindcss', major: '3' }]
 
 export type Catalogs = { default: Dependencies; named: Record<string, Dependencies> }
@@ -60,7 +60,7 @@ export async function copyTemplate(source: string, destination: string): Promise
     recursive: true,
     filter: (path) =>
       !relative(source, path)
-        .split('/')
+        .split(sep)
         .some(
           (part) =>
             NOT_COPIED.has(part) || NOT_COPIED_SUFFIXES.some((suffix) => part.endsWith(suffix)),

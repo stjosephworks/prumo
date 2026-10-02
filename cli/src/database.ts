@@ -23,8 +23,11 @@ export function findProjectRoot(from: string): string {
   return directory
 }
 
-export function readConfig(root: string): Answers {
-  return JSON.parse(readFileSync(join(root, '.prumo', 'config.json'), 'utf8')) as Answers
+// What `.prumo/config.json` holds: the answers, and from 0.1.1 the version that wrote them.
+export type Config = Omit<Answers, 'name'> & { prumo?: string }
+
+export function readConfig(root: string): Config {
+  return JSON.parse(readFileSync(join(root, '.prumo', 'config.json'), 'utf8')) as Config
 }
 
 // Where the API sits, or undefined when the project has none.

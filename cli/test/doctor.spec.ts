@@ -43,11 +43,19 @@ describe('doctor', () => {
     expect(check(report, 'git')?.status).toBe('fail')
   })
 
+  it('fails on a pnpm too old for the generated workspaces', async () => {
+    const report = await doctor(probe({ ...EVERYTHING, 'pnpm --version': '10.25.9' }))
+
+    expect(report.ready).toBe(false)
+    expect(check(report, 'pnpm')).toMatchObject({ status: 'fail' })
+    expect(check(report, 'pnpm')?.detail).toContain('10.26.0 or later')
+  })
+
   it('only warns about Docker, telling installed from running', async () => {
     const stopped = await doctor(
-      probe({ 'pnpm --version': '12', 'git --version': 'git', 'docker --version': 'Docker' }),
+      probe({ 'pnpm --version': '12.0.0', 'git --version': 'git', 'docker --version': 'Docker' }),
     )
-    const missing = await doctor(probe({ 'pnpm --version': '12', 'git --version': 'git' }))
+    const missing = await doctor(probe({ 'pnpm --version': '12.0.0', 'git --version': 'git' }))
 
     expect(stopped.ready).toBe(true)
     expect(check(stopped, 'docker')).toMatchObject({ status: 'warn' })
