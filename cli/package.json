@@ -1,6 +1,6 @@
 {
   "name": "@stjoseph/prumo",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Scaffolds a TypeScript project and ships it the conventions it follows, in a .prumo/ folder any AI assistant reads.",
   "keywords": [
     "scaffolding",
