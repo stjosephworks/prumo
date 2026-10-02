@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Redirect, Stack, usePathname } from 'expo-router'
+import { sessionQuery } from '@/api-contract'
 import { rememberIntendedRoute } from '@/features/auth/intended-route'
-import { sessionQuery } from '@/features/auth/session'
 import { useClients } from '@/features/clients/clients-context'
 
 export default function AuthenticatedLayout() {

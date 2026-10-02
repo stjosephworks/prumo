@@ -15,18 +15,14 @@
     "prepare": "node .githooks/install.mjs"
   },
   "dependencies": {
-    "@better-auth/core": "1.7.7",
-    "@better-auth/expo": "1.7.7",
     "@hookform/resolvers": "5.9.1",
     "@tanstack/query-sync-storage-persister": "5.102.8",
     "@tanstack/react-query": "5.102.8",
     "@tanstack/react-query-persist-client": "5.102.8",
-    "better-auth": "1.7.7",
     "class-variance-authority": "0.7.1",
     "expo": "57.0.22",
     "expo-constants": "57.0.18",
     "expo-linking": "57.0.10",
-    "expo-network": "57.0.2",
     "expo-router": "57.0.21",
     "expo-secure-store": "57.0.4",
     "expo-splash-screen": "57.0.9",

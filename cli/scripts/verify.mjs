@@ -134,15 +134,18 @@ const ORIGIN = 'http://localhost:5173'
 describe('the hand-written contract against the running API', () => {
   it('describes what /users/me actually returns', async () => {
     const email = \`contract-\${Date.now()}@example.com\`
-    const signUp = await fetch(\`\${API}/api/auth/sign-up/email\`, {
+    const signUp = await fetch(\`\${API}/api/auth/sign-up\`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: ORIGIN },
       body: JSON.stringify({ name: 'Contract', email, password: 'correct-horse-battery' }),
     })
 
-    expect(signUp.status).toBe(200)
+    expect(signUp.status).toBe(201)
 
-    const cookie = signUp.headers.get('set-cookie') ?? ''
+    const cookie = signUp.headers
+      .getSetCookie()
+      .map((header) => header.split(';')[0])
+      .join('; ')
     const api = createClient({
       baseUrl: API,
       fetch: (input, init) =>

@@ -3,23 +3,27 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Controller, useForm } from 'react-hook-form'
 import { View } from 'react-native'
 import { z } from 'zod'
-import { ApiError } from '@/api-contract'
+import { type AuthClient, sessionQuery } from '@/api-contract'
 import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
-import type { SessionAuth } from './auth-client'
-import { sessionQuery } from './session'
 
 const schema = z.object({
   name: z.string().min(1).max(80),
   email: z.email(),
-  password: z.string().min(8),
+  password: z.string().min(8).max(128),
 })
 
 type SignUpValues = z.infer<typeof schema>
 
-export function SignUpForm({ auth, onSignedUp }: { auth: SessionAuth; onSignedUp: () => void }) {
+export function SignUpForm({
+  auth,
+  onSignedUp,
+}: {
+  auth: Pick<AuthClient, 'signUp' | 'getSession'>
+  onSignedUp: () => void
+}) {
   const queryClient = useQueryClient()
   const form = useForm<SignUpValues>({
     resolver: zodResolver(schema),
@@ -30,10 +34,10 @@ export function SignUpForm({ auth, onSignedUp }: { auth: SessionAuth; onSignedUp
   const { errors, isSubmitting } = form.formState
 
   async function onSubmit(values: SignUpValues) {
-    const { error } = await auth.signUp.email(values)
-
-    if (error !== null) {
-      applyServerError(ApiError.fromAuthError(error), ['name', 'email', 'password'], form.setError)
+    try {
+      await auth.signUp(values)
+    } catch (error) {
+      applyServerError(error, ['name', 'email', 'password'], form.setError)
       return
     }
 
