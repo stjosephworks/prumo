@@ -31,6 +31,7 @@ const TITLES: Record<number, string> = {
   413: 'Payload Too Large',
   415: 'Unsupported Media Type',
   422: 'Unprocessable Entity',
+  429: 'Too Many Requests',
   500: 'Internal Server Error',
   503: 'Service Unavailable',
 }

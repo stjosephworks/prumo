@@ -1,5 +1,4 @@
 import type { DependencyContainer } from 'tsyringe'
-import type { AuthSession, AuthUser } from '@/infra/auth/auth.factory'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -11,7 +10,7 @@ declare module 'fastify' {
   }
 
   interface FastifyRequest {
-    user?: AuthUser
-    session?: NonNullable<AuthSession>['session']
+    user?: { id: string }
+    sessionId?: string
   }
 }

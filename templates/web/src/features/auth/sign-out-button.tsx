@@ -1,9 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import type { AuthClient } from '@/api-contract'
 import { Button } from '@/components/ui/button'
-import type { AuthClient } from './auth-client'
 
-export function SignOutButton({ auth }: { auth: AuthClient }) {
+export function SignOutButton({ auth }: { auth: Pick<AuthClient, 'signOut'> }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -11,8 +11,8 @@ export function SignOutButton({ auth }: { auth: AuthClient }) {
     try {
       await auth.signOut()
     } catch {
-      // Better Auth throws when the request never arrives. The cache is cleared regardless, because data left behind
-      // for the next person on this tab is the worse error; the cookie survives until the server's session expires.
+      // The request may never arrive. The cache is cleared regardless, because data left behind for the next person
+      // on this tab is the worse error; the cookies then survive until the access token expires and the refresh fails.
     }
 
     // The whole cache, not only the session: a query about "me" belongs to whoever was signed in.

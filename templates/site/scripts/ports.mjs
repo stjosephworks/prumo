@@ -25,7 +25,7 @@ const APPS = {
 // A port that moves takes these with it: the key to write, in which app, from which app's port.
 const FOLLOWERS = {
   api: [
-    { app: 'api', key: 'BETTER_AUTH_URL' },
+    { app: 'api', key: 'API_URL' },
     { app: 'web', key: 'VITE_API_URL' },
     { app: 'mobile', key: 'EXPO_PUBLIC_API_URL' },
   ],

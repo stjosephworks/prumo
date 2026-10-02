@@ -6,23 +6,30 @@ import { setJsonc } from './jsonc.ts'
 
 // The api and web templates ship with MCP. A project that answered no receives them without it: these files are
 // deleted, these dependencies removed, and every marked line or block cut. Every other type has nothing to cut.
-const FILES: Partial<Record<AppType, string[]>> = {
+// The API's MCP is its server and the OAuth authorization server that issues its tokens, with the table that
+// holds an authorization in a migration of its own, so a project without MCP never creates it.
+export const FILES: Partial<Record<AppType, string[]>> = {
   api: [
     'src/infra/mcp',
+    'src/domain/oauth',
+    'src/infra/oauth',
+    'src/infra/di/oauth.di.ts',
+    'src/infra/http/fetch-bridge.ts',
     'src/infra/http/controllers/mcp.controller.ts',
+    'src/infra/http/controllers/oauth.controller.ts',
+    'src/infra/database/mikroorm/entities/authorization.schema.ts',
+    'src/infra/database/mikroorm/repositories/mikroorm-authorization.repository.ts',
+    'migrations/Migration20261002210631_create_authorization.ts',
+    'test/domain/oauth',
+    'test/infra/oauth',
     'test/infra/http/controllers/mcp.controller.spec.ts',
   ],
   web: ['src/features/oauth', 'src/routes/_authenticated/consent.tsx', 'test/features/oauth'],
 }
 
 const DEPENDENCIES: Partial<Record<AppType, string[]>> = {
-  api: [
-    '@better-auth/cimd',
-    '@better-auth/mcp',
-    '@modelcontextprotocol/client',
-    '@modelcontextprotocol/server',
-  ],
-  web: ['@better-auth/oauth-provider'],
+  api: ['@modelcontextprotocol/client', '@modelcontextprotocol/server'],
+  web: [],
 }
 
 const BLOCK_START = /^\s*\/\/ prumo:mcp$/

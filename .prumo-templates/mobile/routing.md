@@ -2,7 +2,7 @@
 
 ## Rule
 
-Hold the native splash screen until the session has been read from `expo-secure-store`. Only then let the
+Hold the native splash screen until the session has been read, with the tokens from `expo-secure-store`. Only then let the
 router render the authenticated group or redirect to login.
 
 Express protection with an authenticated layout group. Do not check for a session inside a screen.

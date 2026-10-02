@@ -1,23 +1,24 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
+import { memoryTokenStore } from '@test/support/memory-token-store'
 import { render, screen, userEvent } from '@testing-library/react-native'
-import { createAuthClient } from 'better-auth/react'
+import { createAuthClient } from '@/api-contract'
 import { SignInForm } from '@/features/auth/sign-in-form'
 
 describe('SignInForm', () => {
   it('shows a rejected sign-in as a form-level error', async () => {
     const onSignedIn = jest.fn()
-    // jest-expo leaves the app manifest empty, and the Expo plugin needs it to build an origin; the form under test
-    // depends only on the error Better Auth returns, which the plugin does not change.
     const auth = createAuthClient({
-      baseURL: API_URL,
-      basePath: '/api/auth',
-      fetchOptions: {
-        customFetchImpl: fakeTransport({
-          'POST /api/auth/sign-in/email': () =>
-            json(401, { message: 'Invalid email or password', code: 'INVALID_EMAIL_OR_PASSWORD' }),
-        }),
-      },
+      baseUrl: API_URL,
+      tokens: memoryTokenStore(),
+      fetch: fakeTransport({
+        'POST /api/auth/sign-in': () =>
+          json(
+            401,
+            { title: 'Unauthorized', status: 401, detail: 'Invalid email or password' },
+            'application/problem+json',
+          ),
+      }),
     })
     const user = userEvent.setup()
 

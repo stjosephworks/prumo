@@ -4,18 +4,18 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect, useState } from 'react'
-import { createClient } from '@/api-contract'
+import { createAuthClient, createClient, sessionQuery } from '@/api-contract'
 import { config } from '@/config'
-import { createAuth, withSessionCookie } from '@/features/auth/auth-client'
-import { sessionQuery } from '@/features/auth/session'
+import { secureTokenStore } from '@/features/auth/token-store'
 import { ClientsProvider, useClients } from '@/features/clients/clients-context'
 import { QUERY_CACHE_MAX_AGE, queryPersister } from '@/features/storage/query-persister'
 
 SplashScreen.preventAutoHideAsync()
 
 function createClients() {
-  const auth = createAuth({ baseUrl: config.apiUrl, fetch })
-  const api = createClient({ baseUrl: config.apiUrl, fetch: withSessionCookie(auth, fetch) })
+  const auth = createAuthClient({ baseUrl: config.apiUrl, fetch, tokens: secureTokenStore })
+  // Through the auth client, so every request carries the bearer and an expired one is refreshed and repeated.
+  const api = createClient({ baseUrl: config.apiUrl, fetch: auth.fetch })
 
   return { auth, api }
 }

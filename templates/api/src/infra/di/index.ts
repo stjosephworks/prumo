@@ -1,10 +1,10 @@
 import { EntityManager, MikroORM } from '@mikro-orm/postgresql'
 import { type DependencyContainer, container as root } from 'tsyringe'
 import { TRANSACTION_MANAGER } from '@/domain/shared/transactions/transaction-manager'
-import { CreateProfileUseCase } from '@/domain/users/use-cases/create-profile.use-case'
-import { AUTH, createAuth } from '@/infra/auth/auth.factory'
 import { ENV, type Env } from '@/infra/config/env'
 import { MikroOrmTransactionManager } from '@/infra/database/mikroorm/transactions/mikroorm-transaction-manager'
+import { registerAuth } from './auth.di'
+import { registerOauth } from './oauth.di' // prumo:mcp
 import { registerUsers } from './users.di'
 
 export type Dependencies = { env: Env; orm: MikroORM }
@@ -18,15 +18,9 @@ export function createContainer({ env, orm }: Dependencies): DependencyContainer
   container.register(EntityManager, { useValue: orm.em })
   container.register(TRANSACTION_MANAGER, { useClass: MikroOrmTransactionManager })
 
+  registerAuth(container)
   registerUsers(container)
-
-  container.register(AUTH, {
-    useValue: createAuth(env, {
-      onUserCreated: async (user) => {
-        await container.resolve(CreateProfileUseCase).execute(user.id, user.name)
-      },
-    }),
-  })
+  registerOauth(container) // prumo:mcp
 
   return container
 }

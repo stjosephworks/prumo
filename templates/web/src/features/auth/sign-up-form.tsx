@@ -3,24 +3,22 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { ApiError } from '@/api-contract'
+import { type AuthClient, sessionQuery } from '@/api-contract'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
-import type { AuthClient } from './auth-client'
-import { sessionQuery } from './session'
 
 const schema = z.object({
   name: z.string().min(1).max(80),
   email: z.email(),
-  password: z.string().min(8),
+  password: z.string().min(8).max(128),
 })
 
 type SignUpValues = z.infer<typeof schema>
 
-export function SignUpForm({ auth }: { auth: AuthClient }) {
+export function SignUpForm({ auth }: { auth: Pick<AuthClient, 'signUp' | 'getSession'> }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const form = useForm<SignUpValues>({
@@ -32,10 +30,10 @@ export function SignUpForm({ auth }: { auth: AuthClient }) {
   const { errors, isSubmitting } = form.formState
 
   async function onSubmit(values: SignUpValues) {
-    const { error } = await auth.signUp.email(values)
-
-    if (error !== null) {
-      applyServerError(ApiError.fromAuthError(error), ['name', 'email', 'password'], form.setError)
+    try {
+      await auth.signUp(values)
+    } catch (error) {
+      applyServerError(error, ['name', 'email', 'password'], form.setError)
       return
     }
 

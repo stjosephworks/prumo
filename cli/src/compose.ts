@@ -273,13 +273,11 @@ export async function composeWorkspace({
   templates,
   target,
   types,
-  mobileScheme = 'app',
   mcp = false,
 }: {
   templates: string
   target: string
   types: AppType[]
-  mobileScheme?: string
   mcp?: boolean
 }): Promise<void> {
   await mkdir(target, { recursive: true })
@@ -301,17 +299,6 @@ export async function composeWorkspace({
     await extractContract(target, clients)
   } else {
     await rm(join(target, 'packages'), { recursive: true, force: true })
-  }
-
-  if (types.includes('api') && types.includes('mobile')) {
-    await rewriteText(join(target, 'apps', 'api', '.env.example'), (text) => {
-      if (!text.includes('# MOBILE_APP_SCHEME=app\n')) {
-        throw new Error(
-          'apps/api/.env.example no longer carries the commented MOBILE_APP_SCHEME line',
-        )
-      }
-      return text.replace('# MOBILE_APP_SCHEME=app\n', `MOBILE_APP_SCHEME=${mobileScheme}\n`)
-    })
   }
 
   // One command for everything and one per app. Each app answers to `dev`, so the root never needs to know how.

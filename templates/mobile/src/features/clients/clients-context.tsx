@@ -1,6 +1,5 @@
 import { createContext, type ReactNode, useContext } from 'react'
-import type { ApiClient } from '@/api-contract'
-import type { AuthClient } from '@/features/auth/auth-client'
+import type { ApiClient, AuthClient } from '@/api-contract'
 
 type Clients = { api: ApiClient; auth: AuthClient }
 

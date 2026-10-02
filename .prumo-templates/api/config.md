@@ -33,7 +33,7 @@ bodies; a process environment legitimately carries `PATH`, `HOME` and whatever t
 exception is written down so nobody harmonises it later.
 
 **The file is loaded by `loadEnv()` rather than by the server** because the server is not the only entry
-point: the ORM's CLI and Better Auth's CLI both read the configuration without starting it. Node's
+point: the ORM's CLI reads the configuration without starting it. Node's
 `--env-file` would work without code, but it has to be typed on every command. One function every entry
 point calls keeps one policy, including *never in production*.
 
@@ -47,7 +47,7 @@ point calls keeps one policy, including *never in production*.
 ✅  constructor(@inject(ENV) private readonly env: Env) {}
 ❌  const url = process.env.DATABASE_URL
 
-✅  Invalid environment: DATABASE_URL, BETTER_AUTH_SECRET
+✅  Invalid environment: DATABASE_URL, JWT_SECRET
 ❌  DATABASE_URL is invalid: postgres://admin:hunter2@prod-db/app
 ```
 

@@ -5,9 +5,17 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { Profile } from '@/api-contract'
 
-const user = { id: 'user-1', email: 'ana@example.com', name: 'Ana' }
+const user = { id: 'user-1', email: 'ana@example.com' }
 
-const session = { session: { id: 'session-1', userId: user.id }, user }
+const session = { user }
+
+const empty = (status: number) => new Response(null, { status })
+
+// What the API answers a visitor without cookies: no session, and nothing to refresh it with.
+const signedOut = {
+  'GET /api/auth/session': () => json(401, {}),
+  'POST /api/auth/refresh': () => json(401, {}),
+}
 
 const profile: Profile = {
   id: 'profile-1',
@@ -21,7 +29,7 @@ const profile: Profile = {
 
 describe('App', () => {
   it('sends a visitor without a session to sign in', async () => {
-    renderApp('/', fakeTransport({ 'GET /api/auth/get-session': () => json(200, null) }))
+    renderApp('/', fakeTransport(signedOut))
 
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
   })
@@ -35,10 +43,11 @@ describe('App', () => {
     renderApp(
       '/',
       fakeTransport({
-        'GET /api/auth/get-session': () => json(200, signedIn ? session : null),
-        'POST /api/auth/sign-in/email': () => {
+        ...signedOut,
+        'GET /api/auth/session': () => (signedIn ? json(200, session) : json(401, {})),
+        'POST /api/auth/sign-in': () => {
           signedIn = true
-          return json(200, { redirect: false, token: 'token-1', user })
+          return empty(204)
         },
         'GET /api/v1/users/me': () => json(200, profile),
       }),
@@ -59,17 +68,18 @@ describe('App', () => {
     renderApp(
       '/',
       fakeTransport({
-        'GET /api/auth/get-session': () => json(200, registered ? session : null),
-        'POST /api/auth/sign-up/email': () => {
+        ...signedOut,
+        'GET /api/auth/session': () => (registered ? json(200, session) : json(401, {})),
+        'POST /api/auth/sign-up': () => {
           registered = true
-          return json(200, { token: 'token-1', user })
+          return empty(201)
         },
         'GET /api/v1/users/me': () => json(200, profile),
       }),
     )
 
     await visitor.click(await screen.findByRole('link', { name: 'Sign up' }))
-    await visitor.type(await screen.findByLabelText('Name'), user.name)
+    await visitor.type(await screen.findByLabelText('Name'), 'Ana')
     await visitor.type(screen.getByLabelText('Email'), user.email)
     await visitor.type(screen.getByLabelText('Password'), 'correct-horse-battery')
     await visitor.click(screen.getByRole('button', { name: 'Create account' }))
@@ -82,7 +92,7 @@ describe('App', () => {
     const people = {
       ana: { user, profile },
       bruno: {
-        user: { id: 'user-2', email: 'bruno@example.com', name: 'Bruno' },
+        user: { id: 'user-2', email: 'bruno@example.com' },
         profile: { ...profile, id: 'profile-2', userId: 'user-2', displayName: 'Bruno' },
       },
     }
@@ -91,20 +101,16 @@ describe('App', () => {
     renderApp(
       '/',
       fakeTransport({
-        'GET /api/auth/get-session': () =>
-          json(
-            200,
-            current === null
-              ? null
-              : { session: { id: `session-${current}` }, user: people[current].user },
-          ),
+        ...signedOut,
+        'GET /api/auth/session': () =>
+          current === null ? json(401, {}) : json(200, { user: people[current].user }),
         'POST /api/auth/sign-out': () => {
           current = null
-          return json(200, { success: true })
+          return empty(204)
         },
-        'POST /api/auth/sign-in/email': () => {
+        'POST /api/auth/sign-in': () => {
           current = 'bruno'
-          return json(200, { redirect: false, token: 'token-2', user: people.bruno.user })
+          return empty(204)
         },
         'GET /api/v1/users/me': () => json(200, current === null ? null : people[current].profile),
       }),
@@ -121,13 +127,32 @@ describe('App', () => {
     expect(screen.getByLabelText('Display name')).toHaveValue('Bruno')
   })
 
+  // Fifteen minutes in, the access cookie has expired: the next request is refused once, refreshed, and repeated.
+  it('keeps a visitor signed in across an expired access token', async () => {
+    let refreshed = false
+
+    renderApp(
+      '/',
+      fakeTransport({
+        'GET /api/auth/session': () => (refreshed ? json(200, session) : json(401, {})),
+        'POST /api/auth/refresh': () => {
+          refreshed = true
+          return empty(204)
+        },
+        'GET /api/v1/users/me': () => json(200, profile),
+      }),
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Your profile' })).toBeInTheDocument()
+  })
+
   it('signs a visitor out of this tab even when the sign-out request never arrives', async () => {
     const visitor = userEvent.setup()
 
     renderApp(
       '/',
       fakeTransport({
-        'GET /api/auth/get-session': () => json(200, session),
+        'GET /api/auth/session': () => json(200, session),
         'GET /api/v1/users/me': () => json(200, profile),
         'POST /api/auth/sign-out': () => {
           throw new TypeError('Failed to fetch')
