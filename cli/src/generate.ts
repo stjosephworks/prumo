@@ -28,7 +28,7 @@ async function nameMobileApp(app: string, name: string): Promise<void> {
   })
 }
 
-const SECRET_LINE = /^BETTER_AUTH_SECRET=.*$/m
+const SECRET_LINE = /^JWT_SECRET=.*$/m
 
 // `.env` stays out of git, so the example is the committed truth and a fresh project gets a copy it can start with.
 // Only the secret differs: a sample value is public, so every generated API draws its own.
@@ -43,9 +43,9 @@ async function writeLocalEnv(app: string, type: AppType): Promise<void> {
 
   if (type === 'api') {
     if (!SECRET_LINE.test(env)) {
-      throw new Error(`${example} no longer carries a BETTER_AUTH_SECRET line`)
+      throw new Error(`${example} no longer carries a JWT_SECRET line`)
     }
-    env = env.replace(SECRET_LINE, `BETTER_AUTH_SECRET=${randomBytes(32).toString('base64url')}`)
+    env = env.replace(SECRET_LINE, `JWT_SECRET=${randomBytes(32).toString('base64url')}`)
   }
 
   await writeFile(join(app, '.env'), env)
@@ -188,7 +188,6 @@ async function write({
       templates,
       target,
       types: answers.types,
-      mobileScheme: schemeFor(answers.name),
       mcp: answers.mcp,
     })
     await nameProject(target, answers.name)

@@ -259,18 +259,16 @@ describe('generate', () => {
     }
 
     const secret = async (target: string) =>
-      /^BETTER_AUTH_SECRET=(.*)$/m.exec(await readFile(join(target, '.env'), 'utf8'))?.[1]
+      /^JWT_SECRET=(.*)$/m.exec(await readFile(join(target, '.env'), 'utf8'))?.[1]
     const example = await readFile(join(first, '.env.example'), 'utf8')
     const env = await readFile(join(first, '.env'), 'utf8')
 
     expect(await secret(first)).toMatch(/^[\w-]{43}$/)
     expect(await secret(first)).not.toBe(await secret(second))
-    expect(env.replace(/^BETTER_AUTH_SECRET=.*$/m, '')).toBe(
-      example.replace(/^BETTER_AUTH_SECRET=.*$/m, ''),
-    )
+    expect(env.replace(/^JWT_SECRET=.*$/m, '')).toBe(example.replace(/^JWT_SECRET=.*$/m, ''))
   })
 
-  it('composes a multi-tenant workspace with every matching area and one scheme', async () => {
+  it('composes a multi-tenant workspace with every matching area', async () => {
     root = await mkdtemp(join(tmpdir(), 'prumo-new-'))
     const target = join(root, 'acme')
 
@@ -288,7 +286,6 @@ describe('generate', () => {
       },
     })
 
-    const env = await readFile(join(target, 'apps/api/.env.example'), 'utf8')
     const app = JSON.parse(await readFile(join(target, 'apps/mobile/app.json'), 'utf8'))
 
     for (const area of [
@@ -305,12 +302,8 @@ describe('generate', () => {
     expect(existsSync(join(target, '.prumo/web'))).toBe(false)
     expect(existsSync(join(target, '.githooks/install.mjs'))).toBe(true)
     expect(existsSync(join(target, 'apps/api/.githooks'))).toBe(false)
-    expect(env).toMatch(/^MOBILE_APP_SCHEME=acme$/m)
     expect(await readFile(join(target, 'apps/api/docker-compose.yml'), 'utf8')).toMatch(
       /^name: acme$/m,
-    )
-    expect(await readFile(join(target, 'apps/api/.env'), 'utf8')).toMatch(
-      /^MOBILE_APP_SCHEME=acme$/m,
     )
     expect(await readFile(join(target, 'apps/mobile/.env'), 'utf8')).toBe(
       await readFile(join(target, 'apps/mobile/.env.example'), 'utf8'),

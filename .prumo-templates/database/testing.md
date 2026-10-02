@@ -6,10 +6,9 @@ Start one Postgres container per test run with Testcontainers. Give each Vitest 
 inside it. Never point a test at a shared or long-lived database.
 
 Build the schema by running the migrations, once per worker database. Do not use the schema generator.
-Run Better Auth's migrations first, through its programmatic `getMigrations`, then ours.
 
-Truncate every table between tests, in a single `TRUNCATE` statement listing them all, Better Auth's
-included. Do not wrap a test in a transaction and roll it back.
+Truncate every table between tests, in a single `TRUNCATE` statement listing every entity's table, read from
+the ORM's metadata. Do not wrap a test in a transaction and roll it back.
 
 Create test data with a factory per entity: a function returning a valid row from defaults and
 accepting overrides. Do not keep a shared fixture file.
@@ -35,11 +34,10 @@ inside one turns the code's transaction into a savepoint, which behaves differen
 never exercised. Testing a lock inside a wrapper that will roll back tests something adjacent to the
 truth.
 
-Better Auth's migrations run first for the same reason they do in production: an application table
-references `auth.user`, so its foreign key cannot be created before the table exists. Its tables are in the
-truncation for the mirror reason: leave them out and the next test's factory collides with a user the
-previous test created. A factory for such a table creates the user first; Better Auth's tables have no entity
-here, so that insert is raw SQL, with its one-line reason.
+The list comes from the metadata so that a new entity is truncated without anyone remembering to add it. Read
+it as the `Map` it is: `Object.values()` on it is empty, and a suite once passed for months truncating nothing,
+saved only by a cascade from tables it no longer has. A factory for a table that references a user creates the
+user first, through the user's own factory.
 
 Factories rather than a fixture file, because a fixture grows until a test depends on user number twelve
 having a particular plan, and then neither can be changed alone. A factory call states what the scenario

@@ -30,9 +30,9 @@ Dockerfile.
 The integration package exists because the rest of the sharing was already refused: contract types are
 hand-written rather than generated, validation differs on each side, and shadcn copies components rather
 than sharing them. What genuinely repeats across clients is how a URL is built, how an error body becomes
-an `ApiError`, and what the contract's shapes are. Only transport differs (the web sends its cookie
-automatically, mobile attaches it from secure storage, a site's server calls anonymously), so transport
-comes from outside.
+an `ApiError`, what the contract's shapes are, and how an expired access token is refreshed. Only transport
+differs (the web sends its cookies automatically, mobile hands the auth client a store over secure storage, a
+site's server calls anonymously), so transport comes from outside.
 
 **This is also what recovers most of what hand-written types gave up.** That decision accepted, as its
 cost, that a renamed field leaves each client compiling against its own copy. One copy instead of three
@@ -65,7 +65,7 @@ The package's boundary:
 
 ```
 ✅  createClient({ fetch: myTransport })
-❌  the package calling fetch and reading a cookie itself
+❌  the package calling fetch and reading secure storage itself
 ```
 
 ## Enforcement

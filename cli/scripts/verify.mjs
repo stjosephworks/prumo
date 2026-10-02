@@ -67,8 +67,7 @@ function apiEnv(api) {
   const url = `postgresql://app:app@localhost:${dbPort}/app`
   const env = example
     .replace(/^DATABASE_URL=.*$/m, `DATABASE_URL=${url}`)
-    .replace(/^AUTH_DATABASE_URL=.*$/m, `AUTH_DATABASE_URL=${url}`)
-    .replace(/^BETTER_AUTH_SECRET=.*$/m, `BETTER_AUTH_SECRET=${'v'.repeat(40)}`)
+    .replace(/^JWT_SECRET=.*$/m, `JWT_SECRET=${'v'.repeat(40)}`)
   writeFileSync(join(api, '.env'), env)
 }
 
@@ -79,6 +78,7 @@ async function verifyApi() {
   try {
     apiEnv(api)
     step('api: migrate', () => run('pnpm', ['db:migrate'], api))
+    step('api: build', () => run('pnpm', ['build'], api))
     await step('api: start and answer readiness', async () =>
       withServer(
         'node',
@@ -134,15 +134,18 @@ const ORIGIN = 'http://localhost:5173'
 describe('the hand-written contract against the running API', () => {
   it('describes what /users/me actually returns', async () => {
     const email = \`contract-\${Date.now()}@example.com\`
-    const signUp = await fetch(\`\${API}/api/auth/sign-up/email\`, {
+    const signUp = await fetch(\`\${API}/api/auth/sign-up\`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: ORIGIN },
       body: JSON.stringify({ name: 'Contract', email, password: 'correct-horse-battery' }),
     })
 
-    expect(signUp.status).toBe(200)
+    expect(signUp.status).toBe(201)
 
-    const cookie = signUp.headers.get('set-cookie') ?? ''
+    const cookie = signUp.headers
+      .getSetCookie()
+      .map((header) => header.split(';')[0])
+      .join('; ')
     const api = createClient({
       baseUrl: API,
       fetch: (input, init) =>

@@ -8,13 +8,6 @@ type ProblemDocument = {
   errors?: FieldErrors
 }
 
-type AuthClientError = {
-  status: number
-  statusText: string
-  message?: string
-  code?: string
-}
-
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -43,9 +36,5 @@ export class ApiError extends Error {
       problem.requestId ?? requestId,
       problem.errors ?? {},
     )
-  }
-
-  static fromAuthError(error: AuthClientError): ApiError {
-    return new ApiError(error.status, error.code ?? error.statusText, error.message, undefined, {})
   }
 }

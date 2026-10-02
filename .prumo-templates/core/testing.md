@@ -55,11 +55,10 @@ been published since January 2024. Every other rule here (placement, no database
 behaviour) holds unchanged. **What it costs:** two runners in one workspace with near-identical APIs, so `vi.fn`
 written in a mobile test is a mistake an assistant will make.
 
-**Three things a mobile test meets, verified with Expo SDK 57:** `render` from `@testing-library/react-native` 14
-is **asynchronous** and its matchers need no setup. `jest-expo` leaves the app manifest empty, which Better Auth's
-Expo plugin needs to build an origin, so a component test uses a Better Auth client without that plugin, which is
-why a form asks only for the auth methods it calls. And Better Auth ships ESM, partly as `.mjs`, so Jest extends
-`jest-expo`'s own transform settings to include it rather than restating them.
+**Two things a mobile test meets, verified with Expo SDK 57:** `render` from `@testing-library/react-native` 14
+is **asynchronous** and its matchers need no setup. And `expo-secure-store` needs the native Keychain or Keystore,
+which Jest does not have, so a test builds the auth client with an in-memory token store, which is why a form
+asks only for the auth methods it calls.
 
 A coverage threshold turns a proxy into a target. Whoever is below writes tests to raise the number rather
 than to check anything; whoever is above stops thinking. With no database mocks a test costs more to write,

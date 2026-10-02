@@ -1,8 +1,6 @@
 // tsyringe reads decorator metadata as each class is loaded, so this must come before any other import.
 import 'reflect-metadata'
 import { MikroORM } from '@mikro-orm/postgresql'
-import type { Pool } from 'pg'
-import { AUTH, type Auth } from '@/infra/auth/auth.factory'
 import { loadEnv } from '@/infra/config/env'
 import { createOrmConfig } from '@/infra/database/mikroorm/mikro-orm.factory'
 import { createContainer } from '@/infra/di'
@@ -18,10 +16,9 @@ async function main(): Promise<void> {
   const container = createContainer({ env, orm })
   const app = await buildApp(container)
 
-  // Handling the signals takes away Node's default exit, so every open pool must close for the process to end.
+  // Handling the signals takes away Node's default exit, so the pool must close for the process to end.
   app.addHook('onClose', async () => {
     await orm.close()
-    await (container.resolve<Auth>(AUTH).options.database as Pool).end()
   })
 
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {

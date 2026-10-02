@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
+import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
+import rateLimit from '@fastify/rate-limit'
 import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import { EntityManager } from '@mikro-orm/postgresql'
@@ -14,9 +16,11 @@ import { ENV, type Env } from '@/infra/config/env'
 import { authController } from '@/infra/http/controllers/auth.controller'
 import { healthController } from '@/infra/http/controllers/health.controller'
 import { mcpController } from '@/infra/http/controllers/mcp.controller' // prumo:mcp
+import { oauthController } from '@/infra/http/controllers/oauth.controller' // prumo:mcp
 import { usersController } from '@/infra/http/controllers/users.controller'
 import { registerErrorHandler } from '@/infra/http/errors/error-handler'
 import { registerAuthHook } from '@/infra/http/hooks/auth.hook'
+import { registerOriginCheck } from '@/infra/http/hooks/origin.hook'
 import { registerRequestContext } from '@/infra/http/hooks/request-context.hook'
 
 const DOCS = '/api/docs'
@@ -82,16 +86,22 @@ export async function buildApp(container: DependencyContainer): Promise<FastifyI
     exposedHeaders: ['X-Request-Id'],
   })
 
+  await app.register(cookie)
+  // Off by default: a route opts in through its config, so only the routes that take a password are limited.
+  await app.register(rateLimit, { global: false })
+  registerOriginCheck(app, env.WEB_ORIGIN)
+
   if (env.NODE_ENV !== 'production') {
     await registerDocs(app)
   }
 
   registerAuthHook(app)
 
-  await app.register(authController)
+  await app.register(authController, { prefix: '/api/auth' })
   await app.register(healthController, { prefix: '/api/health' })
   await app.register(usersController, { prefix: '/api/v1/users' })
   // prumo:mcp
+  await app.register(oauthController)
   await app.register(mcpController, { prefix: '/api/mcp' })
   // prumo:end-mcp
 

@@ -3,8 +3,9 @@
 ## Rule
 
 Serve every route at `/api/v<n>/<resource>`: register each controller with
-`prefix: '/api/v<n>/<resource>'`. Better Auth's `/api/auth/*`, `/api/health/*` and `/api/docs` are the only
-routes outside a version.
+`prefix: '/api/v<n>/<resource>'`. `/api/auth/*`, `/api/health/*` and `/api/docs`, and with MCP `/api/mcp`,
+`/api/oauth/*` and `/.well-known/*`, are the only routes outside a version. They answer with the statuses their
+own contracts set.
 
 Name resources in the plural, kebab-case for compound words. Use REST verbs. A `POST` answers `201`
 through `reply.code(201)`; every other method answers `200`.
@@ -28,8 +29,9 @@ Serve the documentation UI outside production only.
 
 ## Rationale
 
-The prefix makes Better Auth's `/api/auth/*` fall out of the ordinary convention instead of becoming the
-one route with an exception in its path.
+The prefix makes the authentication and protocol routes fall out of the ordinary convention instead of each
+becoming the one route with an exception in its path. They stay outside a version because what shapes them is
+what they implement, OAuth's discovery above all, whose addresses are fixed by its RFCs.
 
 Versioning costs five characters today and a coordinated migration of every consumer later, including a
 published mobile app that does not update when you want it to. It goes in the URI rather than a header

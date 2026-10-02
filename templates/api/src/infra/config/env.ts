@@ -5,14 +5,10 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']),
   PORT: z.coerce.number().int().min(1).max(65535),
   DATABASE_URL: z.string().min(1),
-  AUTH_DATABASE_URL: z.string().min(1),
-  BETTER_AUTH_SECRET: z.string().min(32),
-  BETTER_AUTH_URL: z.string().min(1),
+  JWT_SECRET: z.string().min(32),
+  // Where this API is reached from outside: the issuer of its tokens, and what decides whether cookies are Secure.
+  API_URL: z.url(),
   WEB_ORIGIN: z.string().min(1),
-  MOBILE_APP_SCHEME: z
-    .string()
-    .regex(/^[a-z][a-z0-9+.-]*$/)
-    .optional(),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']),
 })
 

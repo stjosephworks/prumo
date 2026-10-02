@@ -2,14 +2,15 @@
 
 ## Rule
 
-Put in `expo-secure-store` anything that **grants access if stolen**: the session cookie and any token.
+Put in `expo-secure-store` anything that **grants access if stolen**: the access and refresh tokens, and any
+other token.
 Put everything else in MMKV.
 
 Do not use MMKV's own encryption.
 
 Persist the TanStack Query cache to MMKV with a maximum age.
 
-On logout, clear the session, the persisted cache, and every MMKV key holding that user's data. Leave
+On logout, clear the tokens, the persisted cache, and every MMKV key holding that user's data. Leave
 device preferences (theme, language) untouched.
 
 Decide when writing each key whether it belongs to the user or to the device.
@@ -33,7 +34,7 @@ from one that opens blank with a spinner, which is what happens every time someb
 maximum age exists because a cache without one presents months-old data as current with no way for the
 user to tell.
 
-That persistence is also why logout must clear more than the session: switching users on one device would
+That persistence is also why logout must clear more than the tokens: switching users on one device would
 otherwise show the previous user's data. Wiping MMKV wholesale instead would take theme and language with
 it, so the same person returning finds the app as if it were new; security that punishes the common case
 gets switched off by somebody.
@@ -47,7 +48,7 @@ Every write to persistent storage, and the logout path.
 Choosing a store:
 
 ```
-✅  SecureStore: the session cookie
+✅  SecureStore: the access and refresh tokens
     MMKV:        theme, last opened tab, cached responses
 ❌  MMKV:        the session token        // works perfectly, protects nothing
 ```
@@ -62,8 +63,8 @@ Opening MMKV (version 4):
 Logout:
 
 ```
-✅  clear session + query cache + user-scoped MMKV keys, kept as one list the logout walks
-❌  clear session only
+✅  clear tokens + query cache + user-scoped MMKV keys, kept as one list the logout walks
+❌  clear tokens only
 ❌  MMKV.clearAll()          // takes theme and language too
 ```
 

@@ -143,7 +143,7 @@ Two answers decide everything:
 ## 6. Decisions already locked
 
 The stack is settled and lives in **[`docs/stack.md`](docs/stack.md)**: structural rules, installed
-packages, version floors, and the eighteen entries deliberately dropped.
+packages, version floors, and the nineteen entries deliberately dropped.
 
 Treat it as given. If you believe an entry is wrong, say so once, clearly, then follow it.
 
