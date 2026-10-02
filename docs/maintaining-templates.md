@@ -23,6 +23,11 @@ This is what makes the weekly CI run meaningful. Nothing pins the transitive dep
 release that breaks a template turns the schedule red on its own, without anyone changing a line
 here.
 
+Better Auth is one family: `better-auth`, `auth` and every `@better-auth/*` package move to the same version
+in one change, and every template that uses a plugin declares `@better-auth/core` at that version. The
+plugins take the core as a peer, so without it pnpm installs the newest core beside the one `better-auth`
+pins. `cli/test/better-auth.spec.ts` fails when the family drifts apart.
+
 ## Verifying a change
 
 Generate a project and apply every acceptance criterion to it:

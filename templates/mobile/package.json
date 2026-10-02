@@ -15,6 +15,7 @@
     "prepare": "node .githooks/install.mjs"
   },
   "dependencies": {
+    "@better-auth/core": "1.7.7",
     "@better-auth/expo": "1.7.7",
     "@hookform/resolvers": "5.9.1",
     "@tanstack/query-sync-storage-persister": "5.102.8",
