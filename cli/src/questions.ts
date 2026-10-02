@@ -217,5 +217,12 @@ export async function resolveAnswers(
     )
   }
 
+  if (social.length > 0 && !email) {
+    warnings.push(
+      'Without --email no password account is ever confirmed, so the first sign-in with a provider for an existing ' +
+        "account's email removes its password: the owner keeps the account through the provider. --email avoids it.",
+    )
+  }
+
   return { name, types, architecture, multiTenant, mcp, email, social, target, warnings }
 }

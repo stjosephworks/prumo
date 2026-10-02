@@ -87,7 +87,15 @@ describe('resolveAnswers outside a terminal', () => {
     const answers = await resolveAnswers(flags({ ...web, social: 'apple, google' }), undefined)
 
     expect(answers.social).toEqual(['apple', 'google'])
-    expect(answers.warnings).toEqual([])
+    expect(answers.warnings).toEqual([expect.stringContaining('--email avoids it')])
+    expect(
+      (
+        await resolveAnswers(
+          flags({ ...web, noEmail: false, email: true, social: 'apple' }),
+          undefined,
+        )
+      ).warnings,
+    ).toEqual([])
     await expect(resolveAnswers(flags({ ...web, social: 'github' }), undefined)).rejects.toThrow(
       'Unknown provider: github',
     )
