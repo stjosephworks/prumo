@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import * as prompt from '@clack/prompts'
 import { terminalAsker } from './asker.ts'
@@ -7,9 +6,9 @@ import { assetsFor, requireAssets } from './assets.ts'
 import { cleanText, planClean } from './clean.ts'
 import { COMMANDS, findCommand, helpText } from './commands.ts'
 import { runDatabase } from './database.ts'
-import { doctor, doctorText } from './doctor.ts'
+import { doctor, doctorText, systemProbe, toolChecks } from './doctor.ts'
 import { generate } from './generate.ts'
-import { validateProjectName } from './names.ts'
+import { projectProblem } from './names.ts'
 import { CliError, errorEnvelope, writeEnvelope } from './output.ts'
 import { resolveAnswers } from './questions.ts'
 import { cliVersion } from './version.ts'
@@ -53,6 +52,19 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
     throw new CliError('usage', `Unexpected argument: ${extra.join(' ')}`)
   }
 
+  const install = !values['skip-install']
+
+  // Before the first question and the first file: a missing tool would otherwise surface halfway through.
+  const tools = toolChecks(systemProbe, install ? ['git', 'pnpm'] : ['git'])
+
+  if (tools.some((check) => check.status !== 'ok')) {
+    throw new CliError('not_ready', 'This machine is missing something Prumo needs.', {
+      ready: false,
+      checks: tools,
+    })
+  }
+
+  const cwd = process.cwd()
   const interactive = !json && process.stdin.isTTY === true && process.stdout.isTTY === true
   const answers = await resolveAnswers(
     {
@@ -65,7 +77,8 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
       mcp: values.mcp,
       noMcp: values['no-mcp'],
     },
-    interactive ? terminalAsker(validateProjectName) : undefined,
+    interactive ? terminalAsker((input) => projectProblem(input, cwd)) : undefined,
+    cwd,
   )
 
   if (!json && answers.types.length > 1) {
@@ -74,13 +87,12 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
     )
   }
 
-  const target = resolve(answers.name)
-  const install = !values['skip-install']
+  const { target, ...chosen } = answers
 
   await generate({
     ...requireAssets(assetsFor(import.meta.dirname)),
     target,
-    answers,
+    answers: chosen,
     install,
     childOutput: json ? 'stderr' : 'inherit',
   })
@@ -89,7 +101,7 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
     prompt.outro(`Created ${answers.name}.`)
   }
 
-  return { data: { ...answers, target, installed: install }, text: '' }
+  return { data: { ...chosen, target, installed: install }, text: '' }
 }
 
 async function runClean(args: string[], json: boolean): Promise<Result> {
@@ -137,6 +149,26 @@ async function runClean(args: string[], json: boolean): Promise<Result> {
   return result(true)
 }
 
+// A command that takes no options of its own still refuses one it does not know.
+function noOptions(args: string[], positionals = 0): string[] {
+  const parsed = parseArgs({
+    args,
+    allowPositionals: true,
+    options: { json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } },
+  })
+
+  if (parsed.positionals.length > positionals) {
+    throw new CliError(
+      'usage',
+      `Unexpected argument: ${parsed.positionals.slice(positionals).join(' ')}`,
+    )
+  }
+
+  return parsed.positionals
+}
+
+const GLOBAL_OPTIONS = ['--json', '--help', '-h', '--version', '-v']
+
 async function main(argv: string[]): Promise<void> {
   const json = argv.includes('--json')
   const index = argv.findIndex((arg) => !arg.startsWith('-'))
@@ -146,17 +178,27 @@ async function main(argv: string[]): Promise<void> {
   const name = command ?? (argv.includes('--version') || argv.includes('-v') ? 'version' : 'help')
 
   try {
+    const unknown = argv
+      .slice(0, index === -1 ? argv.length : index)
+      .find((arg) => !GLOBAL_OPTIONS.includes(arg))
+
+    if (unknown !== undefined) {
+      throw new CliError('usage', `Unknown option "${unknown}". Run \`prumo help\`.`)
+    }
+
     let result: Result
 
     if (wantsHelp && command !== undefined && command !== 'help') {
       result = help(command)
     } else if (name === 'help') {
-      const [topic] = args.filter((arg) => !arg.startsWith('-'))
+      const [topic] = noOptions(args, 1)
       result = help(topic)
     } else if (name === 'version') {
+      noOptions(args)
       const current = cliVersion()
       result = { data: { version: current }, text: current }
     } else if (name === 'doctor') {
+      noOptions(args)
       const report = await doctor()
       if (!report.ready) {
         throw new CliError('not_ready', 'This machine is missing something Prumo needs.', report)

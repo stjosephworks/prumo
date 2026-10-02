@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Node 22.17 or later, pnpm, and the API running with `MOBILE_APP_SCHEME=app`. A simulator or a device with Expo Go
+Node 22.18 or later, pnpm 10.26 or later, and the API running with `MOBILE_APP_SCHEME=app`. A simulator or a device with Expo Go
 to open the app.
 
 ## Running it

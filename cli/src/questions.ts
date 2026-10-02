@@ -1,7 +1,7 @@
 import type { Asker } from './asker.ts'
 import type { AppType } from './compose.ts'
 import type { Answers } from './context.ts'
-import { validateProjectName } from './names.ts'
+import { projectAt, targetProblem, validateProjectName } from './names.ts'
 import { CliError } from './output.ts'
 
 export type Flags = {
@@ -27,10 +27,17 @@ function missing(flag: string): never {
 }
 
 function parseTypes(value: string): AppType[] {
-  const types = value.split(',').map((type) => type.trim())
+  const types = value
+    .split(',')
+    .map((type) => type.trim())
+    .filter((type) => type !== '')
   const unknown = types.filter((type) => !TYPES.includes(type as AppType))
 
-  if (unknown.length > 0 || types.length === 0) {
+  if (types.length === 0) {
+    throw new CliError('invalid_input', `--types is empty. Choose from ${TYPES.join(', ')}.`)
+  }
+
+  if (unknown.length > 0) {
     throw new CliError(
       'invalid_input',
       `Unknown type: ${unknown.join(', ')}. Choose from ${TYPES.join(', ')}.`,
@@ -40,7 +47,13 @@ function parseTypes(value: string): AppType[] {
   return [...new Set(types)] as AppType[]
 }
 
-export async function resolveAnswers(flags: Flags, asker: Asker | undefined): Promise<Answers> {
+export type Resolved = Answers & { target: string }
+
+export async function resolveAnswers(
+  flags: Flags,
+  asker: Asker | undefined,
+  cwd: string = process.cwd(),
+): Promise<Resolved> {
   if (flags.alone && flags.monorepo) {
     throw new CliError('invalid_input', 'Choose --alone or --monorepo, not both.')
   }
@@ -53,13 +66,21 @@ export async function resolveAnswers(flags: Flags, asker: Asker | undefined): Pr
     throw new CliError('invalid_input', 'Choose --multi-tenant or --single-tenant, not both.')
   }
 
-  const name: string =
+  const input: string =
     flags.name ?? (asker === undefined ? missing('the project name') : await asker.name())
-
+  const { name, target } = projectAt(input, cwd)
   const invalid = validateProjectName(name)
 
   if (invalid !== undefined) {
-    throw new CliError('invalid_input', `Invalid project name "${name}". ${invalid}`)
+    const which = input === '.' ? ', taken from this directory' : ''
+    throw new CliError('invalid_input', `Invalid project name "${name}"${which}. ${invalid}`)
+  }
+
+  // Before the other questions, so nobody answers them all for a directory that cannot take the project.
+  const occupied = targetProblem(target)
+
+  if (occupied !== undefined) {
+    throw new CliError('target_not_empty', occupied)
   }
 
   let types: AppType[]
@@ -90,14 +111,19 @@ export async function resolveAnswers(flags: Flags, asker: Asker | undefined): Pr
 
   let multiTenant = false
 
-  if (types.some((type) => TENANT_AWARE.includes(type))) {
-    if (flags.multiTenant || flags.singleTenant) {
-      multiTenant = flags.multiTenant
-    } else if (asker !== undefined) {
-      multiTenant = await asker.multiTenant()
-    } else {
-      missing('--multi-tenant or --single-tenant')
+  if (!types.some((type) => TENANT_AWARE.includes(type))) {
+    if (flags.multiTenant) {
+      throw new CliError(
+        'invalid_input',
+        `--multi-tenant needs one of ${TENANT_AWARE.join(', ')} in --types.`,
+      )
     }
+  } else if (flags.multiTenant || flags.singleTenant) {
+    multiTenant = flags.multiTenant
+  } else if (asker !== undefined) {
+    multiTenant = await asker.multiTenant()
+  } else {
+    missing('--multi-tenant or --single-tenant')
   }
 
   // MCP authorizes through a sign-in and a consent page, which only a web app can serve.
@@ -116,5 +142,5 @@ export async function resolveAnswers(flags: Flags, asker: Asker | undefined): Pr
     missing('--mcp or --no-mcp')
   }
 
-  return { name, types, architecture, multiTenant, mcp }
+  return { name, types, architecture, multiTenant, mcp, target }
 }
