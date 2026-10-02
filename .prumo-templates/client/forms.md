@@ -13,8 +13,8 @@ field. **Turn anything that matches no field into a form-level error**, shown at
 `requestId`. Do it through one function in `features/forms/`, which sets the form-level error on
 `root.server`.
 
-Show an error carrying no field the same way: form-level, with `title` and the `requestId`. **Every
-authentication error is this case**: Better Auth's errors carry no field map.
+Show an error carrying no field the same way: form-level, with `title` and the `requestId`. A wrong password
+is this case: the API names no field, so as not to say whether the email exists.
 
 Disable the submit button while `isSubmitting`. Never clear the form on error.
 

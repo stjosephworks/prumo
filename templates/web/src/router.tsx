@@ -1,7 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { createRouter, type RouterHistory } from '@tanstack/react-router'
-import type { ApiClient } from '@/api-contract'
-import type { AuthClient } from '@/features/auth/auth-client'
+import type { ApiClient, AuthClient } from '@/api-contract'
 import { routeTree } from './routeTree.gen'
 
 export type RouterContext = {

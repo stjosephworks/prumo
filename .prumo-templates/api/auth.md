@@ -2,71 +2,62 @@
 
 ## Rule
 
-Mount Better Auth at `/api/auth/*` with the catch-all route in `src/infra/http/controllers/auth.controller.ts`,
-which rebuilds the request for `auth.handler`, as Better Auth's Fastify guide does. Mark it
-`config: { public: true }`.
+Keep authentication in the `auth` module, as any other module: `User` and `Session` in `entities/`, the
+password hasher, the access tokens and the opaque tokens in `ports/`, one use case per action. Their adapters
+live in `src/infra/auth/`. No authentication library owns a table, a route or a migration.
 
-Every route is protected by the global `preHandler` hook in `src/infra/http/hooks/auth.hook.ts`. Mark a route
-that needs no session with `config: { public: true }`; that means only *do not answer 401*, and the session is
-still read.
+Serve `POST /api/auth/sign-up`, `sign-in`, `refresh` and `sign-out`, and `GET /api/auth/session`, from
+`auth.controller.ts`. Answer their errors as every route does, in problem+json.
 
-Read the user in the handler with `currentUser(request)` and pass its id to the use case as an argument. A use
-case never reads the request or any ambient session.
+Issue an access token as a JWT valid for **15 minutes**, signed with `HS256` from `JWT_SECRET`, and name the
+algorithm when verifying it. Issue the refresh token as an opaque `<sessionId>.<secret>`, store only its
+SHA-256, and **rotate it on every use**. A token from an earlier rotation revokes its session; the one replaced
+less than ten seconds ago answers 409 instead, and revokes nothing.
 
-Keep Better Auth's tables in their own Postgres schema, `auth`, on their own connection, migrated by its own
-CLI from the compiled `dist/infra/auth/auth.cli.js`, before our migrations. `pnpm db:migrate` does both, in
-that order.
+Hash passwords with Argon2id through `@node-rs/argon2`, at the library's defaults. When the email is unknown,
+still verify the password against a decoy hash, and answer exactly as for a wrong password.
 
-Set `advanced.database.generateId` to `'uuid'`. Reference `auth.user(id)` from an application table with a
-real foreign key and `ON DELETE RESTRICT`, declared in its schema as a to-one relation to `AuthUser` with
-`mapToPk: true`, so the domain still holds a plain `userId`. `AuthUser`, in `auth-user.schema.ts`, maps only
-the id and is the one Better Auth table the ORM knows. Keep `schemaGenerator.ignoreSchema: ['auth']` and
-`skipTables: ['auth.user']` in `mikro-orm.factory.ts`. Better Auth's tables follow Better Auth's conventions,
-not `database/entities.md`.
+Give the web its tokens in `httpOnly`, `SameSite=Lax` cookies: the access cookie on `/`, the refresh cookie only
+on `/api/auth/refresh`, both `Secure` when `API_URL` is https. Give a native client its tokens in the body, and
+only when it sends `X-Auth-Transport: bearer`; it then sends `Authorization: Bearer`. Refuse with 403 any
+request that changes state, carries a cookie and no bearer, and does not come from `WEB_ORIGIN`.
 
-Create what the application keeps about a user in `databaseHooks.user.create.after`, through a use case:
-`src/infra/di/index.ts` passes the hook into `createAuth`.
+Every route is protected by the global `preHandler` hook in `auth.hook.ts`. Mark a route that needs no session
+with `config: { public: true }`; that means only *do not answer 401*, and the token is still read. Read the
+user in the handler with `currentUser(request)` and pass its id to the use case as an argument. A use case
+never reads the request.
 
-Pin every Better Auth package to one version, and declare `@better-auth/core` as a direct dependency at that
-version: `better-auth`, `auth` and every `@better-auth/*` plugin, in the api and in every client. Upgrade them in
-one change, never one package at a time.
+Create a user and the application's own row for it in one use case, inside one transaction: `SignUpUseCase`
+creates the `User` and calls `CreateProfileUseCase`.
+
+Limit the routes that take a password with `@fastify/rate-limit`, through the route's own
+`config.rateLimit`. The plugin is registered with `global: false`.
 
 ## Rationale
 
-The route sits inside Fastify, so the request id and the logs cover the authentication flow. **The error
-handler does not:** Better Auth writes its own responses, so an authentication error arrives as
-`{ message, code }`, not as problem+json. The client converts it; the server does not rewrite another
-library's responses.
+Authentication is part of the product's data, so it follows the product's rules: one database, one connection,
+one migration tool, and a domain that names what it needs through ports. Nothing has to be adapted to a
+library's tables, ids or responses, and the user is an entity the ORM knows like any other.
 
-Protected is the default because of the asymmetry between the two mistakes. A route someone forgot to
-protect is open, and nothing breaks. A route someone forgot to mark public answers 401 on the first call and
-is fixed in seconds.
+An access token is checked by its signature alone, so no request touches the database to accept one, and
+nothing can revoke one before it expires. Fifteen minutes bounds that. The refresh token is what can be
+revoked, so it lives in the database, and rotation makes a stolen copy detectable: whoever presents an old one
+is not the client that rotated it, and the session ends for both. The ten seconds exist because two tabs
+refreshing at once both present the same token, and the second must not sign the user out.
 
-The user arrives as an argument so a use case's signature says what it needs, and its test passes an id
-instead of building a request.
+The decoy hash is there because the time a sign-in takes would otherwise say which emails have an account.
 
-Better Auth's ids are `text` by default, which no `uuid` column can reference; `generateId: 'uuid'` fixes
-that. What stays different is not ours to fix: camelCase columns and `gen_random_uuid()`. Rewriting another
-library's schema fights its CLI on every upgrade. Better Auth's migrations run first because an application
-table references its tables.
+A cookie no script can read is a token an injected script cannot take, which is why the web never receives
+one in a body. A cookie is also sent by the browser whoever wrote the page, which is what the Origin check
+answers: a request leaning on a cookie must come from the web app. A native app has no cookie jar and no
+Origin, so it carries a bearer and passes.
 
-The ORM compares its entities with everything in the database, so without `ignoreSchema` it reads Better
-Auth's tables as leftovers and every generated migration drops them, with every login in them. The foreign
-key is declared rather than written by hand in a migration because the ORM would otherwise drop that too,
-every time. `AuthUser` exists only as that anchor.
-
-`better-auth` pins its core exactly, but each plugin only asks for a compatible core as a peer. Without a
-direct `@better-auth/core`, pnpm satisfies that peer with the newest core on the registry, so a core release
-installs a second core beside the pinned one, and the plugins stop typechecking against it. One version and
-a declared core leave pnpm a single core to install.
-
-**The sign-up hook is not atomic:** the user and the application's row are written over two connections, so
-a failure between them leaves a user without a profile. The result is a visible 404, not corrupted data. And
-the foreign key means deleting a user fails while rows reference it, so the application removes them first.
+**What this costs:** the security of sign-in is this code's. There is no upstream fix to wait for, and no
+reset of a password, verification of an email or social sign-in until one is written.
 
 ## Applies to
 
-Every route, every use case that acts for a user, and `src/infra/auth/`, where Better Auth is built.
+Every route, every use case that acts for a user, `src/domain/auth/`, and `src/infra/auth/`.
 
 ## Examples
 
@@ -77,22 +68,21 @@ Every route, every use case that acts for a user, and `src/infra/auth/`, where B
 ✅  execute(currentUser(request).id)
 ❌  execute(request)
 
-✅  userId: { kind: 'm:1', entity: () => 'AuthUser' as never, mapToPk: true, deleteRule: 'restrict' }
-❌  userId: { type: 'uuid' }                         nothing stops an orphan
+✅  jwtVerify(token, key, { algorithms: ['HS256'], issuer, audience })
+❌  jwtVerify(token, key)                         the token chooses its own algorithm
+
+✅  sessions store sha256(secret)
+❌  sessions store the refresh token
 ```
 
 ## Enforcement
 
 **Boot.** The hook is global, so a route is unprotected only by an explicit `public: true`.
 
-**Tests.** `users.controller.spec.ts` signs up through the real route and proves 401 without a session.
-`mikro-orm.factory.spec.ts` asserts that a migrated database leaves the schema generator nothing to change,
-so a configuration that would drop Better Auth's schema, or the foreign key, fails the suite.
+**Tests.** `auth.controller.spec.ts` covers both transports, rotation, the Origin check, 401, 409, 400 and the
+rate limit. `refresh-session.use-case.spec.ts` proves that a replayed token revokes the session and that one
+just rotated does not. `jose-access-tokens.adapter.spec.ts` refuses an expired token, another secret, another
+issuer, an unsigned token and another algorithm.
 
-**The database.** A row referencing a user that does not exist is refused.
-
-**Typecheck.** Two cores in one project usually fail `pnpm typecheck` in `src/infra/auth/`.
-
-**Review only.** That an upgrade moves the whole Better Auth family, `@better-auth/core` included. And that
-each `public: true` is deliberate: the one mistake that is invisible at runtime, because
+**Review only.** That each `public: true` is deliberate: the one mistake that is invisible at runtime, because
 the route works, for everyone.

@@ -6,7 +6,7 @@
 // The server is always the one in docker-compose.yml, published on 5432 or, when that port is taken, the next free
 // one, kept in POSTGRES_PORT. It needs no dependency, so it runs before `pnpm install` has installed anything.
 import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { connect } from 'node:net'
 import { basename, dirname, join, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
@@ -259,17 +259,9 @@ async function main() {
     say(`Created database ${name}.`)
   }
 
-  // The image runs docker/init only for the database it creates on first start; every other one needs them too.
-  const init = join(api, 'docker', 'init')
-  for (const file of readdirSync(init)
-    .filter((entry) => entry.endsWith('.sql'))
-    .sort()) {
-    sql(name, readFileSync(join(init, file), 'utf8'))
-  }
-
   const url = `postgresql://${USER}:${PASSWORD}@localhost:${port}/${name}`
-  writeEnv({ DATABASE_URL: url, AUTH_DATABASE_URL: url })
-  say('Wrote DATABASE_URL and AUTH_DATABASE_URL to .env.')
+  writeEnv({ DATABASE_URL: url })
+  say('Wrote DATABASE_URL to .env.')
 
   let migrated = false
 

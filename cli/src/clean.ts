@@ -30,7 +30,7 @@ export const SETUP_SCRIPT = 'node scripts/database.mjs'
 
 export const EXAMPLE_BLOCK =
   '# MISSING until `pnpm db:setup` creates a database; `pnpm dev` offers to run it.\n' +
-  'DATABASE_URL=MISSING\nAUTH_DATABASE_URL=MISSING\n'
+  'DATABASE_URL=MISSING\n'
 
 export const README_PARAGRAPH =
   '`DATABASE_URL` starts as `MISSING`. While it is, `pnpm dev` offers to create the database first: it asks for a name,\n' +
@@ -113,7 +113,7 @@ function rulesFor(root: string, api: string, templates: string): { rules: Rule[]
       at('.env.example'),
       'Put a sample database URL back in `.env.example`',
       EXAMPLE_BLOCK,
-      `DATABASE_URL=${SAMPLE_URL}\nAUTH_DATABASE_URL=${SAMPLE_URL}\n`,
+      `DATABASE_URL=${SAMPLE_URL}\n`,
       '=MISSING',
     ),
     textRule(

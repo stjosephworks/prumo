@@ -17,7 +17,7 @@ Never read the tenant from local storage or from a cached response to decide wha
 
 The query-key rule already says a key includes everything that changes the result, and the tenant changes
 the result. **But the tenant is invisible to whoever writes the query:** the server derives it from the
-session, so the client never sends it, never passes it as a filter, and never sees it in the calling code.
+access token, so the client never sends it, never passes it as a filter, and never sees it in the calling code.
 Nobody remembers to put it in a key, because nothing in the file suggests it exists. Adding it everywhere
 would be correct when remembered and silent when not; clearing once, in one place, does not depend on
 memory.
@@ -45,10 +45,10 @@ Every client of a multi-tenant project: `web`, `mobile` and `site` alike.
 Switching:
 
 ```
-✅  await organization.setActive({ organizationId })
+✅  await switchTenant(organizationId)                // the API re-issues the access token
     queryClient.clear()
     router.navigate({ to: '/' })
-❌  await organization.setActive({ organizationId })   // cache and route untouched
+❌  await switchTenant(organizationId)                // cache and route untouched
 ```
 
 Query keys:
@@ -78,6 +78,6 @@ client may choose.
 That the active tenant is on screen. Its absence breaks nothing and costs somebody a wrong action in the
 wrong account.
 
-**Known limit:** if the session's tenant changes without this app knowing (another tab switching), the
-cache is not cleared. That follows from the active organization living in the session, and is the cost that
-decision accepted.
+**Known limit:** if the session's tenant changes without this app knowing (another tab switching), this tab
+keeps its access token, and its tenant, until the next refresh, and then its cache is not cleared. That follows
+from the active organization living in the session, and is the cost that decision accepted.

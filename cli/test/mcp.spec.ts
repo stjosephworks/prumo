@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { generate } from '../src/generate.ts'
-import { cutMcp } from '../src/mcp.ts'
+import { cutMcp, FILES } from '../src/mcp.ts'
 
 const templates = resolve(import.meta.dirname, '../../templates')
 const knowledge = resolve(import.meta.dirname, '../../.prumo-templates')
@@ -80,10 +80,12 @@ describe('generate with and without MCP', () => {
     const text = await everything(target)
 
     expect(existsSync(join(target, 'apps/api/src/infra/mcp'))).toBe(false)
+    expect(existsSync(join(target, 'apps/api/src/domain/oauth'))).toBe(false)
     expect(existsSync(join(target, 'apps/web/src/routes/_authenticated/consent.tsx'))).toBe(false)
+    expect(await readdir(join(target, 'apps/api/migrations'))).toHaveLength(1)
     expect(text).not.toContain('prumo:')
-    expect(text).not.toContain('@better-auth/mcp')
-    expect(text).not.toContain('@better-auth/oauth-provider')
+    expect(text).not.toContain('@/domain/oauth')
+    expect(text).not.toContain('@modelcontextprotocol')
     expect(await readFile(join(target, 'pnpm-workspace.yaml'), 'utf8')).not.toContain(
       '@modelcontextprotocol',
     )
@@ -98,8 +100,21 @@ describe('generate with and without MCP', () => {
     expect(existsSync(join(target, 'apps/api/src/infra/mcp/mcp.server.ts'))).toBe(true)
     expect(existsSync(join(target, 'apps/web/src/routes/_authenticated/consent.tsx'))).toBe(true)
     expect(text).not.toContain('prumo:')
-    expect(text).toContain("from '@better-auth/mcp'")
+    expect(text).toContain("from '@modelcontextprotocol/server'")
+    expect(existsSync(join(target, 'apps/api/src/domain/oauth'))).toBe(true)
+    expect(await readdir(join(target, 'apps/api/migrations'))).toHaveLength(2)
     expect(config.mcp).toBe(true)
     expect(existsSync(join(target, '.prumo/mcp/server.md'))).toBe(true)
+  })
+})
+
+describe('the MCP cut list', () => {
+  // A path that no longer exists would be cut from nothing, and what it named would ship without MCP.
+  it('names only paths the templates have', () => {
+    for (const [type, paths] of Object.entries(FILES)) {
+      for (const path of paths ?? []) {
+        expect(existsSync(join(templates, type, path)), `${type}/${path}`).toBe(true)
+      }
+    }
   })
 })

@@ -5,14 +5,16 @@
 Derive the active tenant from the session. **Never from anything the client sends**: not a header, not a
 path parameter, not the `Host`.
 
-Use Better Auth's `organization` plugin with `activeOrganizationId` **persisted in the session**. Do not
-manage the active organization client-side.
+Keep organizations in the `auth` module: an `Organization` entity, and a `Membership` joining a user to one.
+Store the active tenant on the `Session` row, as `active_organization_id`, and copy it into the access token as
+a claim each time one is issued or refreshed. Switch tenants through one route that checks the membership,
+updates the session and issues a new access token. Do not manage the active organization client-side.
 
 Give every tenant-scoped table a `tenant_id` that is `NOT NULL` and carries a foreign key into
 `organization`, with `ON DELETE RESTRICT`.
 
 Register the MikroORM filter with `default: true` and set its parameter once per request, from the
-session.
+verified access token's claim.
 
 **Never accept `tenant_id` as a method argument.** Read it where the filter's parameter is read.
 
@@ -22,7 +24,8 @@ a comment saying it was checked.
 Declare a route that has no tenant. **Treat an absent filter parameter as an error**, never as "no
 filter".
 
-Run Better Auth's migrations before ours.
+When a membership ends, revoke that user's sessions with it, or the departed member keeps the tenant until the
+access token expires.
 
 ## Rationale
 
@@ -32,9 +35,13 @@ forgetting is invisible, because the route works perfectly for someone entitled 
 someone who is not. A subdomain is input too: it arrives in a header a client controls and that proxies
 rewrite, so the defence would rest on infrastructure configuration.
 
-Better Auth's own documentation offers managing the active organization client-side, for multiple tabs. For
-a multi-tenant system that means the **tab** decides isolation, so it is refused here by name: somebody
-will find that sentence.
+Keeping the active organization in the client, per tab, is a common suggestion for working in two tenants at
+once. For a multi-tenant system that means the **tab** decides isolation, so it is refused here by name:
+somebody will find that suggestion.
+
+The claim is read from a token whose signature was just verified, so no request touches the database to learn
+its tenant. The cost is the token's lifetime: a membership removed now still reads for up to fifteen minutes,
+unless the sessions go with it, which is why the rule asks for both.
 
 The filter is an application-level guard, and its own documentation says a raw query or a forgotten
 `filters` option reads past it. It leaves three holes and they get different answers, because the problems
@@ -48,8 +55,8 @@ did not load, middleware in the wrong order) into a query that returns the whole
 
 The foreign key exists because without it a `tenant_id` pointing nowhere inserts cleanly and passes tests,
 leaving a row invisible to every filtered query. `RESTRICT` means deleting an organization with business
-data fails, which is wanted: the application should decide what happens to that data rather than a library
-CLI cascading it away.
+data fails, which is wanted: the application should decide what happens to that data rather than a cascade
+deciding for it.
 
 ## Applies to
 
@@ -64,7 +71,7 @@ decision rather than configuration.
 Where the tenant comes from:
 
 ```
-✅  const tenantId = session.activeOrganizationId
+✅  const tenantId = claims.organizationId          // from the verified access token
 ❌  const tenantId = req.headers['x-tenant-id']
 ❌  const tenantId = subdomainOf(req.headers.host)
 ```

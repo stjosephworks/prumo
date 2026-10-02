@@ -11,8 +11,12 @@ describe('SignInForm', () => {
     renderApp(
       '/sign-in',
       fakeTransport({
-        'POST /api/auth/sign-in/email': () =>
-          json(401, { message: 'Invalid email or password', code: 'INVALID_EMAIL_OR_PASSWORD' }),
+        'POST /api/auth/sign-in': () =>
+          json(
+            401,
+            { title: 'Unauthorized', status: 401, detail: 'Invalid email or password' },
+            'application/problem+json',
+          ),
       }),
     )
 

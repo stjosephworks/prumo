@@ -3,14 +3,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { ApiError } from '@/api-contract'
+import { type AuthClient, sessionQuery } from '@/api-contract'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
-import type { AuthClient } from './auth-client'
-import { sessionQuery } from './session'
 
 const schema = z.object({
   email: z.email(),
@@ -19,7 +17,13 @@ const schema = z.object({
 
 type SignInValues = z.infer<typeof schema>
 
-export function SignInForm({ auth, redirect }: { auth: AuthClient; redirect: string | undefined }) {
+export function SignInForm({
+  auth,
+  redirect,
+}: {
+  auth: Pick<AuthClient, 'signIn' | 'getSession'>
+  redirect: string | undefined
+}) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const form = useForm<SignInValues>({
@@ -31,20 +35,13 @@ export function SignInForm({ auth, redirect }: { auth: AuthClient; redirect: str
   const { errors, isSubmitting } = form.formState
 
   async function onSubmit(values: SignInValues) {
-    const result = await auth.signIn.email(values)
-
-    if (result.error !== null) {
-      applyServerError(ApiError.fromAuthError(result.error), ['email', 'password'], form.setError)
+    try {
+      await auth.signIn(values)
+    } catch (error) {
+      applyServerError(error, ['email', 'password'], form.setError)
       return
     }
 
-    // prumo:mcp
-    // Signing in during an MCP client's authorization: Better Auth has already sent the browser on.
-    if (result.data.redirect) {
-      return
-    }
-
-    // prumo:end-mcp
     // Invalidating is not enough: nothing observes the session, and the protected route's ensureQueryData
     // would keep returning the cached null. Refetching replaces it before the route reads it.
     await queryClient.refetchQueries({ queryKey: sessionQuery(auth).queryKey })
