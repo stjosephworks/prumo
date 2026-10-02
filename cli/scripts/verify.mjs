@@ -134,7 +134,9 @@ async function verifyMcpDiscovery() {
 }
 
 async function codeMailedTo(email) {
-  const pattern = new RegExp(`\\[mail\\] to ${email.replace(/[.+]/g, '\\$&')}:[^\\n]*\\n[^\\n]*?(\\d{6})`)
+  const pattern = new RegExp(
+    `\\[mail\\] to ${email.replace(/[.+]/g, '\\$&')}:[^\\n]*\\n[^\\n]*?(\\d{6})`,
+  )
 
   for (let i = 0; i < 50; i += 1) {
     const code = pattern.exec(serverLog)?.[1]
