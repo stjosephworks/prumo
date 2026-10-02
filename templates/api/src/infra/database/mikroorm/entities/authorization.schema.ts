@@ -1,27 +1,31 @@
 import { EntitySchema } from '@mikro-orm/core'
-import { Session } from '@/domain/auth/entities/session.entity'
+import { Authorization } from '@/domain/oauth/entities/authorization.entity'
 
-export const SessionSchema = new EntitySchema({
-  class: Session,
+export const AuthorizationSchema = new EntitySchema({
+  class: Authorization,
   properties: {
     id: { type: 'uuid', primary: true, defaultRaw: 'uuidv7()' },
+    clientId: { type: 'text' },
+    clientName: { type: 'text' },
+    redirectUri: { type: 'text' },
+    codeChallenge: { type: 'text' },
+    clientState: { type: 'text', nullable: true },
+    resource: { type: 'text' },
+    status: { type: 'text' },
     userId: {
       kind: 'm:1',
       // EntitySchema cannot type a to-one relation held as its primary key on a string property.
       entity: () => 'User' as never,
       mapToPk: true,
       fieldName: 'user_id',
+      nullable: true,
       index: true,
-      // A session means nothing without its user.
+      // An authorization means nothing without the user who gave it.
       deleteRule: 'cascade',
     },
-    tokenHash: { type: 'text' },
-    clientId: { type: 'text', nullable: true },
-    resource: { type: 'text', nullable: true },
-    previousTokenHash: { type: 'text', nullable: true },
-    rotatedAt: { type: 'datetime', nullable: true },
+    codeHash: { type: 'text', nullable: true },
+    sessionId: { type: 'uuid', nullable: true },
     expiresAt: { type: 'datetime' },
-    revokedAt: { type: 'datetime', nullable: true },
     createdAt: { type: 'datetime', onCreate: () => new Date(), defaultRaw: 'now()' },
     updatedAt: {
       type: 'datetime',

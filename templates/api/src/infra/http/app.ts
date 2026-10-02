@@ -16,6 +16,7 @@ import { ENV, type Env } from '@/infra/config/env'
 import { authController } from '@/infra/http/controllers/auth.controller'
 import { healthController } from '@/infra/http/controllers/health.controller'
 import { mcpController } from '@/infra/http/controllers/mcp.controller' // prumo:mcp
+import { oauthController } from '@/infra/http/controllers/oauth.controller' // prumo:mcp
 import { usersController } from '@/infra/http/controllers/users.controller'
 import { registerErrorHandler } from '@/infra/http/errors/error-handler'
 import { registerAuthHook } from '@/infra/http/hooks/auth.hook'
@@ -100,6 +101,7 @@ export async function buildApp(container: DependencyContainer): Promise<FastifyI
   await app.register(healthController, { prefix: '/api/health' })
   await app.register(usersController, { prefix: '/api/v1/users' })
   // prumo:mcp
+  await app.register(oauthController)
   await app.register(mcpController, { prefix: '/api/mcp' })
   // prumo:end-mcp
 

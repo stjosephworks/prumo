@@ -27,7 +27,8 @@ export class RefreshSessionUseCase {
     @inject(TRANSACTION_MANAGER) private readonly transactions: TransactionManager,
   ) {}
 
-  async execute(refreshToken: string): Promise<SessionTokens> {
+  // A first-party refresh passes no client; an OAuth client passes its own id, and neither can use the other's token.
+  async execute(refreshToken: string, clientId: string | null = null): Promise<SessionTokens> {
     const parsed = Session.parseRefreshToken(refreshToken)
 
     if (parsed === null) {
@@ -39,7 +40,7 @@ export class RefreshSessionUseCase {
     const rotated = await this.transactions.run(async () => {
       const session = await this.sessions.lockById(sessionId)
 
-      if (session === null) {
+      if (session === null || session.clientId !== clientId) {
         return 'missing' as const
       }
 
@@ -74,9 +75,15 @@ export class RefreshSessionUseCase {
     const { session, next } = rotated
 
     return {
+      sessionId: session.id,
       accessToken: await this.tokens.issue(
-        { userId: session.userId, sessionId: session.id },
+        {
+          userId: session.userId,
+          sessionId: session.id,
+          ...(session.clientId !== null && { clientId: session.clientId }),
+        },
         new Date(now.getTime() + ACCESS_TOKEN_LIFETIME_MS),
+        session.resource ?? undefined,
       ),
       refreshToken: session.refreshToken(next),
       refreshExpiresAt: session.expiresAt,

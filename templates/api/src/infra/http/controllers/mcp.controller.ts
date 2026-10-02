@@ -1,40 +1,45 @@
-import { requireMcpAuth } from '@better-auth/mcp'
 import type { AuthInfo } from '@modelcontextprotocol/server'
 import type { FastifyInstance } from 'fastify'
-import { AUTH, type Auth, mcpResource } from '@/infra/auth/auth.factory'
+import { ACCESS_TOKENS, type AccessTokens } from '@/domain/auth/ports/access-tokens.port'
 import { ENV, type Env } from '@/infra/config/env'
+import { HttpError } from '@/infra/http/errors/http-error'
 import { sendFetchResponse, toFetchRequest } from '@/infra/http/fetch-bridge'
-import { createMcpServerHandler } from '@/infra/mcp/mcp.server'
+import { createMcpServerHandler, mcpResource, mcpResourceMetadataUrl } from '@/infra/mcp/mcp.server'
 
-type AccessTokenClaims = Parameters<Parameters<typeof requireMcpAuth>[1]>[1]
-
-function authInfoOf(request: Request, claims: AccessTokenClaims): AuthInfo {
-  const scope = typeof claims.scope === 'string' ? claims.scope : ''
-  const clientId = claims.azp ?? claims.client_id
-
-  return {
-    token: request.headers.get('authorization')?.replace(/^\w+\s+/, '') ?? '',
-    clientId: typeof clientId === 'string' ? clientId : '',
-    scopes: scope.split(' ').filter(Boolean),
-    ...(claims.exp === undefined ? {} : { expiresAt: claims.exp }),
-    extra: { userId: claims.sub },
-  }
-}
-
-// The route answers a bearer access token, never a session cookie, so the session hook stands aside.
+// The route answers an OAuth access token issued for it, never a session cookie or a first-party token: the
+// audience decides, so the session hook stands aside.
 export async function mcpController(fastify: FastifyInstance): Promise<void> {
-  const auth = fastify.container.resolve<Auth>(AUTH)
+  const tokens = fastify.container.resolve<AccessTokens>(ACCESS_TOKENS)
   const env = fastify.container.resolve<Env>(ENV)
+  const resource = mcpResource(env)
   const mcp = createMcpServerHandler(fastify.container)
-  const handle = requireMcpAuth(
-    auth,
-    (request, claims) => mcp.fetch(request, { authInfo: authInfoOf(request, claims) }),
-    { resource: mcpResource(env) },
-  )
 
   fastify.addHook('onClose', () => mcp.close())
 
-  fastify.post('/', { config: { public: true }, schema: { hide: true } }, async (request, reply) =>
-    sendFetchResponse(reply, await handle(toFetchRequest(request))),
+  fastify.post(
+    '/',
+    { config: { public: true }, schema: { hide: true } },
+    async (request, reply) => {
+      const token = /^Bearer (.+)$/i.exec(request.headers.authorization ?? '')?.[1]
+      const claims = token === undefined ? null : await tokens.verify(token, resource)
+
+      if (token === undefined || claims === null || claims.clientId === undefined) {
+        // RFC 9728: the 401 names the document that says where to obtain a token.
+        reply.header(
+          'www-authenticate',
+          `Bearer resource_metadata="${mcpResourceMetadataUrl(env)}"${token === undefined ? '' : ', error="invalid_token"'}`,
+        )
+        throw new HttpError(401, 'Unauthorized')
+      }
+
+      const authInfo: AuthInfo = {
+        token,
+        clientId: claims.clientId,
+        scopes: [],
+        extra: { userId: claims.userId },
+      }
+
+      return sendFetchResponse(reply, await mcp.fetch(toFetchRequest(request), { authInfo }))
+    },
   )
 }

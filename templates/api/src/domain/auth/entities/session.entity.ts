@@ -7,12 +7,18 @@ export const ROTATION_GRACE_MS = 10 * 1000
 
 export type RefreshOutcome = 'valid' | 'superseded' | 'reused' | 'expired'
 
+// A session the user started in this application has neither. One an OAuth client obtained names the client and
+// the resource its access tokens are for.
+export type Grant = { clientId: string; resource: string }
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export class Session {
   id: string
   userId: string
   tokenHash: string
+  clientId: string | null = null
+  resource: string | null = null
   previousTokenHash: string | null = null
   rotatedAt: Date | null = null
   expiresAt: Date
@@ -20,9 +26,11 @@ export class Session {
   createdAt: Date
   updatedAt: Date
 
-  constructor(userId: string, tokenHash: string, now: Date) {
+  constructor(userId: string, tokenHash: string, now: Date, grant?: Grant) {
     this.userId = userId
     this.tokenHash = tokenHash
+    this.clientId = grant?.clientId ?? null
+    this.resource = grant?.resource ?? null
     this.expiresAt = new Date(now.getTime() + SESSION_LIFETIME_MS)
   }
 

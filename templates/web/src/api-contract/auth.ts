@@ -119,6 +119,7 @@ export function createAuthClient({
   }
 
   return {
+    baseUrl,
     fetch: authorized,
     refresh,
 

@@ -1,60 +1,91 @@
-import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { ApiError, type AuthClient } from '@/api-contract'
 import { Button } from '@/components/ui/button'
-import type { AuthClient } from '@/features/auth/auth-client'
 
-type PublicClient = { client_name?: string }
+type AuthorizationView = {
+  clientId: string
+  clientName: string
+  clientHost: string
+  redirectHost: string
+  redirectsToThisDevice: boolean
+}
 
-// Better Auth checks the signed query on submit; what is shown here comes from the same URL.
+type ConsentAuth = Pick<AuthClient, 'baseUrl' | 'fetch'>
+
+async function call<T>(auth: ConsentAuth, path: string, init?: RequestInit): Promise<T> {
+  const response = await auth.fetch(`${auth.baseUrl}/api/oauth${path}`, init)
+
+  if (!response.ok) {
+    throw await ApiError.fromResponse(response)
+  }
+
+  return (await response.json()) as T
+}
+
+// What the user agrees to is shown by host, not only by name: a name is whatever the client chose to write.
 export function ConsentForm({
   auth,
-  clientId,
-  scopes,
+  requestId,
+  leave,
 }: {
-  auth: AuthClient
-  clientId: string
-  scopes: string[]
+  auth: ConsentAuth
+  requestId: string
+  leave: (url: string) => void
 }) {
-  const [failed, setFailed] = useState(false)
-  const client = useQuery({
-    queryKey: ['oauth-client', clientId],
-    queryFn: async () => {
-      const { data } = await auth.$fetch<PublicClient>('/oauth2/public-client', {
-        query: { client_id: clientId },
-      })
-
-      return data
-    },
+  const view = useQuery({
+    queryKey: ['oauth-authorization', requestId],
+    queryFn: () => call<AuthorizationView>(auth, `/authorizations/${requestId}`),
+    retry: false,
   })
-  const name = client.data?.client_name ?? clientId
+  const answer = useMutation({
+    mutationFn: (accept: boolean) =>
+      call<{ redirectTo: string }>(auth, `/authorizations/${requestId}/decision`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ accept }),
+      }),
+    // The answer goes back to the client either way, as the code or as access_denied.
+    onSuccess: ({ redirectTo }) => leave(redirectTo),
+  })
 
-  async function answer(accept: boolean) {
-    // On success Better Auth sends the browser back to the client, so nothing follows here.
-    const { error } = await auth.$fetch('/oauth2/consent', { method: 'POST', body: { accept } })
-
-    setFailed(error !== null)
+  if (view.isPending) {
+    return null
   }
+
+  if (view.isError) {
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        This request has expired or was already answered. Start again from the application.
+      </p>
+    )
+  }
+
+  const { clientName, clientHost, redirectHost, redirectsToThisDevice } = view.data
 
   return (
     <div className="flex flex-col gap-6">
       <p>
-        <strong>{name}</strong> wants to act on your behalf.
+        <strong>{clientName}</strong> ({clientHost}) wants to act on your behalf.
       </p>
-      {scopes.length > 0 && (
-        <ul className="list-disc pl-6 text-sm text-muted-foreground">
-          {scopes.map((scope) => (
-            <li key={scope}>{scope}</li>
-          ))}
-        </ul>
+      <p className="text-sm text-muted-foreground">
+        If you allow it, you will be sent to <strong>{redirectHost}</strong>.
+      </p>
+      {redirectsToThisDevice && (
+        <p role="note" className="text-sm text-destructive">
+          It returns to a program on this device. Allow it only if you started this from a program
+          you trust.
+        </p>
       )}
-      {failed && (
+      {answer.isError && (
         <p role="alert" className="text-sm text-destructive">
           The authorization could not be completed. Start again from the application.
         </p>
       )}
       <div className="flex gap-3">
-        <Button onClick={() => answer(true)}>Allow</Button>
-        <Button variant="outline" onClick={() => answer(false)}>
+        <Button onClick={() => answer.mutate(true)} disabled={answer.isPending}>
+          Allow
+        </Button>
+        <Button variant="outline" onClick={() => answer.mutate(false)} disabled={answer.isPending}>
           Deny
         </Button>
       </div>

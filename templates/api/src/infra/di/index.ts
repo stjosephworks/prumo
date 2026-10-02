@@ -4,6 +4,7 @@ import { TRANSACTION_MANAGER } from '@/domain/shared/transactions/transaction-ma
 import { ENV, type Env } from '@/infra/config/env'
 import { MikroOrmTransactionManager } from '@/infra/database/mikroorm/transactions/mikroorm-transaction-manager'
 import { registerAuth } from './auth.di'
+import { registerOauth } from './oauth.di' // prumo:mcp
 import { registerUsers } from './users.di'
 
 export type Dependencies = { env: Env; orm: MikroORM }
@@ -19,6 +20,7 @@ export function createContainer({ env, orm }: Dependencies): DependencyContainer
 
   registerAuth(container)
   registerUsers(container)
+  registerOauth(container) // prumo:mcp
 
   return container
 }
