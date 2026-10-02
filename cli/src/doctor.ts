@@ -17,7 +17,7 @@ export type Probe = {
   run: (command: string, args: string[]) => { ok: boolean; stdout: string }
 }
 
-const NODE_FLOOR = [22, 17, 0]
+const NODE_FLOOR = [22, 18, 0]
 
 // Every generated workspace approves dependency builds with `allowBuilds`, which pnpm added in 10.26.0.
 const PNPM_FLOOR = [10, 26, 0]
@@ -90,7 +90,7 @@ export async function doctor(probe: Probe = systemProbe): Promise<Report> {
     required: true,
     ...(atLeast(probe.nodeVersion, NODE_FLOOR)
       ? { status: 'ok', detail: probe.nodeVersion }
-      : { status: 'fail', detail: `${probe.nodeVersion}; 22.17.0 or later is required` }),
+      : { status: 'fail', detail: `${probe.nodeVersion}; 22.18.0 or later is required` }),
   })
 
   checks.push(...toolChecks(probe, ['pnpm', 'git']))

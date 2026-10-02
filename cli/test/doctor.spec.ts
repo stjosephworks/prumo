@@ -8,7 +8,7 @@ const EVERYTHING = {
   'docker info': '',
 }
 
-function probe(commands: Record<string, string> = EVERYTHING, nodeVersion = '22.17.0'): Probe {
+function probe(commands: Record<string, string> = EVERYTHING, nodeVersion = '22.18.0'): Probe {
   return {
     nodeVersion,
     run: (command, args) => {
@@ -35,7 +35,7 @@ describe('doctor', () => {
   })
 
   it('fails on a Node below the floor, and on a missing pnpm or git', async () => {
-    const report = await doctor(probe({}, '22.16.9'))
+    const report = await doctor(probe({}, '22.17.9'))
 
     expect(report.ready).toBe(false)
     expect(check(report, 'node')?.status).toBe('fail')

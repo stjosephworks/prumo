@@ -32,7 +32,7 @@ workspace holding four applications, without either one carrying rules it has no
 
 ## Requirements
 
-Node 22.17 or later, pnpm 10.26 or later, and Docker for anything with an API. `prumo doctor` checks
+Node 22.18 or later, pnpm 10.26 or later, and Docker for anything with an API. `prumo doctor` checks
 all of it. Prumo runs on macOS and Linux; Windows is not supported yet.
 
 ## Running it

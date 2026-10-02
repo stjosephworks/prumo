@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Node 22.17 or later and pnpm. For the API, Docker Desktop running: its database and tests run in it.
+Node 22.18 or later and pnpm 10.26 or later. For the API, Docker Desktop running: its database and tests run in it.
 
 ## Layout
 

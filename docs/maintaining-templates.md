@@ -36,7 +36,7 @@ node cli/scripts/verify.mjs ./scratch --types api,web --architecture monorepo
 response against the contract the clients compile against. It needs Docker for anything with an
 API, and it removes the temporary spec it writes even when it fails.
 
-The same script runs in CI over five generated projects, so a change that only works on the machine
+The same script runs in CI over every generated project in the matrix, and once more on the Node floor, so a change that only works on the machine
 that made it is caught on push rather than by the next person to generate.
 
 ## Regenerating `templates/mobile`
