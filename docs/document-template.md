@@ -67,7 +67,7 @@ authorised by the sentence itself to create one without.
 **An exception is stated by name, never hedged.**
 
 ```
-✅  Every table has tenant_id, except those in Better Auth's schema.
+✅  Every table has tenant_id, except user, session and organization.
 ❌  Tables generally have a tenant id.
 ```
 

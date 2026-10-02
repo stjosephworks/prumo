@@ -3,15 +3,15 @@
 ## Rule
 
 Keep the wire contract with the project's API in `src/api-contract/`: `createClient`, which builds every URL
-including the `/api/v1` prefix, the `ApiError`, the hand-written request and response types, and the query
-factories. **Let the app inject the transport** (`createClient({ baseUrl, fetch })`) with
-`credentials: 'include'` on the web configured there, once. In a monorepo the same directory is
-`packages/api-contract`.
+including the `/api/v1` prefix, the `ApiError`, the hand-written request and response types, the query
+factories, and `createAuthClient` with `sessionQuery`. **Let the app inject the transport**
+(`createClient({ baseUrl, fetch })`) with `credentials: 'include'` on the web configured there, once. In a
+monorepo the same directory is `packages/api-contract`.
 
-Call Better Auth's routes through Better Auth's own client, `createAuthClient`, configured once. In `mobile`, give it
-the `expoClient` plugin, and let the transport for the project's API attach the session with `auth.getCookie()` and
-send `credentials: 'omit'`. Do not write
-its routes, bodies or responses by hand, and do not send them through the wrapper.
+Build the auth client once, and give the API client its `fetch`: `createClient({ baseUrl, fetch: auth.fetch })`.
+That fetch refreshes once on a 401 and repeats the request, with one refresh for every request refused at
+once. The web passes no token store and lives on its cookies. `mobile` passes a `TokenStore` over
+`expo-secure-store`, which makes the client ask for bearer tokens and send them.
 
 Declare request and response types by hand, in `api-contract/`. Do not generate a client
 from the OpenAPI document, and **do not `import type` an entity from the API package**; see below.
@@ -21,8 +21,8 @@ function travel together. Include in the key everything that changes the result:
 ordering.
 
 Let the client parse every `application/problem+json` body into one `ApiError` carrying `status`,
-`title`, `detail`, `requestId` and the `errors` map, and throw it. Convert the auth client's `error` into the
-same `ApiError` in one adapter. No component reads a raw error body.
+`title`, `detail`, `requestId` and the `errors` map, and throw it. The auth routes answer the same way. No
+component reads a raw error body.
 
 Use `useInfiniteQuery` for paginated lists, with `getNextPageParam` returning `nextCursor`, or `undefined`
 once it is null.
@@ -55,12 +55,10 @@ difference between their keys fills one cache entry while the other is read, pay
 nothing, with no warning. A key that omits a filter is the same class of fault: two screens share one
 entry and the second shows the first's data.
 
-**There are two doors because there are two contracts.** The project's API is ours, so its types are written
-here. Better Auth's routes are Better Auth's: hand-writing them would copy a contract we do not control, which
-drifts on every upgrade and grows with every plugin. Its client already carries those types and follows the
-library, and `multi-tenancy/client.md` depends on it. **Its errors are not problem+json**: `toNodeHandler`
-writes the response itself, past the exception filter, so the body is `{ message, code }` with no `requestId`.
-The adapter is what keeps that difference out of every form.
+**The auth client is the one door every request goes through.** An access token lasts fifteen minutes, so any
+request can meet a 401 that a refresh would answer. Doing that once, in the transport, means no screen knows
+tokens expire. Several requests refused together share one refresh, because a second would present a token the
+first has already rotated, and the API would read that as theft.
 
 One `ApiError` keeps the shape of problem+json in a single file instead of in every component that
 displays an error. It also puts `requestId` on every failure without anyone asking, which is what makes a
@@ -92,8 +90,8 @@ The query factory:
 Reaching the server:
 
 ```
-✅  api.get('/users/me')                         authClient.signIn.email({ email, password })
-❌  api.post('/auth/sign-in/email', { … })       // Better Auth's contract, copied by hand
+✅  createClient({ baseUrl, fetch: auth.fetch })     // refreshed and repeated on a 401
+❌  createClient({ baseUrl, fetch })                 // the first expired token signs the user out
 ```
 
 Reading an error:
