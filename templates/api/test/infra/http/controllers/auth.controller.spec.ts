@@ -1,19 +1,11 @@
-import { testEnv, testOrm } from '@test/support/setup'
+import { ORIGIN, PASSWORD, testApp } from '@test/support/test-app'
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createContainer } from '@/infra/di'
-import { buildApp } from '@/infra/http/app'
 
-const ORIGIN = 'http://localhost:5173'
 const BEARER = { 'x-auth-transport': 'bearer' }
 
 let app: FastifyInstance
-
-const account = () => ({
-  name: 'Ana',
-  email: `${crypto.randomUUID()}@example.com`,
-  password: 'correct-horse-battery',
-})
+let signUp: Awaited<ReturnType<typeof testApp>>['signUp']
 
 function cookiesOf(response: LightMyRequestResponse): Record<string, string> {
   return Object.fromEntries(response.cookies.map((cookie) => [cookie.name, cookie.value]))
@@ -24,7 +16,7 @@ function setCookie(response: LightMyRequestResponse, name: string) {
 }
 
 beforeEach(async () => {
-  app = await buildApp(createContainer({ env: testEnv(), orm: testOrm() }))
+  ;({ app, signUp } = await testApp())
 })
 
 afterEach(async () => {
@@ -32,15 +24,9 @@ afterEach(async () => {
 })
 
 describe('auth controller, on the web', () => {
-  it('signs up into httpOnly cookies, the refresh one sent only to its route', async () => {
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/auth/sign-up',
-      headers: { origin: ORIGIN },
-      payload: account(),
-    })
+  it('starts a session in httpOnly cookies, the refresh one sent only to its route', async () => {
+    const { response } = await signUp()
 
-    expect(response.statusCode).toBe(201)
     expect(response.body).toBe('')
     expect(setCookie(response, 'access_token')).toMatchObject({
       httpOnly: true,
@@ -54,13 +40,7 @@ describe('auth controller, on the web', () => {
   })
 
   it('reads the session from the cookie, refreshes it, and signs out', async () => {
-    const signUp = await app.inject({
-      method: 'POST',
-      url: '/api/auth/sign-up',
-      headers: { origin: ORIGIN },
-      payload: account(),
-    })
-    const { access_token, refresh_token } = cookiesOf(signUp)
+    const { access_token, refresh_token } = cookiesOf((await signUp()).response)
 
     const session = await app.inject({
       url: '/api/auth/session',
@@ -92,13 +72,7 @@ describe('auth controller, on the web', () => {
   })
 
   it('refuses a request that leans on a cookie from another origin, or from none', async () => {
-    const signUp = await app.inject({
-      method: 'POST',
-      url: '/api/auth/sign-up',
-      headers: { origin: ORIGIN },
-      payload: account(),
-    })
-    const cookie = `access_token=${cookiesOf(signUp).access_token}`
+    const cookie = `access_token=${cookiesOf((await signUp()).response).access_token}`
 
     for (const headers of [{ cookie, origin: 'https://evil.example' }, { cookie }]) {
       const response = await app.inject({ method: 'POST', url: '/api/auth/sign-out', headers })
@@ -111,16 +85,10 @@ describe('auth controller, on the web', () => {
 
 describe('auth controller, for a native client', () => {
   it('hands the tokens over in the body, and accepts them as a bearer', async () => {
-    const signUp = await app.inject({
-      method: 'POST',
-      url: '/api/auth/sign-up',
-      headers: BEARER,
-      payload: account(),
-    })
-    const tokens = signUp.json()
+    const { response } = await signUp({ bearer: true })
+    const tokens = response.json()
 
-    expect(signUp.statusCode).toBe(201)
-    expect(signUp.cookies).toEqual([])
+    expect(response.cookies).toEqual([])
     expect(tokens).toEqual({
       accessToken: expect.any(String),
       refreshToken: expect.any(String),
@@ -146,20 +114,19 @@ describe('auth controller, for a native client', () => {
 
 describe('auth controller, refusing', () => {
   it('answers a wrong password with 401 and a taken email with 409, as problem+json', async () => {
-    const ana = account()
-    await app.inject({ method: 'POST', url: '/api/auth/sign-up', headers: BEARER, payload: ana })
+    const { email } = await signUp({ bearer: true })
 
     const wrong = await app.inject({
       method: 'POST',
       url: '/api/auth/sign-in',
       headers: BEARER,
-      payload: { email: ana.email, password: 'wrong-password' },
+      payload: { email, password: 'wrong-password' },
     })
     const taken = await app.inject({
       method: 'POST',
       url: '/api/auth/sign-up',
       headers: BEARER,
-      payload: ana,
+      payload: { name: 'Ana', email, password: PASSWORD },
     })
 
     expect(wrong.statusCode).toBe(401)

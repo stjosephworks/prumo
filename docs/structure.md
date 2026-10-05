@@ -26,6 +26,8 @@ This document describes **where files live and what they are called**. What goes
     monorepo/        ← architecture monorepo
     multi-tenancy/   ← multi-tenant projects only
     mcp/             ← projects that answered yes to MCP
+    email/           ← projects that answered yes to email verification
+    social/          ← projects that chose a sign-in provider
 ```
 
 **`.prumo/` holds two natures, and the split is deliberate.** `INDEX.md` and `config.json` are
@@ -48,9 +50,10 @@ it or refresh it are planned after V1.
 
 ## Areas
 
-Areas do not mirror types. Five of the ten are not types at all: `database/` follows a type, `client/`
+Areas do not mirror types. Seven of the twelve are not types at all: `database/` follows a type, `client/`
 follows any of three, `monorepo/` follows the architecture, `multi-tenancy/` follows a third axis of its
-own, and `mcp/` a fourth, asked only when there is an api and a web.
+own, `mcp/` a fourth, asked only when there is an api and a web, and `email/` and `social/` a fifth and a
+sixth, asked when there is an api, and for social a client to come back to.
 
 | Area | Holds | Ships when |
 |---|---|---|
@@ -63,7 +66,9 @@ own, and `mcp/` a fourth, asked only when there is an api and a web.
 | `site/` | Next rules, for indexed pages | type is `site` |
 | `monorepo/` | Workspace organisation | architecture is `monorepo` |
 | `multi-tenancy/` | `tenant_id` across the layers, tenant resolution, isolation | the project is multi-tenant |
-| `mcp/` | The MCP server, its tools, and the OAuth that authorizes them | the project has an api and a web and answered yes to MCP |
+| `mcp/` | The MCP server, its tools and their scopes, and the OAuth that authorizes them | the project has an api and a web and answered yes to MCP |
+| `email/` | The `Mailer` port, and the codes that verify an email and reset a password | the project has an api and answered yes to email |
+| `social/` | Sign-in with a provider: the trip there and back, and how an account is linked | the project has an api, a web or mobile app, and chose a provider |
 
 This table is the inclusion rule, and it lives in the CLI as one explicit table, not as a manifest
 per area, and not as convention-plus-exceptions.

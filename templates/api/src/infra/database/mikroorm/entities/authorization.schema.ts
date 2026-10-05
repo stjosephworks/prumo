@@ -11,6 +11,7 @@ export const AuthorizationSchema = new EntitySchema({
     codeChallenge: { type: 'text' },
     clientState: { type: 'text', nullable: true },
     resource: { type: 'text' },
+    scope: { type: 'text' },
     status: { type: 'text' },
     userId: {
       kind: 'm:1',

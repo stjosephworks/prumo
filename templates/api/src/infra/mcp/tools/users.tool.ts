@@ -16,6 +16,12 @@ function asResult(profile: Profile) {
   }
 }
 
+// The scope each tool needs: reading a module's data is `<module>:read`, changing it `<module>:write`.
+export const USER_TOOL_SCOPES = {
+  get_profile: 'profile:read',
+  update_profile: 'profile:write',
+} as const
+
 export function registerUserTools(
   server: McpServer,
   container: DependencyContainer,

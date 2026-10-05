@@ -12,8 +12,8 @@ afterEach(() => {
 
 describe('RefreshSessionUseCase', () => {
   it('rotates the refresh token on every use', async () => {
-    const { signUp, refresh } = authFakes()
-    const first = await signUp.execute(ANA)
+    const { register, refresh } = authFakes()
+    const first = await register(ANA)
 
     const second = await refresh.execute(first.refreshToken)
     const third = await refresh.execute(second.refreshToken)
@@ -22,8 +22,8 @@ describe('RefreshSessionUseCase', () => {
   })
 
   it('asks a client that lost a race to retry, and revokes nothing', async () => {
-    const { signUp, refresh, sessions } = authFakes()
-    const first = await signUp.execute(ANA)
+    const { register, refresh, sessions } = authFakes()
+    const first = await register(ANA)
 
     const second = await refresh.execute(first.refreshToken)
 
@@ -34,8 +34,8 @@ describe('RefreshSessionUseCase', () => {
 
   it('ends the session when a token comes back after the grace period', async () => {
     vi.useFakeTimers()
-    const { signUp, refresh, sessions } = authFakes()
-    const first = await signUp.execute(ANA)
+    const { register, refresh, sessions } = authFakes()
+    const first = await register(ANA)
     const second = await refresh.execute(first.refreshToken)
 
     vi.advanceTimersByTime(ROTATION_GRACE_MS)
@@ -55,8 +55,8 @@ describe('RefreshSessionUseCase', () => {
   })
 
   it('refuses every token of a session signed out of', async () => {
-    const { signUp, signOut, refresh, sessions } = authFakes()
-    const tokens = await signUp.execute(ANA)
+    const { register, signOut, refresh, sessions } = authFakes()
+    const tokens = await register(ANA)
     const session = [...sessions.rows.values()][0]
 
     await signOut.execute(session?.userId ?? '', session?.id ?? '')

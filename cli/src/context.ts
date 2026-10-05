@@ -1,6 +1,7 @@
 import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AppType } from './compose.ts'
+import type { SocialProvider } from './features.ts'
 import { cliVersion } from './version.ts'
 
 export type Answers = {
@@ -9,6 +10,8 @@ export type Answers = {
   architecture: 'alone' | 'monorepo'
   multiTenant: boolean
   mcp: boolean
+  email: boolean
+  social: SocialProvider[]
 }
 
 const CLIENTS: AppType[] = ['web', 'mobile', 'site']
@@ -24,6 +27,8 @@ export function areasFor(answers: Answers): string[] {
     ...(answers.architecture === 'monorepo' ? ['monorepo'] : []),
     ...(answers.multiTenant ? ['multi-tenancy'] : []),
     ...(answers.mcp ? ['mcp'] : []),
+    ...(answers.email ? ['email'] : []),
+    ...(answers.social.length > 0 ? ['social'] : []),
   ]
 }
 
@@ -60,6 +65,8 @@ export async function writeContext(
     architecture: answers.architecture,
     multiTenant: answers.multiTenant,
     mcp: answers.mcp,
+    email: answers.email,
+    social: answers.social,
   }
 
   await writeFile(join(prumo, 'config.json'), `${JSON.stringify(config, null, 2)}\n`)

@@ -20,6 +20,10 @@ const flags = (overrides: Partial<Flags>): Flags => ({
   singleTenant: false,
   mcp: false,
   noMcp: false,
+  email: false,
+  noEmail: false,
+  social: undefined,
+  noSocial: false,
   ...overrides,
 })
 
@@ -33,14 +37,21 @@ describe('resolveAnswers outside a terminal', () => {
 
   it('makes a workspace of several types and refuses --alone for them', async () => {
     const answers = await resolveAnswers(
-      flags({ types: 'api,web', singleTenant: true, noMcp: true }),
+      flags({ types: 'api,web', singleTenant: true, noMcp: true, noEmail: true, noSocial: true }),
       undefined,
     )
 
     expect(answers.architecture).toBe('monorepo')
     await expect(
       resolveAnswers(
-        flags({ types: 'api,web', alone: true, singleTenant: true, noMcp: true }),
+        flags({
+          types: 'api,web',
+          alone: true,
+          singleTenant: true,
+          noMcp: true,
+          noEmail: true,
+          noSocial: true,
+        }),
         undefined,
       ),
     ).rejects.toThrow('--alone holds a single type')
@@ -54,7 +65,10 @@ describe('resolveAnswers outside a terminal', () => {
       resolveAnswers(flags({ types: 'api', singleTenant: true, mcp: true }), undefined),
     ).rejects.toThrow('--mcp needs both api and web')
 
-    const answers = await resolveAnswers(flags({ types: 'api', singleTenant: true }), undefined)
+    const answers = await resolveAnswers(
+      flags({ types: 'api', singleTenant: true, noEmail: true }),
+      undefined,
+    )
 
     expect(answers.mcp).toBe(false)
   })
@@ -66,6 +80,34 @@ describe('resolveAnswers outside a terminal', () => {
     await expect(
       resolveAnswers(flags({ types: 'site', multiTenant: true }), undefined),
     ).rejects.toThrow('--multi-tenant needs one of api, web, mobile')
+  })
+
+  it('reads the providers from --social and refuses what it cannot honour', async () => {
+    const web = { types: 'api,web', singleTenant: true, noMcp: true, noEmail: true }
+    const answers = await resolveAnswers(flags({ ...web, social: 'apple, google' }), undefined)
+
+    expect(answers.social).toEqual(['apple', 'google'])
+    expect(answers.warnings).toEqual([expect.stringContaining('--email avoids it')])
+    expect(
+      (
+        await resolveAnswers(
+          flags({ ...web, noEmail: false, email: true, social: 'apple' }),
+          undefined,
+        )
+      ).warnings,
+    ).toEqual([])
+    await expect(resolveAnswers(flags({ ...web, social: 'github' }), undefined)).rejects.toThrow(
+      'Unknown provider: github',
+    )
+    await expect(
+      resolveAnswers(
+        flags({ types: 'api', singleTenant: true, noEmail: true, social: 'google' }),
+        undefined,
+      ),
+    ).rejects.toThrow('--social needs api, and web or mobile')
+    await expect(resolveAnswers(flags({ types: 'site', email: true }), undefined)).rejects.toThrow(
+      '--email needs api',
+    )
   })
 
   it('refuses an empty --types', async () => {
@@ -107,6 +149,14 @@ describe('resolveAnswers in a terminal', () => {
         asked.push('mcp')
         return true
       },
+      email: async () => {
+        asked.push('email')
+        return true
+      },
+      social: async () => {
+        asked.push('social')
+        return []
+      },
       ...answers,
     }
 
@@ -118,14 +168,17 @@ describe('resolveAnswers in a terminal', () => {
 
     const answers = await resolveAnswers(flags({ name: undefined }), asker)
 
-    expect(asked).toEqual(['name', 'types', 'architecture', 'multiTenant'])
+    expect(asked).toEqual(['name', 'types', 'architecture', 'multiTenant', 'email'])
     expect(answers).toEqual({
       name: 'from-prompt',
       types: ['api'],
       architecture: 'monorepo',
       multiTenant: true,
       mcp: false,
+      email: true,
+      social: [],
       target: resolve('from-prompt'),
+      warnings: [],
     })
   })
 
@@ -162,25 +215,52 @@ describe('resolveAnswers in a terminal', () => {
   it('takes `.` as the current directory, named after it', async () => {
     const root = await mkdtemp(join(tmpdir(), 'prumo-answers-'))
     const here = join(root, 'my-site')
+    // Named on purpose: mkdtemp's random suffix is sometimes a valid project name, sometimes not.
+    const invalid = join(root, 'Not_A_Name')
 
     try {
       await mkdir(here)
+      await mkdir(invalid)
 
       expect(
         await resolveAnswers(flags({ name: '.', types: 'site' }), undefined, here),
       ).toMatchObject({ name: 'my-site', target: here })
       await expect(
-        resolveAnswers(flags({ name: '.', types: 'site' }), undefined, root),
+        resolveAnswers(flags({ name: '.', types: 'site' }), undefined, invalid),
       ).rejects.toThrow('taken from this directory')
     } finally {
       await rm(root, { recursive: true, force: true })
     }
   })
 
+  it('asks about email with an api, and about social sign-in only when a client can come back', async () => {
+    const apiOnly = scripted()
+    const withMobile = scripted({
+      social: async () => {
+        withMobile.asked.push('social')
+        return ['google']
+      },
+    })
+
+    await resolveAnswers(flags({ types: 'api', singleTenant: true }), apiOnly.asker)
+    const answers = await resolveAnswers(
+      flags({ types: 'api,mobile', singleTenant: true }),
+      withMobile.asker,
+    )
+
+    expect(apiOnly.asked).toEqual(['architecture', 'email'])
+    expect(withMobile.asked).toEqual(['email', 'social'])
+    // Google on mobile without Apple is allowed, and named for what the App Store will ask.
+    expect(answers.warnings).toEqual([expect.stringContaining('Guideline 4.8')])
+  })
+
   it('does not ask the architecture when several types decide it', async () => {
     const { asker, asked } = scripted()
 
-    const answers = await resolveAnswers(flags({ types: 'api,mobile', singleTenant: true }), asker)
+    const answers = await resolveAnswers(
+      flags({ types: 'api,mobile', singleTenant: true, noEmail: true, noSocial: true }),
+      asker,
+    )
 
     expect(asked).toEqual([])
     expect(answers.architecture).toBe('monorepo')
@@ -209,6 +289,8 @@ describe('generate', () => {
         architecture: 'alone',
         multiTenant: false,
         mcp: false,
+        email: false,
+        social: [],
       },
     })
 
@@ -225,6 +307,8 @@ describe('generate', () => {
       architecture: 'alone',
       multiTenant: false,
       mcp: false,
+      email: false,
+      social: [],
     })
     expect(index).toContain('[mobile/storage.md](mobile/storage.md)')
     expect(index).toContain('[client/data.md](client/data.md)')
@@ -254,6 +338,8 @@ describe('generate', () => {
           architecture: 'alone',
           multiTenant: false,
           mcp: false,
+          email: false,
+          social: [],
         },
       })
     }
@@ -283,6 +369,8 @@ describe('generate', () => {
         architecture: 'monorepo',
         multiTenant: true,
         mcp: false,
+        email: false,
+        social: [],
       },
     })
 
@@ -328,6 +416,8 @@ describe('generate', () => {
         architecture: 'alone',
         multiTenant: false,
         mcp: false,
+        email: false,
+        social: [],
       },
     })
 
@@ -349,6 +439,8 @@ describe('generate', () => {
           architecture: 'alone',
           multiTenant: false,
           mcp: false,
+          email: false,
+          social: [],
         },
       }),
     ).rejects.toThrow('not empty')
@@ -378,6 +470,8 @@ describe('generate when it fails', () => {
     architecture: 'alone' as const,
     multiTenant: false,
     mcp: false,
+    email: false,
+    social: [],
   }
 
   it('removes the directory it created', async () => {

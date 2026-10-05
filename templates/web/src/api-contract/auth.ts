@@ -10,6 +10,19 @@ export type SignUpRequest = { name: string; email: string; password: string }
 
 export type SignInRequest = { email: string; password: string }
 
+// prumo:email
+export type VerifyEmailRequest = { email: string; code: string }
+
+export type ResetPasswordRequest = { email: string; code: string; password: string }
+
+// prumo:end-email
+// prumo:social
+export type SocialProvider = 'google' | 'apple'
+
+// prumo:end-social
+// An account that must confirm its email first gets no session from signing up, and says so.
+export type SignUpResult = { verificationRequired: boolean }
+
 // Where a native client keeps its tokens. The web passes none: its tokens live in cookies no script can read.
 export type TokenStore = {
   read(): Promise<Tokens | null>
@@ -48,15 +61,35 @@ export function createAuthClient({
     })
   }
 
-  async function begin(path: string, body: unknown): Promise<void> {
+  async function begin(path: string, body: unknown): Promise<SignUpResult> {
     const response = await send(path, body)
 
     if (!response.ok) {
       throw await ApiError.fromResponse(response)
     }
 
-    await tokens?.write((await response.json()) as Tokens)
+    // The web's answer is empty: its session arrived as cookies.
+    const text = await response.text()
+    const answer = text === '' ? {} : (JSON.parse(text) as Partial<Tokens & SignUpResult>)
+
+    if (answer.verificationRequired === true) {
+      return { verificationRequired: true }
+    }
+
+    await tokens?.write(answer as Tokens)
+    return { verificationRequired: false }
   }
+
+  // prumo:email
+  async function ask(path: string, body: unknown): Promise<void> {
+    const response = await send(path, body)
+
+    if (!response.ok) {
+      throw await ApiError.fromResponse(response)
+    }
+  }
+
+  // prumo:end-email
 
   let refreshing: Promise<boolean> | undefined
 
@@ -125,7 +158,34 @@ export function createAuthClient({
 
     signUp: (request: SignUpRequest) => begin('/sign-up', request),
 
-    signIn: (request: SignInRequest) => begin('/sign-in', request),
+    signIn: async (request: SignInRequest): Promise<void> => {
+      await begin('/sign-in', request)
+    },
+
+    // prumo:email
+    // Each answers alike for an unknown email, so a form can say "if the account exists, a code is on its way".
+    requestEmailVerification: (email: string) => ask('/email/verification', { email }),
+
+    verifyEmail: async (request: VerifyEmailRequest): Promise<void> => {
+      await begin('/email/verify', request)
+    },
+
+    requestPasswordReset: (email: string) => ask('/password/forgot', { email }),
+
+    resetPassword: async (request: ResetPasswordRequest): Promise<void> => {
+      await begin('/password/reset', request)
+    },
+    // prumo:end-email
+    // prumo:social
+    // Where to send the browser to sign in with a provider: the API takes it there and back. The web comes back
+    // signed in; a mobile app comes back with a code to exchange.
+    socialSignInUrl: (provider: SocialProvider, client: 'web' | 'mobile', returnTo = '/') =>
+      `${url(`/social/${provider}`)}?${new URLSearchParams({ client, returnTo })}`,
+
+    exchangeSocialCode: async (code: string): Promise<void> => {
+      await begin('/social/exchange', { code })
+    },
+    // prumo:end-social
 
     // The device forgets the tokens whether or not the request arrives: signing out locally is what was asked.
     async signOut(): Promise<void> {

@@ -8,6 +8,7 @@ export const authorizationViewSchema = z.object({
   redirectHost: z.string(),
   // A localhost redirect cannot prove which program is listening there, so the page warns about it.
   redirectsToThisDevice: z.boolean(),
+  scopes: z.array(z.object({ scope: z.string(), description: z.string() })),
 })
 
 export type AuthorizationViewDto = z.infer<typeof authorizationViewSchema>

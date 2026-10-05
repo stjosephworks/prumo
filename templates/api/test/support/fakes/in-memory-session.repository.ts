@@ -16,4 +16,12 @@ export class InMemorySessionRepository implements SessionRepository {
     session.id ??= crypto.randomUUID()
     this.rows.set(session.id, session)
   }
+
+  async revokeAllFor(userId: string, now: Date): Promise<void> {
+    for (const session of this.rows.values()) {
+      if (session.userId === userId) {
+        session.revoke(now)
+      }
+    }
+  }
 }

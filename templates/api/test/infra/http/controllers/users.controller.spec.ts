@@ -1,37 +1,16 @@
-import { testEnv, testOrm } from '@test/support/setup'
+import { cookieHeader, ORIGIN, testApp } from '@test/support/test-app'
 import type { FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createContainer } from '@/infra/di'
-import { buildApp } from '@/infra/http/app'
-
-const ORIGIN = 'http://localhost:5173'
 
 let app: FastifyInstance
+let signUp: Awaited<ReturnType<typeof testApp>>['signUp']
 
-async function signUp(): Promise<string[]> {
-  const response = await app.inject({
-    method: 'POST',
-    url: '/api/auth/sign-up',
-    headers: { origin: ORIGIN },
-    payload: {
-      name: 'Ana',
-      email: `${crypto.randomUUID()}@example.com`,
-      password: 'correct-horse-battery',
-    },
-  })
-
-  expect(response.statusCode).toBe(201)
-
-  const cookies = response.headers['set-cookie']
-  return Array.isArray(cookies) ? cookies : [cookies ?? '']
-}
-
-function cookieHeader(cookies: string[]): string {
-  return cookies.map((cookie) => cookie.split(';')[0]).join('; ')
+async function signedIn(): Promise<string> {
+  return cookieHeader((await signUp()).response)
 }
 
 beforeEach(async () => {
-  app = await buildApp(createContainer({ env: testEnv(), orm: testOrm() }))
+  ;({ app, signUp } = await testApp())
 })
 
 afterEach(async () => {
@@ -47,8 +26,10 @@ describe('users controller', () => {
   })
 
   it('returns the profile created at sign-up, and only its public fields', async () => {
-    const cookie = cookieHeader(await signUp())
-    const response = await app.inject({ url: '/api/v1/users/me', headers: { cookie } })
+    const response = await app.inject({
+      url: '/api/v1/users/me',
+      headers: { cookie: await signedIn() },
+    })
 
     expect(response.statusCode).toBe(200)
     expect(Object.keys(response.json()).sort()).toEqual(
@@ -58,11 +39,10 @@ describe('users controller', () => {
   })
 
   it('updates the profile', async () => {
-    const cookie = cookieHeader(await signUp())
     const response = await app.inject({
       method: 'PATCH',
       url: '/api/v1/users/me',
-      headers: { cookie, origin: ORIGIN },
+      headers: { cookie: await signedIn(), origin: ORIGIN },
       payload: { timezone: 'America/Sao_Paulo' },
     })
 
@@ -71,11 +51,10 @@ describe('users controller', () => {
   })
 
   it('names every rejected field, including one the schema does not know', async () => {
-    const cookie = cookieHeader(await signUp())
     const response = await app.inject({
       method: 'PATCH',
       url: '/api/v1/users/me',
-      headers: { cookie, origin: ORIGIN },
+      headers: { cookie: await signedIn(), origin: ORIGIN },
       payload: { displayName: '', role: 'admin' },
     })
 
@@ -87,11 +66,10 @@ describe('users controller', () => {
   })
 
   it('signs out', async () => {
-    const cookie = cookieHeader(await signUp())
     const response = await app.inject({
       method: 'POST',
       url: '/api/auth/sign-out',
-      headers: { cookie, origin: ORIGIN },
+      headers: { cookie: await signedIn(), origin: ORIGIN },
     })
 
     expect(response.statusCode).toBe(204)
