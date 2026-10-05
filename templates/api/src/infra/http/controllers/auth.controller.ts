@@ -1,95 +1,51 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
+import type { FastifyInstance } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
+import { z } from 'zod'
 import { refreshSchema } from '@/domain/auth/dto/refresh.dto'
 import { sessionResponseSchema } from '@/domain/auth/dto/session-response.dto'
 import { signInSchema } from '@/domain/auth/dto/sign-in.dto'
 import { signUpSchema } from '@/domain/auth/dto/sign-up.dto'
-import { type TokensResponseDto, tokensResponseSchema } from '@/domain/auth/dto/tokens-response.dto'
+import { tokensResponseSchema } from '@/domain/auth/dto/tokens-response.dto'
 import { InvalidSessionError } from '@/domain/auth/errors/invalid-session.error'
 import { FindUserUseCase } from '@/domain/auth/use-cases/find-user.use-case'
 import { RefreshSessionUseCase } from '@/domain/auth/use-cases/refresh-session.use-case'
 import { SignInUseCase } from '@/domain/auth/use-cases/sign-in.use-case'
 import { SignOutUseCase } from '@/domain/auth/use-cases/sign-out.use-case'
 import { SignUpUseCase } from '@/domain/auth/use-cases/sign-up.use-case'
-import type { SessionTokens } from '@/domain/auth/use-cases/start-session.use-case'
 import { ENV, type Env } from '@/infra/config/env'
-import { ACCESS_COOKIE, currentSession, currentUser } from '@/infra/http/hooks/auth.hook'
-
-const REFRESH_COOKIE = 'refresh_token'
-
-// The refresh cookie travels only to the one route that reads it, never with an ordinary request.
-const REFRESH_PATH = '/api/auth/refresh'
+import { currentSession, currentUser } from '@/infra/http/hooks/auth.hook'
+import { REFRESH_COOKIE, sessionDelivery, wantsBearer } from '@/infra/http/session-delivery'
 
 // Repeated guessing is slowed down per address; a refresh happens every quarter hour per tab, so it gets more room.
-const ATTEMPTS = { rateLimit: { max: 10, timeWindow: '1 minute' } }
+export const ATTEMPTS = { rateLimit: { max: 10, timeWindow: '1 minute' } }
 const REFRESHES = { rateLimit: { max: 60, timeWindow: '1 minute' } }
 
-// A native client asks for its tokens in the body. The web never does: a token JavaScript can read is a token an
-// injected script can take.
-function wantsBearer(request: FastifyRequest): boolean {
-  return request.headers['x-auth-transport'] === 'bearer'
-}
-
-function asBody(tokens: SessionTokens): TokensResponseDto {
-  return {
-    accessToken: tokens.accessToken.token,
-    refreshToken: tokens.refreshToken,
-    expiresIn: Math.round((tokens.accessToken.expiresAt.getTime() - Date.now()) / 1000),
-  }
-}
+const verificationRequiredSchema = z.object({ verificationRequired: z.literal(true) })
 
 export async function authController(fastify: FastifyInstance): Promise<void> {
   const app = fastify.withTypeProvider<ZodTypeProvider>()
-  const env = app.container.resolve<Env>(ENV)
-  const secure = env.API_URL.startsWith('https://')
-  const cookie = { httpOnly: true, sameSite: 'lax', secure } as const
-
-  function setCookies(reply: FastifyReply, tokens: SessionTokens): void {
-    reply.setCookie(ACCESS_COOKIE, tokens.accessToken.token, {
-      ...cookie,
-      path: '/',
-      expires: tokens.accessToken.expiresAt,
-    })
-    reply.setCookie(REFRESH_COOKIE, tokens.refreshToken, {
-      ...cookie,
-      path: REFRESH_PATH,
-      expires: tokens.refreshExpiresAt,
-    })
-  }
-
-  function clearCookies(reply: FastifyReply): void {
-    reply.clearCookie(ACCESS_COOKIE, { ...cookie, path: '/' })
-    reply.clearCookie(REFRESH_COOKIE, { ...cookie, path: REFRESH_PATH })
-  }
-
-  // The web gets cookies and an empty body; a native client gets the tokens and no cookie.
-  function deliver(
-    request: FastifyRequest,
-    reply: FastifyReply,
-    tokens: SessionTokens,
-    status: number,
-  ) {
-    if (wantsBearer(request)) {
-      return reply.code(status).send(asBody(tokens))
-    }
-
-    setCookies(reply, tokens)
-    return reply.code(status === 201 ? 201 : 204).send()
-  }
+  const { deliver, clearCookies } = sessionDelivery(app.container.resolve<Env>(ENV))
 
   app.post(
     '/sign-up',
     {
       config: { public: true, ...ATTEMPTS },
-      schema: { tags: ['auth'], body: signUpSchema, response: { 201: tokensResponseSchema } },
+      schema: {
+        tags: ['auth'],
+        body: signUpSchema,
+        response: { 201: z.union([tokensResponseSchema, verificationRequiredSchema]) },
+      },
     },
-    async (request, reply) =>
-      deliver(
-        request,
-        reply,
-        await app.container.resolve(SignUpUseCase).execute(request.body),
-        201,
-      ),
+    async (request, reply) => {
+      const tokens = await app.container.resolve(SignUpUseCase).execute(request.body)
+
+      // No session until the address is confirmed: the client asks for the code next.
+      if (tokens === null) {
+        return reply.code(201).send({ verificationRequired: true })
+      }
+
+      return deliver(request, reply, tokens, 201)
+    },
   )
 
   app.post(

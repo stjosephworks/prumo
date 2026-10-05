@@ -19,13 +19,14 @@ export class JoseAccessTokens implements AccessTokens {
   }
 
   async issue(
-    { userId, sessionId, clientId }: AccessClaims,
+    { userId, sessionId, clientId, scope }: AccessClaims,
     expiresAt: Date,
     audience = this.issuer,
   ): Promise<IssuedToken> {
     const token = await new SignJWT({
       sid: sessionId,
       ...(clientId !== undefined && { client_id: clientId }),
+      ...(scope !== undefined && { scope }),
     })
       .setProtectedHeader({ alg: ALGORITHM })
       .setSubject(userId)
@@ -54,6 +55,7 @@ export class JoseAccessTokens implements AccessTokens {
         userId: payload.sub,
         sessionId: payload.sid,
         ...(typeof payload.client_id === 'string' && { clientId: payload.client_id }),
+        ...(typeof payload.scope === 'string' && { scope: payload.scope }),
       }
     } catch {
       return null

@@ -22,6 +22,7 @@ export type AuthorizeRequest = {
   codeChallengeMethod: string | undefined
   clientState: string | null
   resource: string | undefined
+  scope: string | undefined
 }
 
 @injectable()
@@ -32,7 +33,11 @@ export class StartAuthorizationUseCase {
   ) {}
 
   // The client and its redirect URI are checked first: until both are, no error may be sent anywhere.
-  async execute(request: AuthorizeRequest, expectedResource: string): Promise<Authorization> {
+  async execute(
+    request: AuthorizeRequest,
+    expectedResource: string,
+    supportedScopes: readonly string[],
+  ): Promise<Authorization> {
     const client = await this.clients.read(request.clientId)
 
     // Exact match only: a prefix or a pattern is how an authorization code ends up somewhere else.
@@ -56,6 +61,14 @@ export class StartAuthorizationUseCase {
       throw new AuthorizationRequestError('invalid_target', `resource must be ${expectedResource}`)
     }
 
+    // A client that asks for nothing gets everything this server offers, and the consent page says so.
+    const requested = (request.scope ?? '').split(' ').filter(Boolean)
+    const unknown = requested.filter((scope) => !supportedScopes.includes(scope))
+
+    if (unknown.length > 0) {
+      throw new AuthorizationRequestError('invalid_scope', `Unknown scope: ${unknown.join(' ')}`)
+    }
+
     const authorization = new Authorization(
       {
         clientId: request.clientId,
@@ -64,6 +77,7 @@ export class StartAuthorizationUseCase {
         codeChallenge: request.codeChallenge as string,
         clientState: request.clientState,
         resource: expectedResource,
+        scope: (requested.length > 0 ? requested : supportedScopes).join(' '),
       },
       new Date(),
     )

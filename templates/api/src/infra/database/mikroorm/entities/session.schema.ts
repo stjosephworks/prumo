@@ -18,6 +18,7 @@ export const SessionSchema = new EntitySchema({
     tokenHash: { type: 'text' },
     clientId: { type: 'text', nullable: true },
     resource: { type: 'text', nullable: true },
+    scope: { type: 'text', nullable: true },
     previousTokenHash: { type: 'text', nullable: true },
     rotatedAt: { type: 'datetime', nullable: true },
     expiresAt: { type: 'datetime' },

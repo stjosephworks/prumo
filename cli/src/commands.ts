@@ -27,6 +27,14 @@ export const COMMANDS: CommandHelp[] = [
       { flag: '--single-tenant', description: 'No multi-tenancy conventions' },
       { flag: '--mcp', description: 'An MCP server on the api, authorized through the web' },
       { flag: '--no-mcp', description: 'No MCP server' },
+      {
+        flag: '--email',
+        description:
+          'Email verification and password reset, by a code sent through the Mailer port',
+      },
+      { flag: '--no-email', description: 'Neither' },
+      { flag: '--social <list>', description: 'Comma-separated: google, apple' },
+      { flag: '--no-social', description: 'No social sign-in' },
       { flag: '--skip-install', description: 'Do not run pnpm install' },
       JSON_OPTION,
     ],

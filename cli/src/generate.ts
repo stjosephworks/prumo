@@ -6,8 +6,8 @@ import { join } from 'node:path'
 import { type AppType, composeWorkspace, copyTemplate } from './compose.ts'
 import { type Answers, writeContext } from './context.ts'
 import { SHELL } from './doctor.ts'
+import { applyFeatures, enabledFor } from './features.ts'
 import { setJsonc } from './jsonc.ts'
-import { applyMcp } from './mcp.ts'
 import { schemeFor, targetProblem } from './names.ts'
 import { CliError } from './output.ts'
 
@@ -29,6 +29,24 @@ async function nameMobileApp(app: string, name: string): Promise<void> {
 }
 
 const SECRET_LINE = /^JWT_SECRET=.*$/m
+
+const SCHEME_LINES = /^# The mobile app's scheme.*\nMOBILE_APP_SCHEME=.*\n/m
+
+// Social sign-in sends a mobile app back by its scheme, the one app.json was given. Without a mobile app the setting
+// names nothing, so it goes. Without social sign-in its marker already took it.
+async function settleMobileScheme(api: string, scheme: string | null): Promise<void> {
+  for (const file of ['.env.example', '.env']) {
+    const path = join(api, file)
+
+    if (existsSync(path)) {
+      await rewrite(path, (text) =>
+        scheme === null
+          ? text.replace(SCHEME_LINES, '')
+          : text.replace(/^MOBILE_APP_SCHEME=.*$/m, `MOBILE_APP_SCHEME=${scheme}`),
+      )
+    }
+  }
+}
 
 // `.env` stays out of git, so the example is the committed truth and a fresh project gets a copy it can start with.
 // Only the secret differs: a sample value is public, so every generated API draws its own.
@@ -172,7 +190,7 @@ async function write({
 
   if (answers.architecture === 'alone' && only !== undefined) {
     await copyTemplate(join(templates, only), target)
-    await applyMcp(target, only, answers.mcp)
+    await applyFeatures(target, only, enabledFor(answers))
     await nameProject(target, answers.name)
     await writeLocalEnv(target, only)
 
@@ -188,7 +206,7 @@ async function write({
       templates,
       target,
       types: answers.types,
-      mcp: answers.mcp,
+      features: enabledFor(answers),
     })
     await nameProject(target, answers.name)
 
@@ -198,6 +216,10 @@ async function write({
 
     if (answers.types.includes('api')) {
       await nameCompose(join(target, 'apps', 'api'), answers.name)
+      await settleMobileScheme(
+        join(target, 'apps', 'api'),
+        answers.types.includes('mobile') ? schemeFor(answers.name) : null,
+      )
     }
 
     if (answers.types.includes('mobile')) {

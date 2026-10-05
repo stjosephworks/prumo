@@ -8,6 +8,7 @@ type AuthorizationView = {
   clientHost: string
   redirectHost: string
   redirectsToThisDevice: boolean
+  scopes: { scope: string; description: string }[]
 }
 
 type ConsentAuth = Pick<AuthClient, 'baseUrl' | 'fetch'>
@@ -60,13 +61,18 @@ export function ConsentForm({
     )
   }
 
-  const { clientName, clientHost, redirectHost, redirectsToThisDevice } = view.data
+  const { clientName, clientHost, redirectHost, redirectsToThisDevice, scopes } = view.data
 
   return (
     <div className="flex flex-col gap-6">
       <p>
         <strong>{clientName}</strong> ({clientHost}) wants to act on your behalf.
       </p>
+      <ul aria-label="What it will be able to do" className="list-disc pl-6 text-sm">
+        {scopes.map(({ scope, description }) => (
+          <li key={scope}>{description}</li>
+        ))}
+      </ul>
       <p className="text-sm text-muted-foreground">
         If you allow it, you will be sent to <strong>{redirectHost}</strong>.
       </p>

@@ -78,6 +78,7 @@ export class ExchangeCodeUseCase {
       const tokens = await this.startSession.execute(authorization.userId, {
         clientId: authorization.clientId,
         resource: authorization.resource,
+        scope: authorization.scope,
       })
 
       authorization.exchange(tokens.sessionId)

@@ -18,6 +18,7 @@ import { FindAuthorizationUseCase } from '@/domain/oauth/use-cases/find-authoriz
 import { StartAuthorizationUseCase } from '@/domain/oauth/use-cases/start-authorization.use-case'
 import { ENV, type Env } from '@/infra/config/env'
 import { currentUser } from '@/infra/http/hooks/auth.hook'
+import { SCOPES } from '@/infra/mcp/mcp.scopes'
 import { mcpResource } from '@/infra/mcp/mcp.server'
 
 const PUBLIC = { public: true, rateLimit: { max: 30, timeWindow: '1 minute' } }
@@ -54,6 +55,7 @@ function tokenResponse(tokens: SessionTokens) {
     token_type: 'Bearer',
     expires_in: Math.round((tokens.accessToken.expiresAt.getTime() - Date.now()) / 1000),
     refresh_token: tokens.refreshToken,
+    scope: tokens.scope ?? '',
   }
 }
 
@@ -72,10 +74,12 @@ export async function oauthController(fastify: FastifyInstance): Promise<void> {
     (_request, body, done) => done(null, Object.fromEntries(new URLSearchParams(body as string))),
   )
 
+  const scopesSupported = Object.keys(SCOPES)
   const resourceMetadata = {
     resource,
     authorization_servers: [issuer],
     bearer_methods_supported: ['header'],
+    scopes_supported: scopesSupported,
   }
 
   // At the path of the resource first, then at the root: the two places an MCP client looks.
@@ -98,6 +102,7 @@ export async function oauthController(fastify: FastifyInstance): Promise<void> {
       code_challenge_methods_supported: ['S256'],
       token_endpoint_auth_methods_supported: ['none'],
       client_id_metadata_document_supported: true,
+      scopes_supported: scopesSupported,
       authorization_response_iss_parameter_supported: true,
     }),
   )
@@ -118,8 +123,10 @@ export async function oauthController(fastify: FastifyInstance): Promise<void> {
             codeChallengeMethod: query.code_challenge_method,
             clientState: query.state ?? null,
             resource: query.resource,
+            scope: query.scope,
           },
           resource,
+          scopesSupported,
         )
 
         // Signing in, if needed, and the consent itself happen on the web app.
@@ -162,6 +169,9 @@ export async function oauthController(fastify: FastifyInstance): Promise<void> {
         clientHost: new URL(authorization.clientId).host,
         redirectHost: redirect.host,
         redirectsToThisDevice: LOOPBACK.has(redirect.hostname),
+        scopes: authorization.scope
+          .split(' ')
+          .map((scope) => ({ scope, description: SCOPES[scope] ?? scope })),
       }
     },
   )

@@ -1,6 +1,7 @@
 import type { Asker } from './asker.ts'
 import type { AppType } from './compose.ts'
 import type { Answers } from './context.ts'
+import { SOCIAL_PROVIDERS, type SocialProvider } from './features.ts'
 import { projectAt, targetProblem, validateProjectName } from './names.ts'
 import { CliError } from './output.ts'
 
@@ -13,6 +14,10 @@ export type Flags = {
   singleTenant: boolean
   mcp: boolean
   noMcp: boolean
+  email: boolean
+  noEmail: boolean
+  social: string | undefined
+  noSocial: boolean
 }
 
 const TYPES: AppType[] = ['api', 'web', 'mobile', 'site']
@@ -47,7 +52,27 @@ function parseTypes(value: string): AppType[] {
   return [...new Set(types)] as AppType[]
 }
 
-export type Resolved = Answers & { target: string }
+// A warning does not stop generation: it names a consequence the developer may have chosen on purpose.
+export type Resolved = Answers & { target: string; warnings: string[] }
+
+function parseProviders(value: string): SocialProvider[] {
+  const providers = value
+    .split(',')
+    .map((provider) => provider.trim())
+    .filter((provider) => provider !== '')
+  const unknown = providers.filter(
+    (provider) => !SOCIAL_PROVIDERS.includes(provider as SocialProvider),
+  )
+
+  if (providers.length === 0 || unknown.length > 0) {
+    throw new CliError(
+      'invalid_input',
+      `Unknown provider: ${unknown.join(', ') || '(none)'}. Choose from ${SOCIAL_PROVIDERS.join(', ')}, or pass --no-social.`,
+    )
+  }
+
+  return [...new Set(providers)] as SocialProvider[]
+}
 
 export async function resolveAnswers(
   flags: Flags,
@@ -60,6 +85,14 @@ export async function resolveAnswers(
 
   if (flags.mcp && flags.noMcp) {
     throw new CliError('invalid_input', 'Choose --mcp or --no-mcp, not both.')
+  }
+
+  if (flags.email && flags.noEmail) {
+    throw new CliError('invalid_input', 'Choose --email or --no-email, not both.')
+  }
+
+  if (flags.social !== undefined && flags.noSocial) {
+    throw new CliError('invalid_input', 'Choose --social or --no-social, not both.')
   }
 
   if (flags.multiTenant && flags.singleTenant) {
@@ -142,5 +175,54 @@ export async function resolveAnswers(
     missing('--mcp or --no-mcp')
   }
 
-  return { name, types, architecture, multiTenant, mcp, target }
+  // Verification and password reset are the API's; every client of it then shows their screens.
+  let email = false
+
+  if (!types.includes('api')) {
+    if (flags.email) {
+      throw new CliError('invalid_input', '--email needs api in --types.')
+    }
+  } else if (flags.email || flags.noEmail) {
+    email = flags.email
+  } else if (asker !== undefined) {
+    email = await asker.email()
+  } else {
+    missing('--email or --no-email')
+  }
+
+  // A provider sends the user back to a screen, so social sign-in needs a client beside the API.
+  const socialCapable = types.includes('api') && (types.includes('web') || types.includes('mobile'))
+  let social: SocialProvider[] = []
+
+  if (!socialCapable) {
+    if (flags.social !== undefined) {
+      throw new CliError('invalid_input', '--social needs api, and web or mobile, in --types.')
+    }
+  } else if (flags.social !== undefined) {
+    social = parseProviders(flags.social)
+  } else if (flags.noSocial) {
+    social = []
+  } else if (asker !== undefined) {
+    social = await asker.social()
+  } else {
+    missing('--social <providers> or --no-social')
+  }
+
+  const warnings: string[] = []
+
+  if (types.includes('mobile') && social.includes('google') && !social.includes('apple')) {
+    warnings.push(
+      'The App Store asks an app offering Google sign-in to offer an equivalent privacy-preserving login too ' +
+        '(App Review Guideline 4.8); Sign in with Apple is one. Add apple to --social before publishing on iOS.',
+    )
+  }
+
+  if (social.length > 0 && !email) {
+    warnings.push(
+      'Without --email no password account is ever confirmed, so the first sign-in with a provider for an existing ' +
+        "account's email removes its password: the owner keeps the account through the provider. --email avoids it.",
+    )
+  }
+
+  return { name, types, architecture, multiTenant, mcp, email, social, target, warnings }
 }

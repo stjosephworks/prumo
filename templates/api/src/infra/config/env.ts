@@ -9,6 +9,24 @@ const envSchema = z.object({
   // Where this API is reached from outside: the issuer of its tokens, and what decides whether cookies are Secure.
   API_URL: z.url(),
   WEB_ORIGIN: z.string().min(1),
+  // prumo:social
+  // Where a mobile app is sent back after signing in with a provider: its own scheme, as in app.json.
+  MOBILE_APP_SCHEME: z
+    .string()
+    .regex(/^[a-z][a-z0-9+.-]*$/)
+    .optional(),
+  // prumo:end-social
+  // prumo:google
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+  // prumo:end-google
+  // prumo:apple
+  APPLE_CLIENT_ID: z.string().min(1).optional(),
+  APPLE_TEAM_ID: z.string().min(1).optional(),
+  APPLE_KEY_ID: z.string().min(1).optional(),
+  // The .p8 key's contents; on one line, with its line breaks written as \n.
+  APPLE_PRIVATE_KEY: z.string().min(1).optional(),
+  // prumo:end-apple
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']),
 })
 

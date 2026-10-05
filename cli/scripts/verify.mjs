@@ -39,13 +39,27 @@ async function waitFor(url, attempts = 60) {
   throw new Error(`${url} never answered`)
 }
 
+// What a server prints is kept as well as shown: with email on, the API's mail goes to its log, codes included.
+let serverLog = ''
+
 async function withServer(command, args, cwd, url, env, body) {
-  const server = spawn(command, args, { cwd, env: { ...process.env, ...env }, stdio: 'inherit' })
+  // In a group of its own, so stopping it stops what it started too: `pnpm preview` leaves vite running otherwise,
+  // and the next run's check would be answered by the previous build.
+  const server = spawn(command, args, {
+    cwd,
+    env: { ...process.env, ...env },
+    stdio: ['ignore', 'pipe', 'inherit'],
+    detached: true,
+  })
+  server.stdout.on('data', (chunk) => {
+    process.stdout.write(chunk)
+    serverLog += chunk
+  })
   try {
     await waitFor(url)
     return await body()
   } finally {
-    server.kill('SIGTERM')
+    process.kill(-server.pid, 'SIGTERM')
   }
 }
 
@@ -119,9 +133,52 @@ async function verifyMcpDiscovery() {
   }
 }
 
+async function codeMailedTo(email) {
+  const pattern = new RegExp(
+    `\\[mail\\] to ${email.replace(/[.+]/g, '\\$&')}:[^\\n]*\\n[^\\n]*?(\\d{6})`,
+  )
+
+  for (let i = 0; i < 50; i += 1) {
+    const code = pattern.exec(serverLog)?.[1]
+    if (code !== undefined) return code
+    await new Promise((resolve) => setTimeout(resolve, 200))
+  }
+  throw new Error(`no code was mailed to ${email}`)
+}
+
+// A session as the web holds one. With email verification on, sign-up opens none: the code the API wrote to its log
+// is entered first, as a person would from their inbox.
+async function webSession() {
+  const API = `http://localhost:${appPort}`
+  const headers = { 'content-type': 'application/json', origin: 'http://localhost:5173' }
+  const email = `contract-${Date.now()}@example.com`
+  let response = await fetch(`${API}/api/auth/sign-up`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ name: 'Contract', email, password: 'correct-horse-battery' }),
+  })
+
+  if (response.status !== 201) throw new Error(`sign-up answered ${response.status}`)
+
+  if ((await response.text()).includes('verificationRequired')) {
+    response = await fetch(`${API}/api/auth/email/verify`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ email, code: await codeMailedTo(email) }),
+    })
+    if (!response.ok) throw new Error(`email verification answered ${response.status}`)
+  }
+
+  return response.headers
+    .getSetCookie()
+    .map((header) => header.split(';')[0])
+    .join('; ')
+}
+
 async function verifyContract() {
   const web = appDir('web')
   const spec = join(web, 'src', 'contract.spec.ts')
+  const cookie = await webSession()
 
   writeFileSync(
     spec,
@@ -133,19 +190,7 @@ const ORIGIN = 'http://localhost:5173'
 
 describe('the hand-written contract against the running API', () => {
   it('describes what /users/me actually returns', async () => {
-    const email = \`contract-\${Date.now()}@example.com\`
-    const signUp = await fetch(\`\${API}/api/auth/sign-up\`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', origin: ORIGIN },
-      body: JSON.stringify({ name: 'Contract', email, password: 'correct-horse-battery' }),
-    })
-
-    expect(signUp.status).toBe(201)
-
-    const cookie = signUp.headers
-      .getSetCookie()
-      .map((header) => header.split(';')[0])
-      .join('; ')
+    const cookie = process.env.CONTRACT_COOKIE ?? ''
     const api = createClient({
       baseUrl: API,
       fetch: (input, init) =>
@@ -171,7 +216,7 @@ describe('the hand-written contract against the running API', () => {
 
   try {
     step('workspace: the contract answers the running API', () =>
-      run('pnpm', ['--filter', 'web', 'test'], project),
+      run('pnpm', ['--filter', 'web', 'test'], project, { CONTRACT_COOKIE: cookie }),
     )
   } finally {
     // The check belongs to CI, not to the generated project: it leaves nothing behind for the next run to lint.
