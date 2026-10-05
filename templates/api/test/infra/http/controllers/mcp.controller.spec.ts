@@ -7,6 +7,7 @@ import type { FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { InvalidClientError } from '@/domain/oauth/errors/invalid-client.error'
 import { CLIENT_METADATA, type ClientMetadata } from '@/domain/oauth/ports/client-metadata.port'
+import { TOOL_SCOPES } from '@/infra/mcp/mcp.scopes'
 import { mcpResource } from '@/infra/mcp/mcp.server'
 
 const ORIGIN = 'http://localhost:5173'
@@ -255,6 +256,19 @@ describe('scopes', () => {
     expect(write.statusCode).toBe(403)
     expect(write.headers['www-authenticate']).toContain('error="insufficient_scope"')
     expect(write.headers['www-authenticate']).toContain('scope="profile:write"')
+
+    await client.close()
+  })
+
+  // A tool missing from TOOL_SCOPES would answer any token, so every tool the server lists must be there.
+  it('cover every tool the server offers', async () => {
+    const client = await connect((await tokens(await signUp())).response.json().access_token)
+    const { tools } = await client.listTools()
+
+    expect(tools.length).toBeGreaterThan(0)
+    for (const tool of tools) {
+      expect(TOOL_SCOPES[tool.name], tool.name).toBeDefined()
+    }
 
     await client.close()
   })

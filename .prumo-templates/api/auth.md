@@ -52,8 +52,9 @@ one in a body. A cookie is also sent by the browser whoever wrote the page, whic
 answers: a request leaning on a cookie must come from the web app. A native app has no cookie jar and no
 Origin, so it carries a bearer and passes.
 
-**What this costs:** the security of sign-in is this code's. There is no upstream fix to wait for, and no
-reset of a password, verification of an email or social sign-in until one is written.
+**What this costs:** the security of sign-in is this code's. There is no upstream fix to wait for. Email
+verification, password reset and social sign-in are questions `prumo new` asks; a project that answered no to
+them has none of them until they are written.
 
 ## Applies to
 
