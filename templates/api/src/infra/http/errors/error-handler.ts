@@ -11,6 +11,7 @@ type ProblemDocument = {
   detail: string
   instance: string
   requestId: string
+  code?: string
   errors?: FieldErrors
 }
 
@@ -104,9 +105,12 @@ export function registerErrorHandler(app: FastifyInstance): void {
       request.log.error(error)
     }
 
+    const code = error instanceof DomainError ? error.code : undefined
+
     return send(request, reply, {
       status,
       detail: detailOf(error, status, errors),
+      ...(code === undefined ? {} : { code }),
       ...(errors === undefined ? {} : { errors }),
     })
   })

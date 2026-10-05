@@ -6,7 +6,8 @@ export const UserSchema = new EntitySchema({
   properties: {
     id: { type: 'uuid', primary: true, defaultRaw: 'uuidv7()' },
     email: { type: 'text', unique: true },
-    passwordHash: { type: 'text' },
+    passwordHash: { type: 'text', nullable: true },
+    emailVerifiedAt: { type: 'datetime', nullable: true },
     createdAt: { type: 'datetime', onCreate: () => new Date(), defaultRaw: 'now()' },
     updatedAt: {
       type: 'datetime',

@@ -13,6 +13,8 @@ export type AuthorizationRequest = {
   codeChallenge: string
   clientState: string | null
   resource: string
+  // The scopes the client asked for and the user is shown, space-separated.
+  scope: string
 }
 
 // One OAuth authorization, from the client's request through the user's answer to the code it is exchanged for.
@@ -24,6 +26,7 @@ export class Authorization {
   codeChallenge: string
   clientState: string | null
   resource: string
+  scope: string
   status: AuthorizationStatus = 'pending'
   userId: string | null = null
   codeHash: string | null = null
@@ -39,6 +42,7 @@ export class Authorization {
     this.codeChallenge = request.codeChallenge
     this.clientState = request.clientState
     this.resource = request.resource
+    this.scope = request.scope
     this.expiresAt = new Date(now.getTime() + AUTHORIZATION_REQUEST_LIFETIME_MS)
   }
 

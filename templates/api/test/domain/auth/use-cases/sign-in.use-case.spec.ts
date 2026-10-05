@@ -6,8 +6,8 @@ const ANA = { name: 'Ana', email: 'ana@example.com', password: 'correct-horse-ba
 
 describe('SignInUseCase', () => {
   it('starts a session for the right password, whatever the case of the email', async () => {
-    const { signUp, signIn, sessions } = authFakes()
-    await signUp.execute(ANA)
+    const { register, signIn, sessions } = authFakes()
+    await register(ANA)
 
     await signIn.execute({ email: 'ANA@example.com', password: ANA.password })
 
@@ -15,8 +15,8 @@ describe('SignInUseCase', () => {
   })
 
   it('answers a wrong password and an unknown email alike, after checking a password both times', async () => {
-    const { signUp, signIn, hasher } = authFakes()
-    await signUp.execute(ANA)
+    const { register, signIn, hasher } = authFakes()
+    await register(ANA)
 
     await expect(signIn.execute({ email: ANA.email, password: 'wrong' })).rejects.toBeInstanceOf(
       InvalidCredentialsError,

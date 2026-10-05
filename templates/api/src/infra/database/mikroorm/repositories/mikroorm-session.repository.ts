@@ -18,4 +18,8 @@ export class MikroOrmSessionRepository implements SessionRepository {
   async save(session: Session): Promise<void> {
     await this.em.persist(session).flush()
   }
+
+  async revokeAllFor(userId: string, now: Date): Promise<void> {
+    await this.em.nativeUpdate(Session, { userId, revokedAt: null }, { revokedAt: now })
+  }
 }

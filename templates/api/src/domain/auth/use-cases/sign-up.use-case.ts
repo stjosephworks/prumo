@@ -4,6 +4,7 @@ import { User } from '@/domain/auth/entities/user.entity'
 import { EmailTakenError } from '@/domain/auth/errors/email-taken.error'
 import { PASSWORD_HASHER, type PasswordHasher } from '@/domain/auth/ports/password-hasher.port'
 import { USER_REPOSITORY, type UserRepository } from '@/domain/auth/repositories/user.repository'
+import { IssueEmailCodeUseCase } from '@/domain/auth/use-cases/issue-email-code.use-case' // prumo:email
 import {
   type SessionTokens,
   StartSessionUseCase,
@@ -22,9 +23,11 @@ export class SignUpUseCase {
     @inject(TRANSACTION_MANAGER) private readonly transactions: TransactionManager,
     private readonly createProfile: CreateProfileUseCase,
     private readonly startSession: StartSessionUseCase,
+    private readonly issueEmailCode: IssueEmailCodeUseCase, // prumo:email
   ) {}
 
-  async execute({ name, email, password }: SignUpDto): Promise<SessionTokens> {
+  // Null when the account must confirm its email before it may sign in.
+  async execute({ name, email, password }: SignUpDto): Promise<SessionTokens | null> {
     const passwordHash = await this.hasher.hash(password)
 
     // The account and its profile exist together or not at all.
@@ -41,6 +44,14 @@ export class SignUpUseCase {
       return user
     })
 
+    // prumo:email
+    // Until the address is confirmed the account cannot sign in, so it opens no session either.
+    if (user.emailVerifiedAt === null) {
+      await this.issueEmailCode.execute(user, 'verify-email')
+      return null
+    }
+
+    // prumo:end-email
     return this.startSession.execute(user.id)
   }
 }

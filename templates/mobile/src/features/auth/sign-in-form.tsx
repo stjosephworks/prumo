@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
+import { useRouter } from 'expo-router' // prumo:email
 import { Controller, useForm } from 'react-hook-form'
 import { View } from 'react-native'
 import { z } from 'zod'
@@ -24,6 +25,7 @@ export function SignInForm({
   onSignedIn: () => void
 }) {
   const queryClient = useQueryClient()
+  const router = useRouter() // prumo:email
   const form = useForm<SignInValues>({
     resolver: zodResolver(schema),
     mode: 'onTouched',
@@ -36,6 +38,14 @@ export function SignInForm({
     try {
       await auth.signIn(values)
     } catch (error) {
+      // prumo:email
+      // The password was right and the email is not confirmed yet: the code screen offers a new code.
+      if ((error as { code?: string }).code === 'email_not_verified') {
+        router.push({ pathname: '/verify-email', params: { email: values.email } })
+        return
+      }
+
+      // prumo:end-email
       applyServerError(error, ['email', 'password'], form.setError)
       return
     }
