@@ -17,6 +17,8 @@ export type SessionTokens = {
   accessToken: IssuedToken
   refreshToken: string
   refreshExpiresAt: Date
+  // What an OAuth client's tokens may do; null for the application's own sessions, which may do everything.
+  scope: string | null
 }
 
 @injectable()
@@ -37,12 +39,17 @@ export class StartSessionUseCase {
     return {
       sessionId: session.id,
       accessToken: await this.tokens.issue(
-        { userId, sessionId: session.id, ...(grant && { clientId: grant.clientId }) },
+        {
+          userId,
+          sessionId: session.id,
+          ...(grant && { clientId: grant.clientId, scope: grant.scope }),
+        },
         new Date(now.getTime() + ACCESS_TOKEN_LIFETIME_MS),
         grant?.resource,
       ),
       refreshToken: session.refreshToken(secret),
       refreshExpiresAt: session.expiresAt,
+      scope: session.scope,
     }
   }
 }

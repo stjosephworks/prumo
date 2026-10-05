@@ -1,8 +1,8 @@
 import { Migration } from '@mikro-orm/migrations';
 
-export class Migration20261002231646_create_identity_social_sign_in extends Migration {
+export class Migration20261005111550_create_identity_social_sign_in extends Migration {
 
-  override name = 'Migration20261002231646_create_identity_social_sign_in';
+  override name = 'Migration20261005111550_create_identity_social_sign_in';
 
   override up(): void | Promise<void> {
     this.addSql(`create table "social_sign_in" ("id" uuid not null default uuidv7(), "provider" text not null, "client" text not null, "return_to" text not null, "browser_hash" text not null, "code_verifier" text null, "nonce" text not null, "status" text not null, "user_id" uuid null, "exchange_hash" text null, "expires_at" timestamptz not null, "created_at" timestamptz not null default now(), "updated_at" timestamptz not null default now(), primary key ("id"));`);

@@ -81,12 +81,14 @@ export class RefreshSessionUseCase {
           userId: session.userId,
           sessionId: session.id,
           ...(session.clientId !== null && { clientId: session.clientId }),
+          ...(session.scope !== null && { scope: session.scope }),
         },
         new Date(now.getTime() + ACCESS_TOKEN_LIFETIME_MS),
         session.resource ?? undefined,
       ),
       refreshToken: session.refreshToken(next),
       refreshExpiresAt: session.expiresAt,
+      scope: session.scope,
     }
   }
 }

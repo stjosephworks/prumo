@@ -15,6 +15,10 @@ const view = {
   clientHost: 'claude.example.com',
   redirectHost: 'claude.example.com',
   redirectsToThisDevice: false,
+  scopes: [
+    { scope: 'profile:read', description: 'Read your profile' },
+    { scope: 'profile:write', description: 'Change your display name, language and timezone' },
+  ],
 }
 
 function renderForm(routes: Parameters<typeof fakeTransport>[0]) {
@@ -44,6 +48,9 @@ describe('ConsentForm', () => {
 
     expect(await screen.findByText('Claude')).toBeInTheDocument()
     expect(screen.getByText(/claude\.example\.com\)/)).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'What it will be able to do' })).toHaveTextContent(
+      'Read your profile',
+    )
 
     await visitor.click(screen.getByRole('button', { name: 'Allow' }))
 

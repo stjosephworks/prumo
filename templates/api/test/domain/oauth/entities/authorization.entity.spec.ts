@@ -15,6 +15,7 @@ const request = {
   codeChallenge: 'challenge',
   clientState: null,
   resource: 'http://localhost:3000/api/mcp',
+  scope: 'profile:read',
 }
 
 describe('Authorization', () => {

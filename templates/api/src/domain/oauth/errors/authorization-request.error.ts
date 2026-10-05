@@ -6,7 +6,11 @@ export class AuthorizationRequestError extends DomainError {
   readonly kind = 'invalid'
 
   constructor(
-    readonly code: 'invalid_request' | 'unsupported_response_type' | 'invalid_target',
+    readonly code:
+      | 'invalid_request'
+      | 'unsupported_response_type'
+      | 'invalid_target'
+      | 'invalid_scope',
     message: string,
   ) {
     super(message)

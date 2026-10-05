@@ -94,9 +94,9 @@ function token(form: Record<string, string>) {
 }
 
 // The path an MCP client takes: authorize with PKCE, the user consents on the web, the code becomes tokens.
-async function authorize(cookie: string, accept = true) {
+async function authorize(cookie: string, accept = true, scope?: string) {
   const { verifier, challenge } = pkce()
-  const started = await app.inject({ url: authorizeUrl({}, challenge) })
+  const started = await app.inject({ url: authorizeUrl({ scope }, challenge) })
   const consent = new URL(started.headers.location as string)
   const id = consent.searchParams.get('request') ?? ''
   const view = await app.inject({ url: `/api/oauth/authorizations/${id}`, headers: { cookie } })
@@ -110,8 +110,8 @@ async function authorize(cookie: string, accept = true) {
   return { started, consent, view, redirect: new URL(decision.json().redirectTo), verifier }
 }
 
-async function tokens(cookie: string) {
-  const { redirect, verifier } = await authorize(cookie)
+async function tokens(cookie: string, scope?: string) {
+  const { redirect, verifier } = await authorize(cookie, true, scope)
   const response = await token({
     grant_type: 'authorization_code',
     code: redirect.searchParams.get('code') ?? '',
@@ -172,6 +172,11 @@ describe('authorization', () => {
       clientHost: 'client.example.com',
       redirectHost: 'client.example.com',
       redirectsToThisDevice: false,
+      // Asked for nothing, so offered everything, each scope worded for a person.
+      scopes: [
+        { scope: 'profile:read', description: 'Read your profile' },
+        { scope: 'profile:write', description: 'Change your display name, language and timezone' },
+      ],
     })
     expect(`${redirect.origin}${redirect.pathname}`).toBe(REDIRECT)
     expect(redirect.searchParams.get('state')).toBe('xyz')
@@ -211,6 +216,62 @@ describe('authorization', () => {
       expect(location.searchParams.get('state')).toBe('xyz')
       expect(location.searchParams.get('iss')).toBe(env.API_URL)
     }
+  })
+})
+
+describe('scopes', () => {
+  it('are advertised, and named in the 401 a client starts from', async () => {
+    const refused = await app.inject({ method: 'POST', url: '/api/mcp', payload: {} })
+    const resource = await app.inject({ url: '/.well-known/oauth-protected-resource/api/mcp' })
+    const server = await app.inject({ url: '/.well-known/oauth-authorization-server' })
+
+    expect(refused.headers['www-authenticate']).toContain('scope="profile:read profile:write"')
+    expect(resource.json().scopes_supported).toEqual(['profile:read', 'profile:write'])
+    expect(server.json().scopes_supported).toEqual(['profile:read', 'profile:write'])
+  })
+
+  it('let a read-only token read, and refuse its write with the scope it needs', async () => {
+    const { response } = await tokens(await signUp(), 'profile:read')
+    const { access_token, scope } = response.json()
+    const client = await connect(access_token)
+    const read = await client.callTool({ name: 'get_profile', arguments: {} })
+    const write = await app.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      headers: {
+        authorization: `Bearer ${access_token}`,
+        accept: 'application/json, text/event-stream',
+      },
+      payload: {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'update_profile', arguments: { timezone: 'UTC' } },
+      },
+    })
+
+    expect(scope).toBe('profile:read')
+    expect(read.structuredContent).toMatchObject({ displayName: 'Ana' })
+    expect(write.statusCode).toBe(403)
+    expect(write.headers['www-authenticate']).toContain('error="insufficient_scope"')
+    expect(write.headers['www-authenticate']).toContain('scope="profile:write"')
+
+    await client.close()
+  })
+
+  it('keep the scope through a refresh, and refuse one the server does not offer', async () => {
+    const { response } = await tokens(await signUp(), 'profile:read')
+    const refreshed = await token({
+      grant_type: 'refresh_token',
+      refresh_token: response.json().refresh_token,
+      client_id: CLIENT_ID,
+    })
+    const unknown = await app.inject({ url: authorizeUrl({ scope: 'billing:write' }) })
+
+    expect(refreshed.json().scope).toBe('profile:read')
+    expect(new URL(unknown.headers.location as string).searchParams.get('error')).toBe(
+      'invalid_scope',
+    )
   })
 })
 

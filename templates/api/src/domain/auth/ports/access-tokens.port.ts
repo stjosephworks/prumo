@@ -1,4 +1,4 @@
-export type AccessClaims = { userId: string; sessionId: string; clientId?: string }
+export type AccessClaims = { userId: string; sessionId: string; clientId?: string; scope?: string }
 
 export type IssuedToken = { token: string; expiresAt: Date }
 
