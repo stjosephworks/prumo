@@ -28,6 +28,11 @@ it spawned, stops them, and frees the port. Anything it did not start is named a
 Open it and you are sent to sign in, because everything but the sign-in and sign-up pages needs a session. Follow
 **Sign up** to create an account; you land on your profile, which you can edit. The API must be running and
 migrated first, or the session check has nothing to answer it.
+<!-- prumo:email -->
+
+Signing up first asks for the 6-digit code that confirms the email. No mail is sent yet: the API writes it to its
+log, in a line starting `[mail] to`, and **Forgot your password?** works the same way.
+<!-- prumo:end-email -->
 
 ## Everyday commands
 
