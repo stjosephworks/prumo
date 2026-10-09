@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
-import { applyFeatures, type Enabled, NONE } from './features.ts'
+import { applyFeatures, cutFeatures, type Enabled, NONE } from './features.ts'
 import { prependProperty, readJsonc, removeWhatBaseDeclares, setJsonc } from './jsonc.ts'
 
 export type AppType = 'api' | 'web' | 'mobile' | 'site'
@@ -282,6 +282,10 @@ export async function composeWorkspace({
 }): Promise<void> {
   await mkdir(target, { recursive: true })
   await copyTemplate(join(templates, 'workspace'), target)
+
+  // The root README tells a first run what the features change, so it is cut like any app's.
+  const readme = join(target, 'README.md')
+  await writeFile(readme, cutFeatures(await readFile(readme, 'utf8'), features, readme))
 
   const apps: string[] = []
 

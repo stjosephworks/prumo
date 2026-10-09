@@ -49,7 +49,7 @@ These accumulate. Every one is a machine a generated project will not run on.
 | **Observability** | Structured logs from Fastify's built-in Pino, carrying the request id, and a health check. **No error reporting and no tracing by default**. See *Documented, not installed* below. |
 | **Testing** | Vitest, Testcontainers, Testing Library. A use case is tested against an in-memory fake of its port, an adapter against a real Postgres, a route through `inject()`. |
 | **Web** | Vite, React, TanStack Router, TanStack Query, Tailwind, shadcn/ui, react-hook-form with **Zod** as the resolver. |
-| **Mobile** | Expo with prebuild, Expo Router, NativeWind, Reanimated, MMKV, `expo-secure-store`. |
+| **Mobile** | Expo with prebuild, run in a development build through `expo-dev-client`, never Expo Go, whose native code lacks MMKV. Expo Router, NativeWind, Reanimated, MMKV, `expo-secure-store`. |
 | **Site** | Next with the **App Router**, never the Pages Router. Tailwind and shadcn/ui. Static by default, revalidated where content changes, dynamic only with a stated reason. Data is fetched on the server. |
 
 `shadcn/ui` is not a dependency, because components are copied into the project. Templates ship its
