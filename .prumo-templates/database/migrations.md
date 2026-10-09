@@ -11,6 +11,8 @@ boot, and never by hand.
 Make every migration compatible with the **previous** release. Removing a column is two deployments:
 one that stops using it, one that removes it.
 
+Keep the `package.json` in the migrations directory. It holds only `"type": "module"`.
+
 Delete the generated `down`. Undoing a schema change is a new migration going forward.
 
 Keep DDL and data apart. A migration performs DDL only. Filling existing rows is a separate task, run
@@ -30,6 +32,12 @@ Running at boot would race N replicas against each other and put every one into 
 migration fails. It would also mean **the process serving requests holds DDL permission**, so any
 injection or compromise could drop a table. A separate step lets the deploy use a privileged user for
 thirty seconds while the application runs as one that only reads and writes rows.
+
+The migrations are TypeScript that Node loads directly, by type stripping; the build never compiles
+them. They use `import`, and without a declared module type Node guesses: it fails to parse them as
+CommonJS, reparses them as ES modules, and warns `MODULE_TYPELESS_PACKAGE_JSON` in every process that
+runs them. The nearest `package.json` decides a file's type, so the one in the migrations directory
+settles it for those files alone and leaves the CommonJS build untouched.
 
 During a rolling deploy the previous version is still running against the new schema, so a migration
 that removes something the old code reads breaks production before the new version finishes arriving.
