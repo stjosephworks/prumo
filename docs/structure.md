@@ -50,7 +50,7 @@ it or refresh it are planned after V1.
 
 ## Areas
 
-Areas do not mirror types. Seven of the twelve are not types at all: `database/` follows a type, `client/`
+Areas do not mirror types. Eight of the twelve are not types at all: `core/` ships always, `database/` follows a type, `client/`
 follows any of three, `monorepo/` follows the architecture, `multi-tenancy/` follows a third axis of its
 own, `mcp/` a fourth, asked only when there is an api and a web, and `email/` and `social/` a fifth and a
 sixth, asked when there is an api, and for social a client to come back to.

@@ -25,9 +25,9 @@ conventions that code follows. Any AI assistant working in that repository reads
 knows the rules without anyone explaining them, which is the whole point: **the conventions live in
 the project, not in someone's head.**
 
-Applications differ, so the choices are not one fixed bundle. Three answers shape what arrives:
-which artefacts the project has, whether they sit alone or in one workspace, and whether the
-application serves several tenants. The same body of decisions covers an API on its own and a
+Applications differ, so the choices are not one fixed bundle. The answers shape what arrives:
+which artefacts the project has, whether they sit alone or in one workspace, whether the application
+serves several tenants, and whether it ships MCP, email verification and sign-in with a provider. The same body of decisions covers an API on its own and a
 workspace holding four applications, without either one carrying rules it has no use for.
 
 ## Requirements
