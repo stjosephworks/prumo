@@ -31,7 +31,7 @@ choice rather than an accident. The root scripts call `dev` and nothing else, wh
 that name: the root never needs to know how each framework spells its development command.
 
 **Mobile gives up its terminal under `pnpm dev`.** Metro starts and serves, so an open simulator connects, but
-the QR code, the `exp://` URL and the keyboard shortcuts appear only when Expo owns the terminal. When you need
+the QR code, the URL a device opens and the keyboard shortcuts appear only when Expo owns the terminal. When you need
 them, run `pnpm mobile` in a terminal of its own.
 
 Ports are fixed per app because `pnpm dev` starts them together, and a collision there fails only when two apps

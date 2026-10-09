@@ -2,17 +2,22 @@
 
 ## Requirements
 
-Node 22.18 or later, pnpm 10.26 or later, and the API running. To open the app, a simulator or a device running
-a build of it made on this machine: Expo Go cannot open it, because MMKV's native code is not part of Expo Go.
-`pnpm exec expo run:ios` (Xcode) or `pnpm exec expo run:android` (Android Studio) builds one, installs it, and starts
-the development server.
+Node 22.18 or later, pnpm 10.26 or later, and the API running. To open the app, a simulator or a device with a
+development build of it, made on this machine with Xcode for iOS or Android Studio for Android. Expo Go cannot open
+it, because MMKV's native code is not part of Expo Go.
 
 ## Running it
 
 ```sh
 pnpm install
-pnpm dev
+pnpm ios       # or pnpm android: builds the development build, installs it, and serves it
+pnpm dev       # afterwards, until a native dependency changes
 ```
+
+`pnpm ios` and `pnpm android` run `expo run:ios` and `expo run:android`, which generate the native project the first
+time and compile it, so the first run is the slow one. `pnpm dev` then only serves the JavaScript, and the installed
+build opens it, because `expo-dev-client` makes `expo start` target the development build rather than Expo Go.
+Build again after adding or upgrading a package with native code.
 
 `.env` comes with the generated project, copied from `.env.example`; `EXPO_PUBLIC_API_URL` points at the API. It is
 not committed, so on a fresh clone run `cp .env.example .env`.
@@ -38,6 +43,7 @@ log, in a line starting `[mail] to`, and a forgotten password works the same way
 
 | Command | What it does |
 |---|---|
+| `pnpm ios` · `pnpm android` | Builds and installs the development build, then serves it. Xcode or Android Studio |
 | `pnpm test` | Jest with `jest-expo`, rendering components against a fake transport; no API needed |
 | `pnpm lint` | Biome |
 | `pnpm typecheck` | `tsc --noEmit`, also run before every push |
