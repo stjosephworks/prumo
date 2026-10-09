@@ -6,6 +6,13 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { cutFeature, FEATURES } from '../src/features.ts'
 import { generate } from '../src/generate.ts'
 
+/** The migrations a generated API holds, without the package.json that declares them ES modules. */
+async function migrations(target: string): Promise<string[]> {
+  const names = await readdir(join(target, 'apps/api/migrations'))
+
+  return names.filter((name) => name.endsWith('.ts'))
+}
+
 const templates = resolve(import.meta.dirname, '../../templates')
 const knowledge = resolve(import.meta.dirname, '../../.prumo-templates')
 
@@ -142,7 +149,12 @@ describe('generate with and without MCP', () => {
     expect(existsSync(join(target, 'apps/api/src/infra/mcp'))).toBe(false)
     expect(existsSync(join(target, 'apps/api/src/domain/oauth'))).toBe(false)
     expect(existsSync(join(target, 'apps/web/src/routes/_authenticated/consent.tsx'))).toBe(false)
-    expect(await readdir(join(target, 'apps/api/migrations'))).toHaveLength(1)
+    expect(await migrations(target)).toHaveLength(1)
+    expect(
+      JSON.parse(await readFile(join(target, 'apps/api/migrations/package.json'), 'utf8')),
+    ).toEqual({
+      type: 'module',
+    })
     expect(text).not.toContain('prumo:')
     expect(text).not.toContain('@/domain/oauth')
     expect(text).not.toContain('@modelcontextprotocol')
@@ -163,7 +175,7 @@ describe('generate with and without MCP', () => {
     expect(text).not.toContain('prumo:')
     expect(text).toContain("from '@modelcontextprotocol/server'")
     expect(existsSync(join(target, 'apps/api/src/domain/oauth'))).toBe(true)
-    expect(await readdir(join(target, 'apps/api/migrations'))).toHaveLength(2)
+    expect(await migrations(target)).toHaveLength(2)
     expect(config.mcp).toBe(true)
     expect(existsSync(join(target, '.prumo/mcp/server.md'))).toBe(true)
     expect(await readmes(target)).toContain('`/api/mcp`')
@@ -258,7 +270,7 @@ describe('generate with social sign-in', () => {
     expect(adapter).not.toContain("case 'apple'")
     expect(buttons).toContain('Continue with Google')
     expect(buttons).not.toContain('Continue with Apple')
-    expect(await readdir(join(target, 'apps/api/migrations'))).toHaveLength(2)
+    expect(await migrations(target)).toHaveLength(2)
   })
 
   it('leaves no mobile scheme without a mobile app, and nothing social without the answer', async () => {
