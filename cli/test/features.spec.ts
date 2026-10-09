@@ -61,12 +61,38 @@ describe('cutFeature', () => {
     )
   })
 
+  it('reads a block marked in Markdown', () => {
+    const readme = [
+      'A.',
+      '<!-- prumo:email -->',
+      '',
+      'B.',
+      '<!-- prumo:end-email -->',
+      '',
+      'C.',
+    ].join('\n')
+
+    expect(cutFeature(readme, 'email', false)).toBe(['A.', '', 'C.'].join('\n'))
+    expect(cutFeature(readme, 'email', true)).toBe(['A.', '', 'B.', '', 'C.'].join('\n'))
+  })
+
   it('cuts only the feature it is asked to', () => {
     const mixed = ['a() // prumo:email', 'b() // prumo:google', 'c()'].join('\n')
 
     expect(cutFeature(mixed, 'email', false)).toBe(['b() // prumo:google', 'c()'].join('\n'))
   })
 })
+
+// Every README a workspace holds: the root's and each app's.
+async function readmes(target: string): Promise<string> {
+  const apps = await readdir(join(target, 'apps'))
+  const paths = [
+    join(target, 'README.md'),
+    ...apps.map((app) => join(target, 'apps', app, 'README.md')),
+  ]
+
+  return (await Promise.all(paths.map((path) => readFile(path, 'utf8')))).join('\n')
+}
 
 describe('generate with and without MCP', () => {
   let root: string
@@ -124,6 +150,7 @@ describe('generate with and without MCP', () => {
       '@modelcontextprotocol',
     )
     expect(existsSync(join(target, '.prumo/mcp'))).toBe(false)
+    expect(await readmes(target)).not.toMatch(/prumo:|\/api\/mcp/)
   })
 
   it('keeps all of it without a marker, and says so in .prumo', async () => {
@@ -139,6 +166,8 @@ describe('generate with and without MCP', () => {
     expect(await readdir(join(target, 'apps/api/migrations'))).toHaveLength(2)
     expect(config.mcp).toBe(true)
     expect(existsSync(join(target, '.prumo/mcp/server.md'))).toBe(true)
+    expect(await readmes(target)).toContain('`/api/mcp`')
+    expect(await readmes(target)).not.toContain('prumo:')
   })
 })
 
@@ -220,6 +249,8 @@ describe('generate with social sign-in', () => {
       'utf8',
     )
 
+    expect(await readmes(target)).toContain('/api/auth/social/<provider>')
+    expect(await readmes(target)).not.toMatch(/prumo:|\[mail\] to/)
     expect(env).toMatch(/^MOBILE_APP_SCHEME=acme$/m)
     expect(env).toContain('GOOGLE_CLIENT_ID')
     expect(env).not.toContain('APPLE_')
@@ -242,10 +273,57 @@ describe('generate with social sign-in', () => {
     const env = await readFile(join(without, 'apps/api/.env.example'), 'utf8')
 
     expect(env).not.toMatch(/MOBILE_APP_SCHEME|GOOGLE_|APPLE_|prumo:/)
+    expect(await readmes(without)).not.toMatch(/prumo:|\/api\/auth\/social/)
     expect(existsSync(join(without, 'apps/api/src/infra/social'))).toBe(false)
     expect(existsSync(join(without, 'apps/web/src/features/auth/social-buttons.tsx'))).toBe(false)
     expect(await readFile(join(without, 'apps/api/package.json'), 'utf8')).not.toContain(
       'openid-client',
     )
+  })
+})
+
+describe('generate with email', () => {
+  let root: string
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true })
+  })
+
+  it('tells every README where the code is read, and the alone API too', async () => {
+    root = await mkdtemp(join(tmpdir(), 'prumo-email-'))
+    const answers = { multiTenant: false, mcp: false, email: true, social: [] }
+
+    await generate({
+      templates,
+      knowledge,
+      target: join(root, 'acme'),
+      install: false,
+      answers: {
+        ...answers,
+        name: 'acme',
+        types: ['api', 'web', 'mobile'],
+        architecture: 'monorepo',
+      },
+    })
+    await generate({
+      templates,
+      knowledge,
+      target: join(root, 'solo'),
+      install: false,
+      answers: { ...answers, name: 'solo', types: ['api'], architecture: 'alone' },
+    })
+
+    for (const readme of [
+      'acme/README.md',
+      'acme/apps/api/README.md',
+      'acme/apps/web/README.md',
+      'acme/apps/mobile/README.md',
+      'solo/README.md',
+    ]) {
+      const text = await readFile(join(root, readme), 'utf8')
+
+      expect(text, readme).toContain('`[mail] to`')
+      expect(text, readme).not.toMatch(/prumo:|\n\n\n/)
+    }
   })
 })

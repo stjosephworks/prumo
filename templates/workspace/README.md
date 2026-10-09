@@ -29,6 +29,16 @@ If the workspace holds `api` and its database is not set up yet, `pnpm dev` offe
 
 If the workspace holds `web`, open `http://localhost:5173`: you are sent to sign in, and **Sign up** creates an
 account and takes you to your profile. Each app's README says what it needs before it starts.
+<!-- prumo:email -->
+
+Signing up first asks for the 6-digit code that confirms the email. No mail is sent yet: the API writes it to its
+log, in a line starting `[mail] to`, which `pnpm dev` prints with the rest of the API's output.
+<!-- prumo:end-email -->
+<!-- prumo:social -->
+
+A provider's sign-in button answers *That sign-in is not set up yet* until its settings are filled in `apps/api/.env`;
+`.env.example` lists them and says where each one comes from.
+<!-- prumo:end-social -->
 
 ## Conventions
 

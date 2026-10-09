@@ -6,8 +6,8 @@
   "scripts": {
     "start": "expo start",
     "dev": "node scripts/ports.mjs -- expo start",
-    "ios": "expo start --ios",
-    "android": "expo start --android",
+    "ios": "node scripts/ports.mjs -- expo run:ios",
+    "android": "node scripts/ports.mjs -- expo run:android",
     "bundle": "expo export --platform ios --platform android",
     "lint": "biome check",
     "typecheck": "tsc --noEmit",
@@ -22,6 +22,7 @@
     "class-variance-authority": "0.7.1",
     "expo": "57.0.22",
     "expo-constants": "57.0.18",
+    "expo-dev-client": "57.0.19",
     "expo-linking": "57.0.10",
     "expo-router": "57.0.21",
     "expo-secure-store": "57.0.4",

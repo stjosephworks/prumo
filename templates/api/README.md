@@ -32,6 +32,25 @@ it spawned, stops them, and frees the port. Anything it did not start is named a
 
 Authentication is the API's own: `/api/auth/sign-up`, `sign-in`, `refresh`, `sign-out` and `session`. The web
 receives httpOnly cookies; a native client sends `X-Auth-Transport: bearer` and receives the tokens in the body.
+<!-- prumo:email -->
+
+An account must confirm its email before it can sign in. `/api/auth/email/verification` and `/api/auth/email/verify`
+send and check the 6-digit code, and `/api/auth/password/forgot` and `/api/auth/password/reset` do the same for a new
+password. No mail is sent yet: the `Mailer` port's only adapter, `LogMailer`, writes each mail to this API's log, in
+a line starting `[mail] to`, so read the code there. Sending real mail is another adapter behind the same port; see
+`.prumo/email/mailer.md`.
+<!-- prumo:end-email -->
+<!-- prumo:social -->
+
+Sign-in with a provider starts at `/api/auth/social/<provider>` and comes back to its `callback`. Until a provider's
+settings are filled in `.env`, it answers `provider_not_configured`; `.env.example` lists them and says where each
+one comes from.
+<!-- prumo:end-social -->
+<!-- prumo:mcp -->
+
+The MCP server answers at `/api/mcp`. This API is also the OAuth authorization server that issues its tokens: an MCP
+client finds it through `/.well-known/oauth-protected-resource`, and the user signs in and consents on the web app.
+<!-- prumo:end-mcp -->
 
 ## Everyday commands
 

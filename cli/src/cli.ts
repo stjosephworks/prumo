@@ -9,6 +9,7 @@ import { runDatabase } from './database.ts'
 import { doctor, doctorText, systemProbe, toolChecks } from './doctor.ts'
 import { generate } from './generate.ts'
 import { projectProblem } from './names.ts'
+import { nextSteps } from './next-steps.ts'
 import { CliError, errorEnvelope, writeEnvelope } from './output.ts'
 import { resolveAnswers } from './questions.ts'
 import { cliVersion } from './version.ts'
@@ -114,6 +115,16 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
 
   if (!json) {
     prompt.outro(`Created ${answers.name}.`)
+
+    const steps = nextSteps({
+      target,
+      cwd,
+      types: chosen.types,
+      architecture: chosen.architecture,
+      installed: install,
+    })
+
+    process.stdout.write(`Next:\n${steps.map((step) => `  ${step}\n`).join('')}`)
   }
 
   return { data: { ...chosen, target, installed: install, warnings }, text: '' }
