@@ -2,8 +2,10 @@
 
 ## Requirements
 
-Node 22.18 or later, pnpm 10.26 or later, and the API running. A simulator or a device with Expo Go
-to open the app.
+Node 22.18 or later, pnpm 10.26 or later, and the API running. To open the app, a simulator or a device running
+a build of it made on this machine: Expo Go cannot open it, because MMKV's native code is not part of Expo Go.
+`pnpm exec expo run:ios` (Xcode) or `pnpm exec expo run:android` (Android Studio) builds one, installs it, and starts
+the development server.
 
 ## Running it
 
@@ -26,6 +28,11 @@ Ctrl+C stops everything `pnpm dev` started, not only what the terminal signals: 
 it spawned, stops them, and frees the port. Anything it did not start is named and left alone.
 
 On an Android emulator `localhost` is the emulator itself; point `EXPO_PUBLIC_API_URL` at your machine's address.
+<!-- prumo:email -->
+
+Signing up first asks for the 6-digit code that confirms the email. No mail is sent yet: the API writes it to its
+log, in a line starting `[mail] to`, and a forgotten password works the same way.
+<!-- prumo:end-email -->
 
 ## Everyday commands
 
