@@ -6,7 +6,7 @@ import { setJsonc } from './jsonc.ts'
 
 // What a project may leave out. The templates ship with every one of them; a project that answered no receives the
 // template without it: these files deleted, these dependencies removed, and every line or block marked
-// `// prumo:<feature>` cut. A feature a type does not list has nothing to cut there.
+// `// prumo:<feature>` cut, READMEs included. A feature a type does not list has nothing to cut there.
 export const FEATURE_NAMES = ['mcp', 'email', 'social', 'google', 'apple'] as const
 
 export type Feature = (typeof FEATURE_NAMES)[number]
@@ -167,13 +167,13 @@ export const FEATURES: Record<Feature, Spec> = {
 }
 
 export function cutFeature(text: string, feature: Feature, keep: boolean, file = 'a file'): string {
-  // Inside JSX a comment is written {/* … */}, and in an env file with #, so a block may open and close any of
-  // these ways.
+  // Inside JSX a comment is written {/* … */}, in an env file with #, and in Markdown as <!-- … -->, so a block may
+  // open and close any of these ways.
   const start = new RegExp(
-    `^\\s*(// prumo:${feature}|\\{/\\* prumo:${feature} \\*/\\}|# prumo:${feature})$`,
+    `^\\s*(// prumo:${feature}|\\{/\\* prumo:${feature} \\*/\\}|# prumo:${feature}|<!-- prumo:${feature} -->)$`,
   )
   const end = new RegExp(
-    `^\\s*(// prumo:end-${feature}|\\{/\\* prumo:end-${feature} \\*/\\}|# prumo:end-${feature})$`,
+    `^\\s*(// prumo:end-${feature}|\\{/\\* prumo:end-${feature} \\*/\\}|# prumo:end-${feature}|<!-- prumo:end-${feature} -->)$`,
   )
   // A marked import keeps its marker as a trailing comment, which the import sorter carries along.
   const marked = new RegExp(`\\s*(//|#) prumo:${feature}$`)
@@ -207,6 +207,13 @@ export function cutFeature(text: string, feature: Feature, keep: boolean, file =
   return kept.join('\n')
 }
 
+export function cutFeatures(text: string, enabled: Enabled, file = 'a file'): string {
+  return FEATURE_NAMES.reduce(
+    (current, feature) => cutFeature(current, feature, enabled[feature], file),
+    text,
+  )
+}
+
 async function sourceFiles(directory: string): Promise<string[]> {
   if (!existsSync(directory)) {
     return []
@@ -223,8 +230,9 @@ export async function applyFeatures(app: string, type: AppType, enabled: Enabled
   const sources = [
     ...(await sourceFiles(join(app, 'src'))),
     ...(await sourceFiles(join(app, 'test'))),
-    // The settings a feature needs are cut with it.
+    // The settings a feature needs are cut with it, and so is what the README says about it.
     join(app, '.env.example'),
+    join(app, 'README.md'),
   ]
   const manifest = join(app, 'package.json')
   let pkg = await readFile(manifest, 'utf8')
@@ -255,10 +263,7 @@ export async function applyFeatures(app: string, type: AppType, enabled: Enabled
     }
 
     const text = await readFile(source, 'utf8')
-    const cut = FEATURE_NAMES.reduce(
-      (current, feature) => cutFeature(current, feature, enabled[feature], source),
-      text,
-    )
+    const cut = cutFeatures(text, enabled, source)
 
     if (dropped.some((dependency) => cut.includes(`'${dependency}`))) {
       throw new Error(`${source} still imports a package that was removed, outside its marker`)
