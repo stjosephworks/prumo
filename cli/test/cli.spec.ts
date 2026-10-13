@@ -89,11 +89,24 @@ describe('prumo', () => {
     }
   })
 
+  it('refuses a single type without a layout, with or without --json', async () => {
+    root = await mkdtemp(join(tmpdir(), 'prumo-cli-'))
+    const args = ['new', 'acme', '--types', 'api', '--single-tenant', '--no-email']
+    const plain = prumo(args, root)
+
+    expect(plain.status).toBe(1)
+    expect(plain.stderr).toContain('Missing --alone or --monorepo.')
+    expect(document(prumo([...args, '--json'], root).stdout).error).toMatchObject({
+      code: 'needs_input',
+      message: expect.stringContaining('Missing --alone or --monorepo.'),
+    })
+  })
+
   it('generates with --json, keeping stdout for the result alone', async () => {
     root = await mkdtemp(join(tmpdir(), 'prumo-cli-'))
 
     const result = prumo(
-      ['new', 'acme', '--types', 'web', '--single-tenant', '--skip-install', '--json'],
+      ['new', 'acme', '--types', 'web', '--alone', '--single-tenant', '--skip-install', '--json'],
       root,
     )
 

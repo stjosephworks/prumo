@@ -18,7 +18,11 @@ export const COMMANDS: CommandHelp[] = [
       'Generate a project and the .prumo/ context it follows; `.` generates into this empty directory',
     options: [
       { flag: '--types <list>', description: 'Comma-separated: api, web, mobile, site' },
-      { flag: '--alone', description: 'One project of one type' },
+      {
+        flag: '--alone',
+        description:
+          'One project of one type; without a terminal, one type needs this or --monorepo',
+      },
       { flag: '--monorepo', description: 'A workspace, even for a single type' },
       {
         flag: '--multi-tenant',

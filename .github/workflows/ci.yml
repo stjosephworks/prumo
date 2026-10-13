@@ -94,7 +94,7 @@ jobs:
             types: api
             architecture: monorepo
             tenancy: --multi-tenant
-            flags: --monorepo --email
+            flags: --email
           # The one project with MCP: every other one proves the templates run with it cut out.
           - name: everything
             types: api,web,mobile,site
@@ -112,8 +112,9 @@ jobs:
           cache-dependency-path: cli/pnpm-lock.yaml
       - run: pnpm install
         working-directory: cli
+      # The layout always comes from the matrix: one type needs --alone or --monorepo, several accept --monorepo.
       - name: Generate ${{ matrix.name }}
-        run: node ${{ github.workspace }}/cli/src/cli.ts new ${{ matrix.name }} --types ${{ matrix.types }} ${{ matrix.tenancy || '--single-tenant' }} ${{ matrix.flags }}
+        run: node ${{ github.workspace }}/cli/src/cli.ts new ${{ matrix.name }} --types ${{ matrix.types }} --${{ matrix.architecture }} ${{ matrix.tenancy || '--single-tenant' }} ${{ matrix.flags }}
         working-directory: ${{ runner.temp }}
       - name: Verify ${{ matrix.name }}
         run: >

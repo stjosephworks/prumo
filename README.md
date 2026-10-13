@@ -54,17 +54,18 @@ A project cannot be named `api`, `web`, `mobile` or `site`: those are the names 
 a workspace.
 
 Every question also has a flag, which is how CI runs it without a terminal. Outside an interactive
-terminal a missing answer is an error rather than a default, so nothing important gets decided by
-silence:
+terminal every question that applies needs its flag, the layout of a single type included: a missing
+answer is an error rather than a default, so nothing important gets decided by silence:
 
 ```sh
 npx @stjoseph/prumo new my-app --types api,web --single-tenant --no-mcp --email --no-social
+npx @stjoseph/prumo new my-api --types api --alone --single-tenant --email
 ```
 
 | Flag | What it answers |
 |---|---|
 | `--types api,web,mobile,site` | What the project contains. More than one type makes a workspace |
-| `--alone` or `--monorepo` | How a single type is laid out |
+| `--alone` or `--monorepo` | How a single type is laid out, so one type needs one of them. Several types always make a workspace and refuse `--alone` |
 | `--multi-tenant` or `--single-tenant` | Whether the application serves several tenants. Multi-tenant ships the `multi-tenancy` conventions; the generated code itself is not tenant-aware yet |
 | `--mcp` or `--no-mcp` | With an api and a web: whether AI assistants reach the API through MCP, signed in as the user |
 | `--email` or `--no-email` | With an api: email verification and password reset, by a 6-digit code sent through the `Mailer` port, which writes to the log until you give it a provider |

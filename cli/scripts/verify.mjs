@@ -5,8 +5,13 @@ import { parseArgs } from 'node:util'
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: { types: { type: 'string' }, architecture: { type: 'string', default: 'alone' } },
+  options: { types: { type: 'string' }, architecture: { type: 'string' } },
 })
+
+// Like prumo new, the layout is never assumed: a wrong one would check the wrong paths.
+if (!['alone', 'monorepo'].includes(values.architecture)) {
+  throw new Error('Pass --architecture alone or --architecture monorepo.')
+}
 
 const [project] = positionals
 const types = (values.types ?? '').split(',').filter(Boolean)
