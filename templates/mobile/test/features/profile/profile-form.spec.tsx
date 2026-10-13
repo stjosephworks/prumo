@@ -36,8 +36,12 @@ describe('ProfileForm', () => {
       }),
     })
 
+    // A mutation left without an observer starts a five-minute garbage-collection timer, and Jest's worker would wait
+    // it out. Infinity schedules none, as TanStack Query's testing guide advises.
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { gcTime: Infinity } } })
+
     await render(
-      <QueryClientProvider client={new QueryClient()}>
+      <QueryClientProvider client={queryClient}>
         <ProfileForm api={api} profile={profile} />
       </QueryClientProvider>,
     )
