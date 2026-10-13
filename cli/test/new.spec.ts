@@ -30,9 +30,24 @@ const flags = (overrides: Partial<Flags>): Flags => ({
 describe('resolveAnswers outside a terminal', () => {
   it('refuses a missing answer instead of guessing it', async () => {
     await expect(resolveAnswers(flags({}), undefined)).rejects.toThrow('Missing --types')
-    await expect(resolveAnswers(flags({ types: 'api' }), undefined)).rejects.toThrow(
+    await expect(resolveAnswers(flags({ types: 'api', alone: true }), undefined)).rejects.toThrow(
       '--multi-tenant',
     )
+  })
+
+  it('refuses a single type without --alone or --monorepo, and lays it out as told', async () => {
+    const rest = { singleTenant: true, noEmail: true }
+
+    await expect(resolveAnswers(flags({ types: 'api', ...rest }), undefined)).rejects.toMatchObject(
+      { code: 'needs_input', message: expect.stringContaining('Missing --alone or --monorepo') },
+    )
+    expect(
+      (await resolveAnswers(flags({ types: 'api', alone: true, ...rest }), undefined)).architecture,
+    ).toBe('alone')
+    expect(
+      (await resolveAnswers(flags({ types: 'api', monorepo: true, ...rest }), undefined))
+        .architecture,
+    ).toBe('monorepo')
   })
 
   it('makes a workspace of several types and refuses --alone for them', async () => {
@@ -62,11 +77,14 @@ describe('resolveAnswers outside a terminal', () => {
       resolveAnswers(flags({ types: 'api,web', singleTenant: true }), undefined),
     ).rejects.toThrow('--mcp or --no-mcp')
     await expect(
-      resolveAnswers(flags({ types: 'api', singleTenant: true, mcp: true }), undefined),
+      resolveAnswers(
+        flags({ types: 'api', alone: true, singleTenant: true, mcp: true }),
+        undefined,
+      ),
     ).rejects.toThrow('--mcp needs both api and web')
 
     const answers = await resolveAnswers(
-      flags({ types: 'api', singleTenant: true, noEmail: true }),
+      flags({ types: 'api', alone: true, singleTenant: true, noEmail: true }),
       undefined,
     )
 
@@ -74,11 +92,11 @@ describe('resolveAnswers outside a terminal', () => {
   })
 
   it('does not ask a site whether it is multi-tenant, and refuses being told it is', async () => {
-    const answers = await resolveAnswers(flags({ types: 'site' }), undefined)
+    const answers = await resolveAnswers(flags({ types: 'site', alone: true }), undefined)
 
     expect(answers).toMatchObject({ architecture: 'alone', multiTenant: false })
     await expect(
-      resolveAnswers(flags({ types: 'site', multiTenant: true }), undefined),
+      resolveAnswers(flags({ types: 'site', alone: true, multiTenant: true }), undefined),
     ).rejects.toThrow('--multi-tenant needs one of api, web, mobile')
   })
 
@@ -101,13 +119,13 @@ describe('resolveAnswers outside a terminal', () => {
     )
     await expect(
       resolveAnswers(
-        flags({ types: 'api', singleTenant: true, noEmail: true, social: 'google' }),
+        flags({ types: 'api', alone: true, singleTenant: true, noEmail: true, social: 'google' }),
         undefined,
       ),
     ).rejects.toThrow('--social needs api, and web or mobile')
-    await expect(resolveAnswers(flags({ types: 'site', email: true }), undefined)).rejects.toThrow(
-      '--email needs api',
-    )
+    await expect(
+      resolveAnswers(flags({ types: 'site', alone: true, email: true }), undefined),
+    ).rejects.toThrow('--email needs api')
   })
 
   it('refuses an empty --types', async () => {
@@ -223,7 +241,7 @@ describe('resolveAnswers in a terminal', () => {
       await mkdir(invalid)
 
       expect(
-        await resolveAnswers(flags({ name: '.', types: 'site' }), undefined, here),
+        await resolveAnswers(flags({ name: '.', types: 'site', alone: true }), undefined, here),
       ).toMatchObject({ name: 'my-site', target: here })
       await expect(
         resolveAnswers(flags({ name: '.', types: 'site' }), undefined, invalid),
