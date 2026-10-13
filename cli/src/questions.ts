@@ -126,7 +126,7 @@ export async function resolveAnswers(
     missing('--types')
   }
 
-  let architecture: Answers['architecture'] = 'alone'
+  let architecture: Answers['architecture']
 
   if (types.length > 1) {
     if (flags.alone) {
@@ -136,10 +136,12 @@ export async function resolveAnswers(
       )
     }
     architecture = 'monorepo'
-  } else if (flags.monorepo) {
-    architecture = 'monorepo'
-  } else if (!flags.alone && asker !== undefined) {
+  } else if (flags.alone || flags.monorepo) {
+    architecture = flags.monorepo ? 'monorepo' : 'alone'
+  } else if (asker !== undefined) {
     architecture = await asker.architecture()
+  } else {
+    missing('--alone or --monorepo')
   }
 
   let multiTenant = false
