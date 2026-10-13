@@ -55,11 +55,13 @@ been published since January 2024. Every other rule here (placement, no database
 behaviour) holds unchanged. **What it costs:** two runners in one workspace with near-identical APIs, so `vi.fn`
 written in a mobile test is a mistake an assistant will make.
 
-**Three things a mobile test meets, verified with Expo SDK 57:** `render` from `@testing-library/react-native` 14
+**Four things a mobile test meets, verified with Expo SDK 57:** `render` from `@testing-library/react-native` 14
 is **asynchronous** and its matchers need no setup. `expo-secure-store` needs the native Keychain or Keystore,
 which Jest does not have, so a test builds the auth client with an in-memory token store, which is why a form
 asks only for the auth methods it calls. And `jest-expo` leaves the app manifest empty, so `expo-linking` cannot
-know the app's scheme: a test that reaches `Linking.createURL` mocks it with the scheme it expects.
+know the app's scheme: a test that reaches `Linking.createURL` mocks it with the scheme it expects. A test rendering a `useMutation` builds
+its `QueryClient` with `mutations: { gcTime: Infinity }`: once unmounted, the mutation otherwise starts TanStack
+Query's five-minute garbage-collection timer, and Jest force-exits the worker still waiting on it.
 
 A coverage threshold turns a proxy into a target. Whoever is below writes tests to raise the number rather
 than to check anything; whoever is above stops thinking. With no database mocks a test costs more to write,
