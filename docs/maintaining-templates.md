@@ -32,6 +32,10 @@ node cli/src/cli.ts new scratch --types api,web --single-tenant
 node cli/scripts/verify.mjs ./scratch --types api,web --architecture monorepo
 ```
 
+In a terminal `prumo new` asks what the flags leave open. Without one, every question that applies needs
+its flag, and a single type needs `--alone` or `--monorepo`; `verify.mjs` takes the same layout as
+`--architecture`, and assumes none.
+
 `verify.mjs` installs, lints, typechecks, builds, starts each application, and checks the API's
 response against the contract the clients compile against. It needs Docker for anything with an
 API, and it removes the temporary spec it writes even when it fails.
