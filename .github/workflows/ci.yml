@@ -147,11 +147,121 @@ jobs:
           node cli/scripts/verify.mjs ${{ runner.temp }}/floor
           --types api,web --architecture monorepo
 
+  # Windows, natively: the project in a Windows folder, run by the Windows Node and pnpm. These jobs are added beside
+  # the ones above rather than folded into them, because the rulesets require the existing names as they are.
+  repository-windows:
+    name: repository (windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: cli/package.json
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: cli/pnpm-lock.yaml
+      - run: pnpm install
+        working-directory: cli
+      - run: pnpm lint
+        working-directory: cli
+      - run: pnpm typecheck
+        working-directory: cli
+      - run: pnpm test
+        working-directory: cli
+
+  packaged-windows:
+    # The path a Windows user takes: npm's .cmd shim for the bin, and the tarball as npm leaves it.
+    name: packaged (windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: cli/package.json
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: cli/pnpm-lock.yaml
+      - run: pnpm install
+        working-directory: cli
+      - run: pnpm build
+        working-directory: cli
+      - run: npm pack --pack-destination ${{ runner.temp }}
+        working-directory: cli
+      - name: Install the packed CLI
+        run: |
+          npm init -y
+          npm install (Get-ChildItem *.tgz).FullName
+        working-directory: ${{ runner.temp }}
+      - name: Generate from the installed package
+        run: npx --no-install prumo new packaged --types api,web --single-tenant --no-mcp --no-email --no-social --skip-install
+        working-directory: ${{ runner.temp }}
+      - name: Assert what npm is known to delete arrived anyway
+        run: |
+          foreach ($file in '.gitignore', 'apps/api/.gitignore', 'apps/web/.gitignore', '.gitattributes',
+                            '.githooks/pre-commit', 'apps/api/.env.example', '.prumo/INDEX.md') {
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "missing $file" }
+          }
+          if (Test-Path -LiteralPath gitignore) { throw 'gitignore was not restored to .gitignore' }
+        working-directory: ${{ runner.temp }}/packaged
+
+  generated-windows:
+    name: generated windows (${{ matrix.name }}, ${{ matrix.types }}, ${{ matrix.architecture }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: a-web
+            types: web
+            architecture: alone
+          - name: a-mobile
+            types: mobile
+            architecture: alone
+          - name: a-site
+            types: site
+            architecture: alone
+          # The runner's Docker runs Windows containers only, where postgres:18-alpine cannot: verify.mjs builds the
+          # api and says it skipped its tests, migration and start.
+          - name: an-api
+            types: api
+            architecture: alone
+            flags: --email
+          # Every client in one workspace, which is the deepest tree `pnpm dev` starts.
+          - name: clients
+            types: web,mobile,site
+            architecture: monorepo
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: cli/package.json
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: cli/pnpm-lock.yaml
+      - run: pnpm install
+        working-directory: cli
+      - name: Generate ${{ matrix.name }}
+        run: node ${{ github.workspace }}/cli/src/cli.ts new ${{ matrix.name }} --types ${{ matrix.types }} --${{ matrix.architecture }} --single-tenant ${{ matrix.flags }}
+        working-directory: ${{ runner.temp }}
+      - name: Verify ${{ matrix.name }}
+        run: >
+          node cli/scripts/verify.mjs ${{ runner.temp }}/${{ matrix.name }}
+          --types ${{ matrix.types }} --architecture ${{ matrix.architecture }}
+      - name: Ctrl+C on pnpm dev stops every process and frees every port
+        if: ${{ !contains(matrix.types, 'api') }}
+        run: node cli/scripts/verify-dev.mjs ${{ runner.temp }}/${{ matrix.name }}
+
   publish:
     # Publishing is a version bump landing on main: this job compares cli/package.json with what the registry holds
     # and does nothing when they agree. It waits for every other job, because the matrix above is what proves a
     # generated project runs.
-    needs: [repository, packaged, generated, floor]
+    needs: [repository, packaged, generated, floor, repository-windows, packaged-windows, generated-windows]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     concurrency:
