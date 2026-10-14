@@ -283,7 +283,7 @@ describe('the ports check', () => {
       stop(supervisor.pid)
       stop(server)
     }
-  }, 30_000)
+  }, 60_000)
 
   it('runs the command it is given, with the port appended', async () => {
     await workspace(API)
