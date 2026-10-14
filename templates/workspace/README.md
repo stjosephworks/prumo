@@ -3,6 +3,8 @@
 ## Requirements
 
 Node 22.18 or later and pnpm 10.26 or later. For the API, Docker Desktop running: its database and tests run in it.
+On Windows, Docker Desktop needs its WSL2 backend and Linux containers, and the project lives in a Windows folder,
+not inside WSL.
 
 ## Layout
 
