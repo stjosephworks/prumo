@@ -242,8 +242,10 @@ describe('the ports check', () => {
     await workspace(API)
     const api = join(root, 'apps', 'api')
 
-    // The command starts a server it does not wait for, and exits once ports.mjs has had time to see the server: it
-    // looks every two seconds, and on Windows each look starts PowerShell, which a busy runner makes slow.
+    // The command starts a server it does not wait for, and exits. On Windows the server is a member of the job
+    // however briefly the command lived, so the command lives two seconds, which is what a cold PowerShell used to
+    // miss. Elsewhere the tree is read every two seconds, so the command lives long enough to be read.
+    const lifetime = windows ? 2000 : 8000
     await writeFile(
       join(api, 'runner.mjs'),
       [
@@ -253,7 +255,7 @@ describe('the ports check', () => {
         "const child = spawn(process.execPath, ['-e', server], { detached: true, stdio: 'ignore' })",
         "writeFileSync('server.pid', String(child.pid))",
         'child.unref()',
-        'setTimeout(() => {}, 8000)',
+        `setTimeout(() => {}, ${lifetime})`,
       ].join('\n'),
     )
 
