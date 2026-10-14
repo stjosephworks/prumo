@@ -222,7 +222,7 @@ async function freed(port) {
 async function stopHolders(port, found) {
   for (const { pid } of found) {
     if (windows) {
-      spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
+      terminate(processTree([pid]))
     } else {
       // The whole group, so that a shell's children go with it; a lone process when it leads no group.
       try {
@@ -441,25 +441,56 @@ async function startJob() {
   }
 }
 
+// Ends exactly these processes on Windows, and nothing else. `taskkill /T` is never used: it follows the same parent
+// ids, which Windows does not keep honest, as processTree below explains.
+function terminate(pids) {
+  if (pids.length > 0) {
+    spawnSync('taskkill', ['/F', ...pids.flatMap((pid) => ['/PID', String(pid)])], {
+      stdio: 'ignore',
+      timeout: 60_000,
+    })
+  }
+}
+
 // Every process below the ones given, as the system sees them right now.
+//
+// On Windows a process keeps its parent's id after the parent exits, and the id is then given to the next process
+// that starts. A process of the run can so inherit the number that winlogon, dwm or csrss name as their parent, and a
+// tree followed by ids alone adopts them: on the CI runner that once stopped the session itself. A child is therefore
+// only taken as one when it started after its parent; a process that started before the one holding its parent's
+// number cannot be that process's child.
 function processTree(roots) {
   const listed = windows
     ? spawnSync(
         'powershell',
         [
           '-NoProfile',
+          '-NonInteractive',
           '-Command',
-          'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId)" }',
+          'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) $(if ($_.CreationDate) { $_.CreationDate.ToFileTimeUtc() } else { 0 })" }',
         ],
-        { encoding: 'utf8' },
+        { encoding: 'utf8', timeout: 60_000 },
       )
-    : spawnSync('ps', ['-eo', 'pid=,ppid='], { encoding: 'utf8' })
-  const children = new Map()
+    : spawnSync('ps', ['-eo', 'pid=,ppid='], { encoding: 'utf8', timeout: 60_000 })
+  const started = new Map()
+  const links = []
 
   for (const line of (listed.stdout ?? '').split('\n')) {
-    const [child, parent] = line.trim().split(/\s+/).map(Number)
+    const [child, parent, created] = line.trim().split(/\s+/).map(Number)
 
     if (Number.isInteger(child) && Number.isInteger(parent)) {
+      links.push([child, parent])
+      started.set(child, created ?? 0)
+    }
+  }
+
+  const children = new Map()
+
+  for (const [child, parent] of links) {
+    const parentStarted = started.get(parent)
+    const honest = !windows || parentStarted === undefined || parentStarted <= started.get(child)
+
+    if (honest && child !== parent) {
       children.set(parent, [...(children.get(parent) ?? []), child])
     }
   }
@@ -476,8 +507,9 @@ function processTree(roots) {
     }
   }
 
-  // Deepest first, so a parent does not restart what was just stopped.
-  return tree.reverse()
+  // Deepest first, so a parent does not restart what was just stopped. On Windows only what is running now: the number
+  // of a process that exited may already name another one.
+  return (windows ? tree.filter((pid) => started.has(pid)) : tree).reverse()
 }
 
 function alive(pid) {
@@ -499,17 +531,17 @@ function signal(pid, sign) {
 // nothing below it. Whatever was started here is therefore stopped from here, and never anything else: the tree is
 // read before the first signal, while the processes still point at their parents.
 async function shutdown(child, ports, known, job) {
-  // On Windows a process keeps its parent's id after the parent exits, so what a dead process started is still found
-  // below it, and the tree is read from every process ever seen. Elsewhere an orphan moves to init, and below a dead
-  // pid there is only whatever reused the number.
-  const roots = windows ? [child.pid, ...known] : [child.pid]
+  // With a job its members are exactly what the command started. Without one, on Windows, the tree is also read from
+  // every process seen while the command ran, since a process keeps its parent's id after the parent exits; elsewhere
+  // an orphan moves to init, and below a dead pid there is only whatever reused the number.
   const members = (await job?.members()) ?? []
-  const tree = [...new Set([...processTree(roots), ...known, ...members])].reverse()
+  const roots = windows && job === undefined ? [child.pid, ...known] : [child.pid]
+  const below = processTree(roots)
+  const tree = [...new Set([...below, ...known, ...members])].reverse()
   const stopped = []
 
   if (windows) {
-    const pids = tree.flatMap((pid) => ['/PID', String(pid)])
-    spawnSync('taskkill', ['/T', '/F', ...pids], { stdio: 'ignore' })
+    terminate([...new Set([...below, ...members])])
   } else {
     for (const pid of tree) {
       signal(pid, 'SIGTERM')
