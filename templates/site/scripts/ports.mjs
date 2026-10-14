@@ -171,13 +171,23 @@ async function taken(port) {
 function holders(port) {
   if (windows) {
     const lines = spawnSync('netstat', ['-ano'], { encoding: 'utf8' }).stdout ?? ''
-    const pids = new Set(
-      lines
-        .split('\n')
-        .filter((line) => /LISTENING/.test(line) && new RegExp(`[:.]${port}\\s`).test(line))
-        .map((line) => line.trim().split(/\s+/).at(-1))
-        .filter((pid) => pid !== undefined && pid !== '0'),
-    )
+    const pids = new Set()
+
+    // Windows translates the state column, so a listener is told by its remote address instead: only a socket that
+    // is listening has none, which netstat writes as port 0.
+    for (const line of lines.split('\n')) {
+      const [protocol, local, remote, ...rest] = line.trim().split(/\s+/)
+      const pid = rest.at(-1)
+
+      if (
+        protocol === 'TCP' &&
+        local?.endsWith(`:${port}`) &&
+        remote?.endsWith(':0') &&
+        pid !== '0'
+      ) {
+        pids.add(pid)
+      }
+    }
 
     return [...pids].map((pid) => ({ pid: Number(pid), command: commandOf(pid) }))
   }
@@ -194,9 +204,8 @@ function commandOf(pid) {
     : spawnSync('ps', ['-p', String(pid), '-o', 'comm='], { encoding: 'utf8' })
   const output = (result.stdout ?? '').trim()
 
-  return windows
-    ? (output.split(',')[0]?.replaceAll('"', '') ?? 'unknown')
-    : basename(output || 'unknown')
+  // tasklist answers a pid it does not know with a translated sentence, never with a quoted CSV row.
+  return windows ? (/^"([^"]*)"/.exec(output)?.[1] ?? 'unknown') : basename(output || 'unknown')
 }
 
 async function freed(port) {
@@ -319,8 +328,8 @@ async function settle(type) {
   throw new Failure('declined', 'Nothing was started.')
 }
 
-// Every process below one, as the system sees them right now.
-function processTree(pid) {
+// Every process below the ones given, as the system sees them right now.
+function processTree(roots) {
   const listed = windows
     ? spawnSync(
         'powershell',
@@ -343,17 +352,28 @@ function processTree(pid) {
   }
 
   const tree = []
-  const pending = [pid]
+  const pending = [...roots]
 
   while (pending.length > 0) {
     const current = pending.shift()
 
-    tree.push(current)
-    pending.push(...(children.get(current) ?? []))
+    if (!tree.includes(current)) {
+      tree.push(current)
+      pending.push(...(children.get(current) ?? []))
+    }
   }
 
   // Deepest first, so a parent does not restart what was just stopped.
   return tree.reverse()
+}
+
+function alive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error.code === 'EPERM'
+  }
 }
 
 function signal(pid, sign) {
@@ -366,11 +386,16 @@ function signal(pid, sign) {
 // nothing below it. Whatever was started here is therefore stopped from here, and never anything else: the tree is
 // read before the first signal, while the processes still point at their parents.
 async function shutdown(child, ports, known) {
-  const tree = [...new Set([...processTree(child.pid), ...known])].reverse()
+  // On Windows a process keeps its parent's id after the parent exits, so what a dead process started is still found
+  // below it, and the tree is read from every process ever seen. Elsewhere an orphan moves to init, and below a dead
+  // pid there is only whatever reused the number.
+  const roots = windows ? [child.pid, ...known] : [child.pid]
+  const tree = [...new Set([...processTree(roots), ...known])].reverse()
   const stopped = []
 
   if (windows) {
-    spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+    const pids = tree.flatMap((pid) => ['/PID', String(pid)])
+    spawnSync('taskkill', ['/T', '/F', ...pids], { stdio: 'ignore' })
   } else {
     for (const pid of tree) {
       signal(pid, 'SIGTERM')
@@ -385,6 +410,11 @@ async function shutdown(child, ports, known) {
       for (const { pid, command } of ours) {
         signal(pid, 'SIGKILL')
         stopped.push(`${command} (pid ${pid}) on port ${port}`)
+      }
+
+      // The port is released once the system has reaped what was killed, which is not at once.
+      if (ours.length > 0) {
+        await freed(port)
       }
 
       if (theirs.length > 0) {
@@ -406,7 +436,7 @@ async function supervise(child, ports) {
   // remembered while they are still running: on a schedule, and again the moment the signal arrives.
   const known = new Set([child.pid])
   const remember = () => {
-    for (const pid of processTree(child.pid)) {
+    for (const pid of processTree([child.pid])) {
       known.add(pid)
     }
   }
@@ -432,6 +462,16 @@ async function supervise(child, ports) {
   remember()
   const watch = setInterval(remember, 2000)
 
+  // `pnpm -r --parallel` starts each app in a process group of its own, which the terminal's Ctrl+C never reaches, and
+  // a Ctrl+C right after the start comes before the workspace's ports.mjs has seen the apps. So an app's ports.mjs
+  // does not wait to be told: once whatever started it is gone, nobody is left to stop it, and it stops its own tree.
+  const parent = process.ppid
+  const orphaned = setInterval(() => {
+    if (!interrupted && !alive(parent)) {
+      interrupt('SIGTERM')
+    }
+  }, 250)
+
   let patience
   const code = await new Promise((done) => {
     child.once('error', () => done(1))
@@ -449,6 +489,7 @@ async function supervise(child, ports) {
   clearInterval(patience)
   clearTimeout(patience)
   clearInterval(watch)
+  clearInterval(orphaned)
 
   const stopped = await shutdown(child, ports, known)
 
@@ -457,6 +498,14 @@ async function supervise(child, ports) {
   process.exitCode = interrupted ? 0 : code
 
   return stopped
+}
+
+// On Windows the command is most often a .cmd shim, such as pnpm or vite, which Node starts only through a shell, and
+// a shell given an argument list is deprecated (DEP0190). So it gets one line, each part quoted when it needs it.
+function commandLine(parts) {
+  return parts
+    .map((part) => (/^[\w@+=:,./\\-]+$/.test(part) ? part : `"${part.replaceAll('"', '""')}"`))
+    .join(' ')
 }
 
 async function main() {
@@ -481,7 +530,9 @@ async function main() {
   const withPort = flag.flatMap((entry) =>
     entry === '--port' ? ['--port', String(ports[type])] : [entry],
   )
-  const child = spawn(command, [...args, ...withPort], { stdio: 'inherit', shell: windows })
+  const child = windows
+    ? spawn(commandLine([command, ...args, ...withPort]), { stdio: 'inherit', shell: true })
+    : spawn(command, [...args, ...withPort], { stdio: 'inherit' })
   const stopped = await supervise(child, Object.values(ports))
 
   return { ports, ran: [command, ...args, ...withPort].join(' '), stopped }

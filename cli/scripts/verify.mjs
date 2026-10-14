@@ -1,4 +1,4 @@
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync, execSync, spawn, spawnSync } from 'node:child_process'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
@@ -21,11 +21,45 @@ const appPort = 3000
 const webPort = 4173
 const sitePort = 3200
 
+const windows = process.platform === 'win32'
+
 const appDir = (type) => (workspace ? join(project, 'apps', type) : project)
 const config = JSON.parse(readFileSync(join(project, '.prumo', 'config.json'), 'utf8'))
 
+// On Windows pnpm is a .cmd shim, which Node starts only through a shell, and a shell given an argument list is
+// deprecated (DEP0190): there the command goes as one line, each part quoted when it needs it.
+function commandLine(parts) {
+  return parts
+    .map((part) => (/^[\w@+=:,./\\!-]+$/.test(part) ? part : `"${part.replaceAll('"', '""')}"`))
+    .join(' ')
+}
+
 function run(command, args, cwd, env = {}) {
-  return execFileSync(command, args, { cwd, encoding: 'utf8', env: { ...process.env, ...env } })
+  const options = { cwd, encoding: 'utf8', env: { ...process.env, ...env } }
+
+  return windows
+    ? execSync(commandLine([command, ...args]), options)
+    : execFileSync(command, args, options)
+}
+
+// The API's database and its tests run Postgres in Docker, from a Linux image. A GitHub Windows runner's Docker runs
+// Windows containers only, so there they cannot run, and this says so rather than passing in silence.
+function linuxContainers() {
+  const engine = spawnSync('docker', ['info', '--format', '{{.OSType}}'], { encoding: 'utf8' })
+  const os = engine.status === 0 ? engine.stdout.trim() : 'none'
+
+  return { ok: os === 'linux', os }
+}
+
+const containers = types.includes('api') ? linuxContainers() : { ok: true }
+
+function skip(what) {
+  const here =
+    containers.os === 'none'
+      ? 'no Docker engine answers here'
+      : `this one runs ${containers.os} containers`
+
+  process.stdout.write(`- skipped ${what}: it needs Docker running Linux containers, and ${here}\n`)
 }
 
 function step(name, fn) {
@@ -49,13 +83,11 @@ let serverLog = ''
 
 async function withServer(command, args, cwd, url, env, body) {
   // In a group of its own, so stopping it stops what it started too: `pnpm preview` leaves vite running otherwise,
-  // and the next run's check would be answered by the previous build.
-  const server = spawn(command, args, {
-    cwd,
-    env: { ...process.env, ...env },
-    stdio: ['ignore', 'pipe', 'inherit'],
-    detached: true,
-  })
+  // and the next run's check would be answered by the previous build. Windows has no groups; taskkill takes the tree.
+  const options = { cwd, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'inherit'] }
+  const server = windows
+    ? spawn(commandLine([command, ...args]), { ...options, shell: true })
+    : spawn(command, args, { ...options, detached: true })
   server.stdout.on('data', (chunk) => {
     process.stdout.write(chunk)
     serverLog += chunk
@@ -64,7 +96,11 @@ async function withServer(command, args, cwd, url, env, body) {
     await waitFor(url)
     return await body()
   } finally {
-    process.kill(-server.pid, 'SIGTERM')
+    if (windows) {
+      spawnSync('taskkill', ['/PID', String(server.pid), '/T', '/F'], { stdio: 'ignore' })
+    } else {
+      process.kill(-server.pid, 'SIGTERM')
+    }
   }
 }
 
@@ -92,6 +128,12 @@ function apiEnv(api) {
 
 async function verifyApi() {
   const api = appDir('api')
+
+  if (!containers.ok) {
+    step('api: build', () => run('pnpm', ['build'], api))
+    skip('the api tests, its migrations and its start')
+    return
+  }
 
   step('api: compose up', () => compose(api, 'up', '-d', '--wait'))
   try {
@@ -277,11 +319,25 @@ async function verifySite() {
 
 step('lint', () => run('pnpm', ['lint'], project))
 step('typecheck', () => run('pnpm', ['typecheck'], project))
-step('test', () => run('pnpm', ['test'], project))
+if (containers.ok) {
+  step('test', () => run('pnpm', ['test'], project))
+} else if (workspace && types.length > 1) {
+  step('test, except the api', () => run('pnpm', ['-r', '--filter', '!api', 'test'], project))
+}
 
 if (types.includes('web')) await verifyWeb()
 if (types.includes('mobile')) verifyMobile()
 if (types.includes('site')) await verifySite()
 if (types.includes('api')) await verifyApi()
 
-process.stdout.write(`\n${project} passed every check.\n`)
+// The pre-commit hook is a shell script, which Git for Windows runs through the sh it ships.
+step('commit, through the pre-commit hook', () => {
+  const identity = ['-c', 'user.name=Prumo CI', '-c', 'user.email=ci@prumo.invalid']
+
+  run('git', ['add', '--all'], project)
+  run('git', [...identity, 'commit', '--quiet', '--message', 'Generated'], project)
+})
+
+process.stdout.write(
+  `\n${project} passed every check${containers.ok ? '' : ', but for what is skipped above'}.\n`,
+)
