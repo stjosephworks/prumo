@@ -33,7 +33,16 @@ workspace holding four applications, without either one carrying rules it has no
 ## Requirements
 
 Node 22.18 or later, pnpm 10.26 or later, and Docker for anything with an API. `prumo doctor` checks
-all of it. Prumo runs on macOS and Linux; Windows is not supported yet.
+all of it. Prumo runs on macOS, Linux and Windows.
+
+On Windows it runs natively: the project lives in a Windows folder, and the Windows Node and pnpm run it.
+Docker Desktop, with its WSL2 backend and set to Linux containers, is only where the database and the API's
+tests run.
+
+Inside a WSL distribution, with the distribution's own terminal, Node, pnpm and Docker, Prumo is on Linux, which is
+supported, though not tested on WSL specifically. Mixing the two is not supported: Windows tools, Prumo Desktop
+included, working on a project inside the WSL filesystem (`\\wsl$` or `\\wsl.localhost`).
+
 
 ## Running it
 
@@ -79,7 +88,7 @@ npx @stjoseph/prumo new my-api --types api --alone --single-tenant --email
 | `prumo new [name \| .]` | Generates a project |
 | `prumo db` | Inside a project with an API: creates the development database in Docker and writes its URL into `.env` |
 | `prumo clean` | Removes what the project needed only once, today the database setup, once the database exists. Only the Prumo version that generated the project cleans it |
-| `prumo doctor` | Checks Node, pnpm, git and Docker on this machine |
+| `prumo doctor` | Checks Node, pnpm, git and Docker on this machine, and that Docker runs Linux containers |
 | `prumo version` · `--version` · `-v` | Prints the CLI version |
 | `prumo help [command]` · `--help` | Lists the commands, or describes one |
 

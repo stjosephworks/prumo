@@ -267,7 +267,8 @@ async function main() {
 
   if (!values['skip-migrate']) {
     say('Migrating…')
-    if (spawnSync('pnpm', ['db:migrate'], { cwd: api, stdio: childStdio }).status !== 0) {
+    // One line through the shell: on Windows pnpm is a .cmd shim, which Node starts only that way.
+    if (spawnSync('pnpm db:migrate', { cwd: api, stdio: childStdio, shell: true }).status !== 0) {
       throw new Failure(
         'migrate_failed',
         '`pnpm db:migrate` failed. The database exists and .env points at it.',
