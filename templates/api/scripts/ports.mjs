@@ -341,6 +341,7 @@ public static class PrumoJob {
   [DllImport("kernel32.dll", SetLastError = true)] public static extern IntPtr CreateJobObject(IntPtr attributes, string name);
   [DllImport("kernel32.dll", SetLastError = true)] public static extern IntPtr OpenProcess(uint access, bool inherit, uint id);
   [DllImport("kernel32.dll", SetLastError = true)] public static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+  [DllImport("kernel32.dll", SetLastError = true)] public static extern bool SetConsoleCtrlHandler(IntPtr handler, bool ignore);
   [DllImport("kernel32.dll", SetLastError = true)] static extern bool QueryInformationJobObject(IntPtr job, int kind, IntPtr information, int length, IntPtr returned);
   public static string Members(IntPtr job) {
     int length = 8 + IntPtr.Size * 16384;
@@ -357,6 +358,8 @@ public static class PrumoJob {
   }
 }
 '@
+# Ctrl+C is for the command; the helper has to outlive it to list what is left.
+[void][PrumoJob]::SetConsoleCtrlHandler([IntPtr]::Zero, $true)
 $job = [PrumoJob]::CreateJobObject([IntPtr]::Zero, $null)
 $member = [PrumoJob]::OpenProcess(0x0101, $false, [uint32]$env:PRUMO_JOB_MEMBER)
 if ($job -eq [IntPtr]::Zero -or $member -eq [IntPtr]::Zero -or -not [PrumoJob]::AssignProcessToJobObject($job, $member)) { exit 1 }
