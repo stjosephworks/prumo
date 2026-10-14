@@ -7,7 +7,7 @@
 // group. Windows has no signal one process can send another as Ctrl+C, so there the run gets a console of its own and
 // the event is raised in that console, which is what a terminal does when the key is pressed. For that, the check
 // runs again detached, with no console at all: the shell it then starts is given a new console, which is the run's
-// alone, while its output still comes back here.
+// alone, while its output still comes back here. That shell is PowerShell, from which a person would type the command.
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { connect } from 'node:net'
@@ -129,6 +129,15 @@ function alive(pid) {
   }
 }
 
+// The console functions of kernel32, for PowerShell to call.
+const CONSOLE_API = `$ErrorActionPreference = 'Stop'
+Add-Type -Namespace Prumo -Name Console -MemberDefinition @'
+[DllImport("kernel32.dll", SetLastError = true)] public static extern bool FreeConsole();
+[DllImport("kernel32.dll", SetLastError = true)] public static extern bool AttachConsole(uint processId);
+[DllImport("kernel32.dll", SetLastError = true)] public static extern bool SetConsoleCtrlHandler(IntPtr handler, bool add);
+[DllImport("kernel32.dll", SetLastError = true)] public static extern bool GenerateConsoleCtrlEvent(uint ctrlEvent, uint processGroupId);
+'@`
+
 function start() {
   if (!windows) {
     // A process group of its own, as a shell gives the command it runs in the foreground.
@@ -139,21 +148,24 @@ function start() {
     })
   }
 
-  // This process has no console, so the shell is given a new one: the run's own, as a terminal window would be. The
-  // Ctrl+C raised in it reaches the run and nothing of this script or of CI.
-  return spawn('pnpm dev', { cwd: project, stdio: ['ignore', 'inherit', 'inherit'], shell: true })
+  // This process has no console, so PowerShell is given a new one: the run's own, as a terminal window would be, and
+  // the Ctrl+C raised in it reaches the run and nothing of this script or of CI. Detaching also turned Ctrl+C off for
+  // every process below this one, which a terminal never does, so PowerShell turns it back on before it runs pnpm.
+  const launch = `${CONSOLE_API}
+[void][Prumo.Console]::SetConsoleCtrlHandler([IntPtr]::Zero, $false)
+pnpm dev
+exit $LASTEXITCODE
+`
+
+  return spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', launch], {
+    cwd: project,
+    stdio: ['ignore', 'inherit', 'inherit'],
+  })
 }
 
 // Attaches to the run's console and raises Ctrl+C there, ignoring it itself. Every process of that console receives
 // it, exactly as when the key is pressed in a terminal.
-const CTRL_C = `
-$ErrorActionPreference = 'Stop'
-Add-Type -Namespace Prumo -Name Console -MemberDefinition @'
-[DllImport("kernel32.dll", SetLastError = true)] public static extern bool FreeConsole();
-[DllImport("kernel32.dll", SetLastError = true)] public static extern bool AttachConsole(uint processId);
-[DllImport("kernel32.dll", SetLastError = true)] public static extern bool SetConsoleCtrlHandler(IntPtr handler, bool add);
-[DllImport("kernel32.dll", SetLastError = true)] public static extern bool GenerateConsoleCtrlEvent(uint ctrlEvent, uint processGroupId);
-'@
+const CTRL_C = `${CONSOLE_API}
 [void][Prumo.Console]::FreeConsole()
 if (-not [Prumo.Console]::AttachConsole([uint32]$env:PRUMO_CONSOLE_OF)) { exit 2 }
 [void][Prumo.Console]::SetConsoleCtrlHandler([IntPtr]::Zero, $true)
