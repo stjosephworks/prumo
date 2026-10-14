@@ -96,20 +96,26 @@ export async function doctor(probe: Probe = systemProbe): Promise<Report> {
   checks.push(...toolChecks(probe, ['pnpm', 'git']))
 
   const docker = probe.run('docker', ['--version'])
-  const dockerRunning = docker.ok && probe.run('docker', ['info']).ok
+  const engine = docker.ok ? probe.run('docker', ['info', '--format', '{{.OSType}}']) : undefined
+  const os = firstLine(engine?.stdout ?? '')
 
   checks.push({
     id: 'docker',
     label: 'Docker',
     required: false,
-    ...(dockerRunning
-      ? { status: 'ok', detail: firstLine(docker.stdout) }
-      : {
+    ...(engine?.ok !== true
+      ? {
           status: 'warn',
           detail: docker.ok
             ? 'installed but not running; open Docker Desktop. The API runs its database and tests in it'
-            : 'not found; install Docker Desktop. The API runs its database and tests in it',
-        }),
+            : 'not found; install Docker Desktop, on Windows with the WSL2 backend. The API runs its database and tests in it',
+        }
+      : os !== 'linux'
+        ? {
+            status: 'warn',
+            detail: `running ${os || 'unknown'} containers; switch Docker Desktop to Linux containers. The API's Postgres image is a Linux one`,
+          }
+        : { status: 'ok', detail: firstLine(docker.stdout) }),
   })
 
   return { ready: checks.every((check) => !check.required || check.status === 'ok'), checks }

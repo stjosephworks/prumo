@@ -5,7 +5,7 @@ const EVERYTHING = {
   'pnpm --version': '12.3.4',
   'git --version': 'git version 2.54.0',
   'docker --version': 'Docker version 29.7.2',
-  'docker info': '',
+  'docker info --format {{.OSType}}': 'linux',
 }
 
 function probe(commands: Record<string, string> = EVERYTHING, nodeVersion = '22.18.0'): Probe {
@@ -61,5 +61,16 @@ describe('doctor', () => {
     expect(check(stopped, 'docker')).toMatchObject({ status: 'warn' })
     expect(check(stopped, 'docker')?.detail).toContain('open Docker Desktop')
     expect(check(missing, 'docker')?.detail).toContain('install Docker Desktop')
+  })
+
+  // Docker Desktop on Windows can be switched to Windows containers, where postgres:18-alpine cannot run.
+  it('warns when the engine runs anything but Linux containers', async () => {
+    const report = await doctor(
+      probe({ ...EVERYTHING, 'docker info --format {{.OSType}}': 'windows' }),
+    )
+
+    expect(report.ready).toBe(true)
+    expect(check(report, 'docker')).toMatchObject({ status: 'warn' })
+    expect(check(report, 'docker')?.detail).toContain('switch Docker Desktop to Linux containers')
   })
 })
