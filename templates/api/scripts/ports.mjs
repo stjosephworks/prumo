@@ -328,8 +328,8 @@ async function settle(type) {
   throw new Failure('declined', 'Nothing was started.')
 }
 
-// Every process below one, as the system sees them right now.
-function processTree(pid) {
+// Every process below the ones given, as the system sees them right now.
+function processTree(roots) {
   const listed = windows
     ? spawnSync(
         'powershell',
@@ -352,13 +352,15 @@ function processTree(pid) {
   }
 
   const tree = []
-  const pending = [pid]
+  const pending = [...roots]
 
   while (pending.length > 0) {
     const current = pending.shift()
 
-    tree.push(current)
-    pending.push(...(children.get(current) ?? []))
+    if (!tree.includes(current)) {
+      tree.push(current)
+      pending.push(...(children.get(current) ?? []))
+    }
   }
 
   // Deepest first, so a parent does not restart what was just stopped.
@@ -384,11 +386,14 @@ function signal(pid, sign) {
 // nothing below it. Whatever was started here is therefore stopped from here, and never anything else: the tree is
 // read before the first signal, while the processes still point at their parents.
 async function shutdown(child, ports, known) {
-  const tree = [...new Set([...processTree(child.pid), ...known])].reverse()
+  // On Windows a process keeps its parent's id after the parent exits, so what a dead process started is still found
+  // below it, and the tree is read from every process ever seen. Elsewhere an orphan moves to init, and below a dead
+  // pid there is only whatever reused the number.
+  const roots = windows ? [child.pid, ...known] : [child.pid]
+  const tree = [...new Set([...processTree(roots), ...known])].reverse()
   const stopped = []
 
   if (windows) {
-    // Windows keeps a dead parent's id on its children, so the tree read above still reaches what outlived its parent.
     const pids = tree.flatMap((pid) => ['/PID', String(pid)])
     spawnSync('taskkill', ['/T', '/F', ...pids], { stdio: 'ignore' })
   } else {
@@ -426,7 +431,7 @@ async function supervise(child, ports) {
   // remembered while they are still running: on a schedule, and again the moment the signal arrives.
   const known = new Set([child.pid])
   const remember = () => {
-    for (const pid of processTree(child.pid)) {
+    for (const pid of processTree([child.pid])) {
       known.add(pid)
     }
   }
