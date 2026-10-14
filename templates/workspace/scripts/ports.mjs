@@ -365,6 +365,15 @@ function processTree(pid) {
   return tree.reverse()
 }
 
+function alive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error.code === 'EPERM'
+  }
+}
+
 function signal(pid, sign) {
   try {
     process.kill(pid, sign)
@@ -443,6 +452,16 @@ async function supervise(child, ports) {
   remember()
   const watch = setInterval(remember, 2000)
 
+  // `pnpm -r --parallel` starts each app in a process group of its own, which the terminal's Ctrl+C never reaches, and
+  // a Ctrl+C right after the start comes before the workspace's ports.mjs has seen the apps. So an app's ports.mjs
+  // does not wait to be told: once whatever started it is gone, nobody is left to stop it, and it stops its own tree.
+  const parent = process.ppid
+  const orphaned = setInterval(() => {
+    if (!interrupted && !alive(parent)) {
+      interrupt('SIGTERM')
+    }
+  }, 250)
+
   let patience
   const code = await new Promise((done) => {
     child.once('error', () => done(1))
@@ -460,6 +479,7 @@ async function supervise(child, ports) {
   clearInterval(patience)
   clearTimeout(patience)
   clearInterval(watch)
+  clearInterval(orphaned)
 
   const stopped = await shutdown(child, ports, known)
 
