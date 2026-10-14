@@ -81,9 +81,46 @@ async function waitFor(url, attempts = 60) {
 // What a server prints is kept as well as shown: with email on, the API's mail goes to its log, codes included.
 let serverLog = ''
 
+// The server and what it started, on Windows, by creation time as well as parent id: Windows gives the number of an
+// exited process to the next one, and a parent id followed alone, as `taskkill /T` follows it, can reach winlogon or
+// dwm. A child counts only when it started after its parent.
+function windowsTree(root) {
+  const listed = spawnSync(
+    'powershell',
+    [
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) $(if ($_.CreationDate) { $_.CreationDate.ToFileTimeUtc() } else { 0 })" }',
+    ],
+    { encoding: 'utf8', timeout: 60_000 },
+  )
+  const all = (listed.stdout ?? '')
+    .split('\n')
+    .map((line) => line.trim().split(/\s+/).map(Number))
+    .filter(([pid, parent]) => Number.isInteger(pid) && Number.isInteger(parent))
+  const found = []
+  const pending = all.filter(([pid]) => pid === root)
+
+  while (pending.length > 0) {
+    const [pid, , created] = pending.shift()
+
+    if (!found.includes(pid)) {
+      found.push(pid)
+      pending.push(
+        ...all.filter(
+          ([child, parent, born]) => parent === pid && child !== pid && born >= created,
+        ),
+      )
+    }
+  }
+
+  return found
+}
+
 async function withServer(command, args, cwd, url, env, body) {
   // In a group of its own, so stopping it stops what it started too: `pnpm preview` leaves vite running otherwise,
-  // and the next run's check would be answered by the previous build. Windows has no groups; taskkill takes the tree.
+  // and the next run's check would be answered by the previous build. Windows has no groups, so the tree is read.
   const options = { cwd, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'inherit'] }
   const server = windows
     ? spawn(commandLine([command, ...args]), { ...options, shell: true })
@@ -97,7 +134,10 @@ async function withServer(command, args, cwd, url, env, body) {
     return await body()
   } finally {
     if (windows) {
-      spawnSync('taskkill', ['/PID', String(server.pid), '/T', '/F'], { stdio: 'ignore' })
+      const pids = windowsTree(server.pid).flatMap((pid) => ['/PID', String(pid)])
+      if (pids.length > 0) {
+        spawnSync('taskkill', ['/F', ...pids], { stdio: 'ignore', timeout: 60_000 })
+      }
     } else {
       process.kill(-server.pid, 'SIGTERM')
     }
