@@ -1,0 +1,2 @@
+# LF in every checkout, Windows included: Biome formats to LF and would otherwise flag every file.
+* text=auto eol=lf

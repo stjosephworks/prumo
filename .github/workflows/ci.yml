@@ -62,7 +62,7 @@ jobs:
       - name: Assert what npm is known to delete arrived anyway
         run: |
           for file in .gitignore apps/api/.gitignore apps/web/.gitignore \
-                      .githooks/pre-commit apps/api/.env.example .prumo/INDEX.md; do
+                      .gitattributes .githooks/pre-commit apps/api/.env.example .prumo/INDEX.md; do
             test -f "$file" || { echo "missing $file"; exit 1; }
           done
           ! test -e gitignore
