@@ -628,14 +628,21 @@ function commandLine(parts) {
 
 async function main() {
   const ports = {}
-
-  for (const type of typesToCheck()) {
-    if (type !== undefined) {
-      ports[type] = await settle(type)
-    }
-  }
-
   const [command, ...args] = positionals
+
+  // PowerShell takes a few seconds to make the job, so it does while the ports are settled.
+  const starting = command === undefined ? undefined : startJob()
+
+  try {
+    for (const type of typesToCheck()) {
+      if (type !== undefined) {
+        ports[type] = await settle(type)
+      }
+    }
+  } catch (error) {
+    ;(await starting)?.close()
+    throw error
+  }
 
   if (command === undefined) {
     return { ports }
@@ -649,7 +656,7 @@ async function main() {
     entry === '--port' ? ['--port', String(ports[type])] : [entry],
   )
   // Before the command starts, so that it and everything it starts are members from their first instant.
-  const job = await startJob()
+  const job = await starting
   const child = windows
     ? spawn(commandLine([command, ...args, ...withPort]), { stdio: 'inherit', shell: true })
     : spawn(command, [...args, ...withPort], { stdio: 'inherit' })
