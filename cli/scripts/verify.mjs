@@ -54,9 +54,12 @@ function linuxContainers() {
 const containers = types.includes('api') ? linuxContainers() : { ok: true }
 
 function skip(what) {
-  process.stdout.write(
-    `- skipped ${what}: it needs Docker running Linux containers, and this Docker runs ${containers.os}\n`,
-  )
+  const here =
+    containers.os === 'none'
+      ? 'no Docker engine answers here'
+      : `this one runs ${containers.os} containers`
+
+  process.stdout.write(`- skipped ${what}: it needs Docker running Linux containers, and ${here}\n`)
 }
 
 function step(name, fn) {
