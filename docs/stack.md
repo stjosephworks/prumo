@@ -15,7 +15,7 @@ Settled on 2026-09-09, one question at a time. The API layer was replaced on 202
 | **Delete** | Hard delete is the default. `deleted_at` requires a stated reason: audit, user-facing recovery, legal retention. |
 | **Timezone** | UTC in the database. `timestamptz` on every time column, without exception. Conversion at the edge only. |
 | **Database** | PostgreSQL 18 or later. Not a variable. |
-| **Platforms** | macOS, Linux and Windows. Windows natively, decided on 2026-10-13: the project in a Windows folder, run by the Windows Node and pnpm, with Docker Desktop on its WSL2 backend only as the engine for Postgres, which is a Linux image. A project inside WSL is not supported in this version. |
+| **Platforms** | macOS, Linux and Windows. Windows natively, decided on 2026-10-13: the project in a Windows folder, run by the Windows Node and pnpm, with Docker Desktop on its WSL2 backend only as the engine for Postgres, which is a Linux image. Entirely inside a WSL distribution, with its own Node, pnpm and Docker, is Linux: supported, not tested on WSL specifically. Not supported: Windows tools, Prumo Desktop included, on a project inside the WSL filesystem (`\\wsl$`, `\\wsl.localhost`). |
 | **API architecture** | Ports and adapters. `src/domain` holds entities, ports, use cases, DTOs and errors, and imports neither the ORM nor the HTTP framework. `src/infra` holds the adapters and the edges. The rule that the domain does not import the infrastructure is a **written convention, not a checked one**. |
 | **Errors** | Exceptions. No `Result` type. A domain error extends `DomainError` and carries a `kind`; one error handler in `infra/http` maps `kind` to a status and answers Problem Details. |
 

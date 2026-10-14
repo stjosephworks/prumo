@@ -37,7 +37,11 @@ all of it. Prumo runs on macOS, Linux and Windows.
 
 On Windows it runs natively: the project lives in a Windows folder, and the Windows Node and pnpm run it.
 Docker Desktop, with its WSL2 backend and set to Linux containers, is only where the database and the API's
-tests run. A project kept inside WSL is not supported in this version.
+tests run.
+
+Inside a WSL distribution, with the distribution's own terminal, Node, pnpm and Docker, Prumo is on Linux, which is
+supported, though not tested on WSL specifically. Mixing the two is not supported: Windows tools, Prumo Desktop
+included, working on a project inside the WSL filesystem (`\\wsl$` or `\\wsl.localhost`).
 
 
 ## Running it
