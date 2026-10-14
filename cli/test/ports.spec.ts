@@ -242,7 +242,8 @@ describe('the ports check', () => {
     await workspace(API)
     const api = join(root, 'apps', 'api')
 
-    // The command starts a server it does not wait for, and exits once ports.mjs has had time to see the server.
+    // The command starts a server it does not wait for, and exits once ports.mjs has had time to see the server: it
+    // looks every two seconds, and on Windows each look starts PowerShell, which a busy runner makes slow.
     await writeFile(
       join(api, 'runner.mjs'),
       [
@@ -252,7 +253,7 @@ describe('the ports check', () => {
         "const child = spawn(process.execPath, ['-e', server], { detached: true, stdio: 'ignore' })",
         "writeFileSync('server.pid', String(child.pid))",
         'child.unref()',
-        'setTimeout(() => {}, 5000)',
+        'setTimeout(() => {}, 8000)',
       ].join('\n'),
     )
 
