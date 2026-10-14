@@ -11,7 +11,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { connect } from 'node:net'
-import { join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 
 const windows = process.platform === 'win32'
 
@@ -24,14 +24,36 @@ const PORTS = {
 
 const project = resolve(process.argv[2] ?? '')
 
+// Every wait below has its own deadline, and this one covers the whole check: a hang fails it, loudly, in minutes.
+const DEADLINE = 8 * 60_000
+
+// Output is relayed through a pipe, never handed down: a process that survives the run must not hold the CI step's
+// own output open, or the step waits on it until the job times out instead of failing.
+function relay(child) {
+  child.stdout?.pipe(process.stdout, { end: false })
+  child.stderr?.pipe(process.stderr, { end: false })
+}
+
 if (windows && process.argv[3] !== '--host') {
   const host = spawn(process.execPath, [import.meta.filename, project, '--host'], {
-    stdio: 'inherit',
+    stdio: ['ignore', 'pipe', 'pipe'],
     detached: true,
   })
+  relay(host)
 
-  process.exitCode = await new Promise((done) => host.once('exit', (code) => done(code ?? 1)))
-  process.exit()
+  const watchdog = setTimeout(() => {
+    process.stderr.write(`verify-dev.mjs ran past ${DEADLINE / 60_000} minutes; stopping it.\n`)
+    kill(tree(host.pid).map(({ pid }) => pid))
+    spawnSync('taskkill', ['/PID', String(host.pid), '/F'], {
+      stdio: 'ignore',
+      timeout: 60_000,
+    })
+    process.exit(1)
+  }, DEADLINE + 60_000)
+
+  const code = await new Promise((done) => host.once('exit', (status) => done(status ?? 1)))
+  clearTimeout(watchdog)
+  process.exit(code)
 }
 
 const config = JSON.parse(readFileSync(join(project, '.prumo', 'config.json'), 'utf8'))
@@ -79,7 +101,7 @@ async function taken(port) {
   return (await listeningOn('127.0.0.1', port)) || (await listeningOn('::1', port))
 }
 
-// Every process on the machine, as pid, parent and name.
+// Every process on the machine, as pid, parent, name and command line.
 function processes() {
   const listed = windows
     ? spawnSync(
@@ -88,20 +110,51 @@ function processes() {
           '-NoProfile',
           '-NonInteractive',
           '-Command',
-          'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) $($_.Name)" }',
+          'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) $(if ($_.CreationDate) { $_.CreationDate.ToFileTimeUtc() } else { 0 }) $($_.Name) $($_.CommandLine)" }',
         ],
-        { encoding: 'utf8' },
+        { encoding: 'utf8', timeout: 60_000 },
       )
-    : spawnSync('ps', ['-eo', 'pid=,ppid=,comm='], { encoding: 'utf8' })
+    : spawnSync('ps', ['-eo', 'pid=,ppid=,command='], { encoding: 'utf8', timeout: 60_000 })
 
+  // ps has no creation time to give here, and needs none: there an orphan moves to init.
   return (listed.stdout ?? '')
     .split('\n')
-    .map((line) => /^\s*(\d+)\s+(\d+)\s+(.*?)\s*$/.exec(line))
+    .map((line) =>
+      windows
+        ? /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s*(.*?)\s*$/.exec(line)
+        : /^\s*(\d+)\s+(\d+)\s+()(\S+)\s*(.*?)\s*$/.exec(line),
+    )
     .filter((match) => match !== null)
-    .map(([, pid, parent, name]) => ({ pid: Number(pid), parent: Number(parent), name }))
+    .map(([, pid, parent, created, name, command]) => ({
+      pid: Number(pid),
+      parent: Number(parent),
+      created: Number(created || 0),
+      // ps puts the whole command in one column, which starts with the program.
+      name: windows ? name : basename(name),
+      command: windows ? command : `${name} ${command}`,
+    }))
+}
+
+// What runs from inside the project, whoever its parent is: an orphan that no tree reaches any more still names a
+// file of the project on its command line. This script names the project too, and is left out.
+function fromProject() {
+  const normalize = (text) => (windows ? text.replaceAll('\\', '/').toLowerCase() : text)
+  const inside = normalize(project)
+
+  return processes().filter(
+    ({ pid, command }) =>
+      pid !== process.pid &&
+      pid !== process.ppid &&
+      normalize(command).includes(inside) &&
+      !command.includes('verify-dev.mjs'),
+  )
 }
 
 // The run and everything below it. Windows keeps a dead parent's id on its children, so an orphan is still found.
+//
+// A process that started before its parent's number was given out is not that process's child: the number was reused.
+// Windows hands out the numbers of exited processes again, and winlogon, dwm and csrss name as parent an smss that
+// exited at boot, so without this rule the run adopts them, and stopping them ends the runner's session.
 function tree(root) {
   const all = processes()
   const found = []
@@ -113,20 +166,16 @@ function tree(root) {
 
     if (entry !== undefined && !found.some((known) => known.pid === pid)) {
       found.push(entry)
-      pending.push(...all.filter((process) => process.parent === pid).map((child) => child.pid))
+      pending.push(
+        ...all
+          .filter((process) => process.parent === pid && process.pid !== pid)
+          .filter((process) => !windows || process.created >= entry.created)
+          .map((child) => child.pid),
+      )
     }
   }
 
   return found
-}
-
-function alive(pid) {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch {
-    return false
-  }
 }
 
 // The console functions of kernel32, for PowerShell to call.
@@ -143,7 +192,7 @@ function start() {
     // A process group of its own, as a shell gives the command it runs in the foreground.
     return spawn('pnpm', ['dev'], {
       cwd: project,
-      stdio: ['ignore', 'inherit', 'inherit'],
+      stdio: ['ignore', 'pipe', 'pipe'],
       detached: true,
     })
   }
@@ -159,7 +208,7 @@ exit $LASTEXITCODE
 
   return spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', launch], {
     cwd: project,
-    stdio: ['ignore', 'inherit', 'inherit'],
+    stdio: ['ignore', 'pipe', 'pipe'],
   })
 }
 
@@ -182,6 +231,7 @@ function pressCtrlC(run) {
   const pressed = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', CTRL_C], {
     env: { ...process.env, PRUMO_CONSOLE_OF: String(run.pid) },
     stdio: ['ignore', 'inherit', 'inherit'],
+    timeout: 60_000,
   })
 
   if (pressed.status !== 0) {
@@ -207,29 +257,82 @@ say(`→ pnpm dev in ${project}, waiting for ports ${ports.join(', ')}`)
 
 const run = start()
 let exited = false
+let started = []
+
+relay(run)
 run.once('exit', () => {
   exited = true
 })
 
-let started = []
+async function held() {
+  const busy = []
 
-try {
-  for (let second = 0; second < 180; second += 1) {
-    const open = await Promise.all(ports.map(taken))
-
-    if (open.every(Boolean)) {
-      break
+  for (const port of ports) {
+    if (await taken(port)) {
+      busy.push(port)
     }
-    if (exited) {
-      throw new Error('pnpm dev exited before every app was listening')
+  }
+
+  return busy
+}
+
+// Says what is left, stops all of it, and fails. Nothing the run started outlives the check.
+async function fail(reason) {
+  // What was seen at the start counts only while the same process still holds its number.
+  const now = processes()
+  const still = started.filter(({ pid, created }) =>
+    now.some((process) => process.pid === pid && process.created === created),
+  )
+  const left = [...still, ...tree(run.pid), ...fromProject()].filter(
+    (entry, index, all) => all.findIndex(({ pid }) => pid === entry.pid) === index,
+  )
+  const pids = left.map(({ pid }) => pid)
+
+  say(`✗ ${reason}`)
+  for (const { pid, name, command } of left) {
+    say(`  still running: ${name} (pid ${pid}) ${command}`)
+  }
+  for (const port of await held()) {
+    say(`  still held: port ${port}`)
+  }
+
+  kill(pids)
+  if (windows) {
+    spawnSync('taskkill', ['/PID', String(run.pid), '/F'], {
+      stdio: 'ignore',
+      timeout: 60_000,
+    })
+  } else {
+    try {
+      process.kill(-run.pid, 'SIGKILL')
+    } catch {}
+  }
+  process.exit(1)
+}
+
+setTimeout(() => fail(`the check ran past ${DEADLINE / 60_000} minutes`), DEADLINE).unref()
+
+async function within(seconds, done) {
+  for (let second = 0; second < seconds; second += 1) {
+    if (await done()) {
+      return true
     }
     await sleep(1000)
   }
 
-  for (const port of ports) {
-    if (!(await taken(port))) {
-      throw new Error(`nothing listened on port ${port} within three minutes`)
+  return done()
+}
+
+try {
+  const listening = await within(180, async () => {
+    if (exited) {
+      throw new Error('pnpm dev exited before every app was listening')
     }
+    return (await held()).length === ports.length
+  })
+
+  if (!listening) {
+    await fail('not every app was listening within three minutes')
   }
 
   // Taken while every process still points at its parent, so the list is complete.
@@ -240,55 +343,25 @@ try {
   say('→ Ctrl+C')
   pressCtrlC(run)
 
-  for (let second = 0; second < 60 && !exited; second += 1) {
-    await sleep(1000)
-  }
-
-  if (!exited) {
-    throw new Error('pnpm dev was still running a minute after Ctrl+C')
+  if (!(await within(90, () => exited))) {
+    await fail('pnpm dev was still running ninety seconds after Ctrl+C')
   }
 
   // ports.mjs waits for the ports before it exits; a little patience covers what the system has not reaped yet.
-  for (let second = 0; second < 40; second += 1) {
-    const left = started.filter(({ pid }) => alive(pid))
-    const held = []
+  const clean = await within(60, async () => {
+    const now = processes()
+    const running = started.some(({ pid, created }) =>
+      now.some((process) => process.pid === pid && process.created === created),
+    )
+    return !running && (await held()).length === 0 && fromProject().length === 0
+  })
 
-    for (const port of ports) {
-      if (await taken(port)) {
-        held.push(port)
-      }
-    }
-
-    if (left.length === 0 && held.length === 0) {
-      say(`→ every process stopped and ports ${ports.join(', ')} are free`)
-      process.exit(0)
-    }
-
-    if (second === 39) {
-      throw new Error(
-        [
-          'Ctrl+C left something behind:',
-          ...left.map(({ pid, name }) => `  still running: ${name} (pid ${pid})`),
-          ...held.map((port) => `  still held: port ${port}`),
-        ].join('\n'),
-      )
-    }
-    await sleep(1000)
+  if (!clean) {
+    await fail('Ctrl+C left something behind')
   }
+
+  say(`→ every process stopped and ports ${ports.join(', ')} are free`)
+  process.exit(0)
 } catch (error) {
-  const left = tree(run.pid)
-  say(
-    `→ the run's processes now: ${left.map(({ pid, name }) => `${name} (${pid})`).join(', ') || 'none'}`,
-  )
-
-  // Whatever the check left running must not outlive it, or the next job on the machine meets it.
-  kill([...started.map(({ pid }) => pid), ...left.map(({ pid }) => pid)])
-  if (windows) {
-    spawnSync('taskkill', ['/PID', String(run.pid), '/T', '/F'], { stdio: 'ignore' })
-  } else {
-    try {
-      process.kill(-run.pid, 'SIGKILL')
-    } catch {}
-  }
-  throw error
+  await fail(error instanceof Error ? error.message : String(error))
 }
