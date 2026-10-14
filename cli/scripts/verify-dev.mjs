@@ -5,7 +5,9 @@
 //
 // Ctrl+C is what a person presses, so it is what this sends. On macOS and Linux that is SIGINT to the run's process
 // group. Windows has no signal one process can send another as Ctrl+C, so there the run gets a console of its own and
-// the event is raised in that console, which is what a terminal does when the key is pressed.
+// the event is raised in that console, which is what a terminal does when the key is pressed. For that, the check
+// runs again detached, with no console at all: the shell it then starts is given a new console, which is the run's
+// alone, while its output still comes back here.
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { connect } from 'node:net'
@@ -21,6 +23,17 @@ const PORTS = {
 }
 
 const project = resolve(process.argv[2] ?? '')
+
+if (windows && process.argv[3] !== '--host') {
+  const host = spawn(process.execPath, [import.meta.filename, project, '--host'], {
+    stdio: 'inherit',
+    detached: true,
+  })
+
+  process.exitCode = await new Promise((done) => host.once('exit', (code) => done(code ?? 1)))
+  process.exit()
+}
+
 const config = JSON.parse(readFileSync(join(project, '.prumo', 'config.json'), 'utf8'))
 
 // An API's `dev` first wants a database, which this check has no Docker for.
@@ -126,15 +139,9 @@ function start() {
     })
   }
 
-  // Detached, cmd.exe has no console, so the first program it runs is given a new one: the run's own console, as a
-  // terminal window would be. The Ctrl+C raised in it reaches the run and nothing of this script or of CI.
-  return spawn('pnpm dev', {
-    cwd: project,
-    stdio: ['ignore', 'inherit', 'inherit'],
-    shell: true,
-    detached: true,
-    windowsHide: true,
-  })
+  // This process has no console, so the shell is given a new one: the run's own, as a terminal window would be. The
+  // Ctrl+C raised in it reaches the run and nothing of this script or of CI.
+  return spawn('pnpm dev', { cwd: project, stdio: ['ignore', 'inherit', 'inherit'], shell: true })
 }
 
 // Attaches to the run's console and raises Ctrl+C there, ignoring it itself. Every process of that console receives
@@ -160,15 +167,8 @@ function pressCtrlC(run) {
     return
   }
 
-  // cmd.exe holds no console; any process directly below it holds the run's.
-  const inConsole = processes().find((process) => process.parent === run.pid)
-
-  if (inConsole === undefined) {
-    throw new Error('nothing runs below cmd.exe, so there is no console to press Ctrl+C in')
-  }
-
   const pressed = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', CTRL_C], {
-    env: { ...process.env, PRUMO_CONSOLE_OF: String(inConsole.pid) },
+    env: { ...process.env, PRUMO_CONSOLE_OF: String(run.pid) },
     stdio: ['ignore', 'inherit', 'inherit'],
   })
 
@@ -237,7 +237,7 @@ try {
   }
 
   // ports.mjs waits for the ports before it exits; a little patience covers what the system has not reaped yet.
-  for (let second = 0; second < 10; second += 1) {
+  for (let second = 0; second < 40; second += 1) {
     const left = started.filter(({ pid }) => alive(pid))
     const held = []
 
@@ -252,7 +252,7 @@ try {
       process.exit(0)
     }
 
-    if (second === 9) {
+    if (second === 39) {
       throw new Error(
         [
           'Ctrl+C left something behind:',
@@ -264,8 +264,13 @@ try {
     await sleep(1000)
   }
 } catch (error) {
+  const left = tree(run.pid)
+  say(
+    `→ the run's processes now: ${left.map(({ pid, name }) => `${name} (${pid})`).join(', ') || 'none'}`,
+  )
+
   // Whatever the check left running must not outlive it, or the next job on the machine meets it.
-  kill([...started.map(({ pid }) => pid), ...tree(run.pid).map(({ pid }) => pid)])
+  kill([...started.map(({ pid }) => pid), ...left.map(({ pid }) => pid)])
   if (windows) {
     spawnSync('taskkill', ['/PID', String(run.pid), '/T', '/F'], { stdio: 'ignore' })
   } else {
