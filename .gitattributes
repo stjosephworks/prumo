@@ -1,0 +1,2 @@
+# LF in every checkout, Windows included: Biome formats to LF, and the CLI reads the templates line by line.
+* text=auto eol=lf
