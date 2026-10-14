@@ -171,13 +171,23 @@ async function taken(port) {
 function holders(port) {
   if (windows) {
     const lines = spawnSync('netstat', ['-ano'], { encoding: 'utf8' }).stdout ?? ''
-    const pids = new Set(
-      lines
-        .split('\n')
-        .filter((line) => /LISTENING/.test(line) && new RegExp(`[:.]${port}\\s`).test(line))
-        .map((line) => line.trim().split(/\s+/).at(-1))
-        .filter((pid) => pid !== undefined && pid !== '0'),
-    )
+    const pids = new Set()
+
+    // Windows translates the state column, so a listener is told by its remote address instead: only a socket that
+    // is listening has none, which netstat writes as port 0.
+    for (const line of lines.split('\n')) {
+      const [protocol, local, remote, ...rest] = line.trim().split(/\s+/)
+      const pid = rest.at(-1)
+
+      if (
+        protocol === 'TCP' &&
+        local?.endsWith(`:${port}`) &&
+        remote?.endsWith(':0') &&
+        pid !== '0'
+      ) {
+        pids.add(pid)
+      }
+    }
 
     return [...pids].map((pid) => ({ pid: Number(pid), command: commandOf(pid) }))
   }
@@ -194,9 +204,8 @@ function commandOf(pid) {
     : spawnSync('ps', ['-p', String(pid), '-o', 'comm='], { encoding: 'utf8' })
   const output = (result.stdout ?? '').trim()
 
-  return windows
-    ? (output.split(',')[0]?.replaceAll('"', '') ?? 'unknown')
-    : basename(output || 'unknown')
+  // tasklist answers a pid it does not know with a translated sentence, never with a quoted CSV row.
+  return windows ? (/^"([^"]*)"/.exec(output)?.[1] ?? 'unknown') : basename(output || 'unknown')
 }
 
 async function freed(port) {
@@ -370,7 +379,9 @@ async function shutdown(child, ports, known) {
   const stopped = []
 
   if (windows) {
-    spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+    // Windows keeps a dead parent's id on its children, so the tree read above still reaches what outlived its parent.
+    const pids = tree.flatMap((pid) => ['/PID', String(pid)])
+    spawnSync('taskkill', ['/T', '/F', ...pids], { stdio: 'ignore' })
   } else {
     for (const pid of tree) {
       signal(pid, 'SIGTERM')
@@ -459,6 +470,14 @@ async function supervise(child, ports) {
   return stopped
 }
 
+// On Windows the command is most often a .cmd shim, such as pnpm or vite, which Node starts only through a shell, and
+// a shell given an argument list is deprecated (DEP0190). So it gets one line, each part quoted when it needs it.
+function commandLine(parts) {
+  return parts
+    .map((part) => (/^[\w@+=:,./\\-]+$/.test(part) ? part : `"${part.replaceAll('"', '""')}"`))
+    .join(' ')
+}
+
 async function main() {
   const ports = {}
 
@@ -481,7 +500,9 @@ async function main() {
   const withPort = flag.flatMap((entry) =>
     entry === '--port' ? ['--port', String(ports[type])] : [entry],
   )
-  const child = spawn(command, [...args, ...withPort], { stdio: 'inherit', shell: windows })
+  const child = windows
+    ? spawn(commandLine([command, ...args, ...withPort]), { stdio: 'inherit', shell: true })
+    : spawn(command, [...args, ...withPort], { stdio: 'inherit' })
   const stopped = await supervise(child, Object.values(ports))
 
   return { ports, ran: [command, ...args, ...withPort].join(' '), stopped }
