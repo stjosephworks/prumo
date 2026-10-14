@@ -412,6 +412,11 @@ async function shutdown(child, ports, known) {
         stopped.push(`${command} (pid ${pid}) on port ${port}`)
       }
 
+      // The port is released once the system has reaped what was killed, which is not at once.
+      if (ours.length > 0) {
+        await freed(port)
+      }
+
       if (theirs.length > 0) {
         say(`Port ${port} is still held by ${describe(theirs)}, which this project did not start.`)
       }
