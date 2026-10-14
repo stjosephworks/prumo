@@ -43,6 +43,21 @@ API, and it removes the temporary spec it writes even when it fails.
 The same script runs in CI over every generated project in the matrix, and once more on the Node floor, so a change that only works on the machine
 that made it is caught on push rather than by the next person to generate.
 
+It runs on Windows too, natively, over every type alone and over a workspace of every client. A GitHub Windows
+runner's Docker runs Windows containers only, where the API's Postgres image cannot run, so there `verify.mjs` builds
+the API and prints that it skipped the API's tests, migration and start. Those three are proved on Linux alone.
+
+`cli/scripts/verify-dev.mjs` proves the other half of starting: that Ctrl+C on `pnpm dev` stops every process the run
+started and frees every port. It presses Ctrl+C as a terminal does, SIGINT to the run's process group on macOS and
+Linux and a console control event on Windows, and it runs in CI on Windows over each project without an API:
+
+```sh
+node cli/scripts/verify-dev.mjs ./scratch
+```
+
+`scripts/ports.mjs` ships identical in every template and at the workspace root. A change to one is copied to the
+other four, and `cli/test/ports.spec.ts` runs against them.
+
 ## Regenerating `templates/mobile`
 
 Expo's `create-expo-app` writes `AGENTS.md`, `CLAUDE.md` and `.claude/settings.json` from the

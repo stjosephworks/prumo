@@ -171,13 +171,23 @@ async function taken(port) {
 function holders(port) {
   if (windows) {
     const lines = spawnSync('netstat', ['-ano'], { encoding: 'utf8' }).stdout ?? ''
-    const pids = new Set(
-      lines
-        .split('\n')
-        .filter((line) => /LISTENING/.test(line) && new RegExp(`[:.]${port}\\s`).test(line))
-        .map((line) => line.trim().split(/\s+/).at(-1))
-        .filter((pid) => pid !== undefined && pid !== '0'),
-    )
+    const pids = new Set()
+
+    // Windows translates the state column, so a listener is told by its remote address instead: only a socket that
+    // is listening has none, which netstat writes as port 0.
+    for (const line of lines.split('\n')) {
+      const [protocol, local, remote, ...rest] = line.trim().split(/\s+/)
+      const pid = rest.at(-1)
+
+      if (
+        protocol === 'TCP' &&
+        local?.endsWith(`:${port}`) &&
+        remote?.endsWith(':0') &&
+        pid !== '0'
+      ) {
+        pids.add(pid)
+      }
+    }
 
     return [...pids].map((pid) => ({ pid: Number(pid), command: commandOf(pid) }))
   }
@@ -194,9 +204,8 @@ function commandOf(pid) {
     : spawnSync('ps', ['-p', String(pid), '-o', 'comm='], { encoding: 'utf8' })
   const output = (result.stdout ?? '').trim()
 
-  return windows
-    ? (output.split(',')[0]?.replaceAll('"', '') ?? 'unknown')
-    : basename(output || 'unknown')
+  // tasklist answers a pid it does not know with a translated sentence, never with a quoted CSV row.
+  return windows ? (/^"([^"]*)"/.exec(output)?.[1] ?? 'unknown') : basename(output || 'unknown')
 }
 
 async function freed(port) {
@@ -213,7 +222,7 @@ async function freed(port) {
 async function stopHolders(port, found) {
   for (const { pid } of found) {
     if (windows) {
-      spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
+      terminate(processTree([pid]))
     } else {
       // The whole group, so that a shell's children go with it; a lone process when it leads no group.
       try {
@@ -319,41 +328,197 @@ async function settle(type) {
   throw new Failure('declined', 'Nothing was started.')
 }
 
-// Every process below one, as the system sees them right now.
-function processTree(pid) {
+// Windows has a precise answer to "what did this command start": a job object. A process created by a member of a job
+// is a member too, whatever became of its parent, so the job's member list holds everything the command started,
+// with no reading of the process tree to come too late. A PowerShell helper creates the job, puts this process in it
+// before the command starts, and lists the members when asked.
+const JOB_HELPER = `
+$ErrorActionPreference = 'Stop'
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class PrumoJob {
+  [DllImport("kernel32.dll", SetLastError = true)] public static extern IntPtr CreateJobObject(IntPtr attributes, string name);
+  [DllImport("kernel32.dll", SetLastError = true)] public static extern IntPtr OpenProcess(uint access, bool inherit, uint id);
+  [DllImport("kernel32.dll", SetLastError = true)] public static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+  [DllImport("kernel32.dll", SetLastError = true)] public static extern bool SetConsoleCtrlHandler(IntPtr handler, bool ignore);
+  [DllImport("kernel32.dll", SetLastError = true)] static extern bool QueryInformationJobObject(IntPtr job, int kind, IntPtr information, int length, IntPtr returned);
+  public static string Members(IntPtr job) {
+    int length = 8 + IntPtr.Size * 16384;
+    IntPtr list = Marshal.AllocHGlobal(length);
+    try {
+      if (!QueryInformationJobObject(job, 3, list, length, IntPtr.Zero)) { return ""; }
+      int count = Marshal.ReadInt32(list, 4);
+      string[] ids = new string[count];
+      for (int i = 0; i < count; i++) { ids[i] = Marshal.ReadIntPtr(list, 8 + i * IntPtr.Size).ToInt64().ToString(); }
+      return String.Join(" ", ids);
+    } finally {
+      Marshal.FreeHGlobal(list);
+    }
+  }
+}
+'@
+# Ctrl+C is for the command; the helper has to outlive it to list what is left.
+[void][PrumoJob]::SetConsoleCtrlHandler([IntPtr]::Zero, $true)
+$job = [PrumoJob]::CreateJobObject([IntPtr]::Zero, $null)
+$member = [PrumoJob]::OpenProcess(0x0101, $false, [uint32]$env:PRUMO_JOB_MEMBER)
+if ($job -eq [IntPtr]::Zero -or $member -eq [IntPtr]::Zero -or -not [PrumoJob]::AssignProcessToJobObject($job, $member)) { exit 1 }
+[Console]::Out.WriteLine('ready')
+while ($null -ne [Console]::In.ReadLine()) { [Console]::Out.WriteLine([PrumoJob]::Members($job)) }
+`
+
+// The job, or undefined where there is none: elsewhere than Windows, or when the helper could not make one, and then
+// the process tree read on a schedule is what is left.
+async function startJob() {
+  if (!windows) {
+    return undefined
+  }
+
+  const helper = spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', JOB_HELPER], {
+    stdio: ['pipe', 'pipe', 'ignore'],
+    windowsHide: true,
+    env: { ...process.env, PRUMO_JOB_MEMBER: String(process.pid) },
+  })
+  const lines = []
+  const waiting = []
+  let pending = ''
+
+  helper.on('error', () => {})
+  helper.stdin.on('error', () => {})
+  helper.stdout.setEncoding('utf8')
+  helper.stdout.on('data', (chunk) => {
+    const parts = (pending + chunk).split('\n')
+
+    pending = parts.pop() ?? ''
+    for (const line of parts) {
+      const resolve = waiting.shift()
+
+      if (resolve === undefined) {
+        lines.push(line.trim())
+      } else {
+        resolve(line.trim())
+      }
+    }
+  })
+
+  // A timer keeps this process alive while it waits, since the helper itself does not.
+  const next = (ms) =>
+    new Promise((resolve) => {
+      const line = lines.shift()
+
+      if (line !== undefined) {
+        resolve(line)
+        return
+      }
+
+      const timer = setTimeout(() => resolve(undefined), ms)
+
+      waiting.push((value) => {
+        clearTimeout(timer)
+        resolve(value)
+      })
+    })
+
+  if ((await next(60_000)) !== 'ready') {
+    helper.kill()
+    return undefined
+  }
+
+  helper.unref()
+  helper.stdin.unref?.()
+  helper.stdout.unref?.()
+
+  return {
+    members: async () => {
+      helper.stdin.write('list\n')
+
+      return ((await next(10_000)) ?? '')
+        .split(' ')
+        .map(Number)
+        .filter((pid) => Number.isInteger(pid) && pid > 0 && pid !== process.pid)
+    },
+    close: () => helper.kill(),
+  }
+}
+
+// Ends exactly these processes on Windows, and nothing else. `taskkill /T` is never used: it follows the same parent
+// ids, which Windows does not keep honest, as processTree below explains.
+function terminate(pids) {
+  if (pids.length > 0) {
+    spawnSync('taskkill', ['/F', ...pids.flatMap((pid) => ['/PID', String(pid)])], {
+      stdio: 'ignore',
+      timeout: 60_000,
+    })
+  }
+}
+
+// Every process below the ones given, as the system sees them right now.
+//
+// On Windows a process keeps its parent's id after the parent exits, and the id is then given to the next process
+// that starts. A process of the run can so inherit the number that winlogon, dwm or csrss name as their parent, and a
+// tree followed by ids alone adopts them: on the CI runner that once stopped the session itself. A child is therefore
+// only taken as one when it started after its parent; a process that started before the one holding its parent's
+// number cannot be that process's child.
+function processTree(roots) {
   const listed = windows
     ? spawnSync(
         'powershell',
         [
           '-NoProfile',
+          '-NonInteractive',
           '-Command',
-          'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId)" }',
+          'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) $(if ($_.CreationDate) { $_.CreationDate.ToFileTimeUtc() } else { 0 })" }',
         ],
-        { encoding: 'utf8' },
+        { encoding: 'utf8', timeout: 60_000 },
       )
-    : spawnSync('ps', ['-eo', 'pid=,ppid='], { encoding: 'utf8' })
-  const children = new Map()
+    : spawnSync('ps', ['-eo', 'pid=,ppid='], { encoding: 'utf8', timeout: 60_000 })
+  const started = new Map()
+  const links = []
 
   for (const line of (listed.stdout ?? '').split('\n')) {
-    const [child, parent] = line.trim().split(/\s+/).map(Number)
+    const [child, parent, created] = line.trim().split(/\s+/).map(Number)
 
     if (Number.isInteger(child) && Number.isInteger(parent)) {
+      links.push([child, parent])
+      started.set(child, created ?? 0)
+    }
+  }
+
+  const children = new Map()
+
+  for (const [child, parent] of links) {
+    const parentStarted = started.get(parent)
+    const honest = !windows || parentStarted === undefined || parentStarted <= started.get(child)
+
+    if (honest && child !== parent) {
       children.set(parent, [...(children.get(parent) ?? []), child])
     }
   }
 
   const tree = []
-  const pending = [pid]
+  const pending = [...roots]
 
   while (pending.length > 0) {
     const current = pending.shift()
 
-    tree.push(current)
-    pending.push(...(children.get(current) ?? []))
+    if (!tree.includes(current)) {
+      tree.push(current)
+      pending.push(...(children.get(current) ?? []))
+    }
   }
 
-  // Deepest first, so a parent does not restart what was just stopped.
-  return tree.reverse()
+  // Deepest first, so a parent does not restart what was just stopped. On Windows only what is running now: the number
+  // of a process that exited may already name another one.
+  return (windows ? tree.filter((pid) => started.has(pid)) : tree).reverse()
+}
+
+function alive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error.code === 'EPERM'
+  }
 }
 
 function signal(pid, sign) {
@@ -365,12 +530,18 @@ function signal(pid, sign) {
 // `pnpm -r --parallel` starts each app in a process group of its own, so the terminal's Ctrl+C reaches pnpm and
 // nothing below it. Whatever was started here is therefore stopped from here, and never anything else: the tree is
 // read before the first signal, while the processes still point at their parents.
-async function shutdown(child, ports, known) {
-  const tree = [...new Set([...processTree(child.pid), ...known])].reverse()
+async function shutdown(child, ports, known, job) {
+  // With a job its members are exactly what the command started. Without one, on Windows, the tree is also read from
+  // every process seen while the command ran, since a process keeps its parent's id after the parent exits; elsewhere
+  // an orphan moves to init, and below a dead pid there is only whatever reused the number.
+  const members = (await job?.members()) ?? []
+  const roots = windows && job === undefined ? [child.pid, ...known] : [child.pid]
+  const below = processTree(roots)
+  const tree = [...new Set([...below, ...known, ...members])].reverse()
   const stopped = []
 
   if (windows) {
-    spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+    terminate([...new Set([...below, ...members])])
   } else {
     for (const pid of tree) {
       signal(pid, 'SIGTERM')
@@ -387,6 +558,11 @@ async function shutdown(child, ports, known) {
         stopped.push(`${command} (pid ${pid}) on port ${port}`)
       }
 
+      // The port is released once the system has reaped what was killed, which is not at once.
+      if (ours.length > 0) {
+        await freed(port)
+      }
+
       if (theirs.length > 0) {
         say(`Port ${port} is still held by ${describe(theirs)}, which this project did not start.`)
       }
@@ -400,13 +576,18 @@ async function shutdown(child, ports, known) {
   return stopped
 }
 
-async function supervise(child, ports) {
+async function supervise(child, ports, job) {
   // Ctrl+C reaches the child through the terminal; this process only waits, and then makes sure nothing survived.
   // Once the child is gone, its own children answer to the system and no longer to it, so who they were is
   // remembered while they are still running: on a schedule, and again the moment the signal arrives.
   const known = new Set([child.pid])
+  // A job lists its members at the end, so with one there is nothing to remember on the way.
   const remember = () => {
-    for (const pid of processTree(child.pid)) {
+    if (job !== undefined) {
+      return
+    }
+
+    for (const pid of processTree([child.pid])) {
       known.add(pid)
     }
   }
@@ -432,6 +613,16 @@ async function supervise(child, ports) {
   remember()
   const watch = setInterval(remember, 2000)
 
+  // `pnpm -r --parallel` starts each app in a process group of its own, which the terminal's Ctrl+C never reaches, and
+  // a Ctrl+C right after the start comes before the workspace's ports.mjs has seen the apps. So an app's ports.mjs
+  // does not wait to be told: once whatever started it is gone, nobody is left to stop it, and it stops its own tree.
+  const parent = process.ppid
+  const orphaned = setInterval(() => {
+    if (!interrupted && !alive(parent)) {
+      interrupt('SIGTERM')
+    }
+  }, 250)
+
   let patience
   const code = await new Promise((done) => {
     child.once('error', () => done(1))
@@ -449,8 +640,11 @@ async function supervise(child, ports) {
   clearInterval(patience)
   clearTimeout(patience)
   clearInterval(watch)
+  clearInterval(orphaned)
 
-  const stopped = await shutdown(child, ports, known)
+  const stopped = await shutdown(child, ports, known, job)
+
+  job?.close()
 
   process.off('SIGINT', onInterrupt)
   process.off('SIGTERM', onTerminate)
@@ -459,16 +653,31 @@ async function supervise(child, ports) {
   return stopped
 }
 
+// On Windows the command is most often a .cmd shim, such as pnpm or vite, which Node starts only through a shell, and
+// a shell given an argument list is deprecated (DEP0190). So it gets one line, each part quoted when it needs it.
+function commandLine(parts) {
+  return parts
+    .map((part) => (/^[\w@+=:,./\\-]+$/.test(part) ? part : `"${part.replaceAll('"', '""')}"`))
+    .join(' ')
+}
+
 async function main() {
   const ports = {}
-
-  for (const type of typesToCheck()) {
-    if (type !== undefined) {
-      ports[type] = await settle(type)
-    }
-  }
-
   const [command, ...args] = positionals
+
+  // PowerShell takes a few seconds to make the job, so it does while the ports are settled.
+  const starting = command === undefined ? undefined : startJob()
+
+  try {
+    for (const type of typesToCheck()) {
+      if (type !== undefined) {
+        ports[type] = await settle(type)
+      }
+    }
+  } catch (error) {
+    ;(await starting)?.close()
+    throw error
+  }
 
   if (command === undefined) {
     return { ports }
@@ -481,8 +690,12 @@ async function main() {
   const withPort = flag.flatMap((entry) =>
     entry === '--port' ? ['--port', String(ports[type])] : [entry],
   )
-  const child = spawn(command, [...args, ...withPort], { stdio: 'inherit', shell: windows })
-  const stopped = await supervise(child, Object.values(ports))
+  // Before the command starts, so that it and everything it starts are members from their first instant.
+  const job = await starting
+  const child = windows
+    ? spawn(commandLine([command, ...args, ...withPort]), { stdio: 'inherit', shell: true })
+    : spawn(command, [...args, ...withPort], { stdio: 'inherit' })
+  const stopped = await supervise(child, Object.values(ports), job)
 
   return { ports, ran: [command, ...args, ...withPort].join(' '), stopped }
 }

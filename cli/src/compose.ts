@@ -79,7 +79,11 @@ async function copyApp(templates: string, target: string, type: AppType): Promis
   const destination = join(target, 'apps', type)
 
   await copyTemplate(join(templates, type), destination)
-  await rm(join(destination, '.githooks'), { recursive: true, force: true })
+
+  // The workspace root carries both, for every app below it.
+  for (const rootOnly of ['.githooks', '.gitattributes']) {
+    await rm(join(destination, rootOnly), { recursive: true, force: true })
+  }
 
   return destination
 }

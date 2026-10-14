@@ -1,11 +1,10 @@
-import { spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { runCommand } from './command.ts'
 import { type AppType, composeWorkspace, copyTemplate } from './compose.ts'
 import { type Answers, writeContext } from './context.ts'
-import { SHELL } from './doctor.ts'
 import { applyFeatures, enabledFor } from './features.ts'
 import { setJsonc } from './jsonc.ts'
 import { schemeFor, targetProblem } from './names.ts'
@@ -100,10 +99,9 @@ function run(command: string, args: string[], cwd: string, output: ChildOutput):
   stopIfInterrupted()
 
   // Under --json stdout belongs to the result document, so a child's output goes to stderr instead.
-  const result = spawnSync(command, args, {
+  const result = runCommand(command, args, {
     cwd,
     stdio: output === 'inherit' ? 'inherit' : ['ignore', 2, 2],
-    shell: SHELL,
   })
 
   // spawnSync holds the event loop, so the listener has not run yet; the child says it instead, either by dying of

@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process'
+import { runCommand } from './command.ts'
 
 export type Status = 'ok' | 'warn' | 'fail'
 
@@ -22,15 +22,15 @@ const NODE_FLOOR = [22, 18, 0]
 // Every generated workspace approves dependency builds with `allowBuilds`, which pnpm added in 10.26.0.
 const PNPM_FLOOR = [10, 26, 0]
 
-// On Windows pnpm is a .cmd shim, and Node starts one only through a shell.
-export const SHELL = process.platform === 'win32'
-
 export const systemProbe: Probe = {
   nodeVersion: process.versions.node,
   run: (command, args) => {
-    const result = spawnSync(command, args, { encoding: 'utf8', timeout: 10_000, shell: SHELL })
+    const result = runCommand(command, args, { encoding: 'utf8', timeout: 10_000 })
 
-    return { ok: result.error === undefined && result.status === 0, stdout: result.stdout ?? '' }
+    return {
+      ok: result.error === undefined && result.status === 0,
+      stdout: String(result.stdout ?? ''),
+    }
   },
 }
 
@@ -96,20 +96,26 @@ export async function doctor(probe: Probe = systemProbe): Promise<Report> {
   checks.push(...toolChecks(probe, ['pnpm', 'git']))
 
   const docker = probe.run('docker', ['--version'])
-  const dockerRunning = docker.ok && probe.run('docker', ['info']).ok
+  const engine = docker.ok ? probe.run('docker', ['info', '--format', '{{.OSType}}']) : undefined
+  const os = firstLine(engine?.stdout ?? '')
 
   checks.push({
     id: 'docker',
     label: 'Docker',
     required: false,
-    ...(dockerRunning
-      ? { status: 'ok', detail: firstLine(docker.stdout) }
-      : {
+    ...(engine?.ok !== true
+      ? {
           status: 'warn',
           detail: docker.ok
             ? 'installed but not running; open Docker Desktop. The API runs its database and tests in it'
-            : 'not found; install Docker Desktop. The API runs its database and tests in it',
-        }),
+            : 'not found; install Docker Desktop, on Windows with the WSL2 backend. The API runs its database and tests in it',
+        }
+      : os !== 'linux'
+        ? {
+            status: 'warn',
+            detail: `running ${os || 'unknown'} containers; switch Docker Desktop to Linux containers. The API's Postgres image is a Linux one`,
+          }
+        : { status: 'ok', detail: firstLine(docker.stdout) }),
   })
 
   return { ready: checks.every((check) => !check.required || check.status === 'ok'), checks }

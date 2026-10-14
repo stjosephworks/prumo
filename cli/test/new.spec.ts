@@ -334,6 +334,7 @@ describe('generate', () => {
     expect(await readFile(join(target, 'CLAUDE.md'), 'utf8')).toBe('@AGENTS.md\n')
     expect(existsSync(join(target, '.git'))).toBe(true)
     expect(existsSync(join(target, '.githooks/install.mjs'))).toBe(true)
+    expect(await readFile(join(target, '.gitattributes'), 'utf8')).toContain('eol=lf')
     expect(await readFile(join(target, '.env'), 'utf8')).toBe(
       await readFile(join(target, '.env.example'), 'utf8'),
     )
@@ -408,6 +409,8 @@ describe('generate', () => {
     expect(existsSync(join(target, '.prumo/web'))).toBe(false)
     expect(existsSync(join(target, '.githooks/install.mjs'))).toBe(true)
     expect(existsSync(join(target, 'apps/api/.githooks'))).toBe(false)
+    expect(await readFile(join(target, '.gitattributes'), 'utf8')).toContain('eol=lf')
+    expect(existsSync(join(target, 'apps/api/.gitattributes'))).toBe(false)
     expect(await readFile(join(target, 'apps/api/docker-compose.yml'), 'utf8')).toMatch(
       /^name: acme$/m,
     )
