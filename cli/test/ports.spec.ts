@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { createServer } from 'node:net'
+import { connect, createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -10,6 +10,41 @@ const templates = resolve(import.meta.dirname, '../../templates')
 const API = 39_001
 const WEB = 39_002
 const METRO = 39_003
+
+const windows = process.platform === 'win32'
+
+// A process group is POSIX: there the fixture leads one, so stopping it stops what it started. Windows has no such
+// group to signal, and its kill is always the whole process at once.
+function stop(pid: number | undefined) {
+  try {
+    process.kill(windows ? (pid ?? 0) : -(pid ?? 0), 'SIGKILL')
+  } catch {}
+}
+
+function alive(pid: number) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Asked the way ports.mjs asks, over TCP, so the answer does not depend on lsof or netstat.
+function listening(port: number) {
+  return new Promise<boolean>((done) => {
+    const socket = connect({ host: '127.0.0.1', port })
+    const finish = (open: boolean) => {
+      socket.destroy()
+      done(open)
+    }
+    socket.once('connect', () => finish(true))
+    socket.once('error', () => finish(false))
+  })
+}
+
+const SERVER = (port: number) =>
+  `require('node:net').createServer().listen(${port}, '127.0.0.1', () => setInterval(() => {}, 1000))`
 
 function hold(port: number) {
   const server = createServer()
@@ -137,14 +172,10 @@ describe('the ports check', () => {
 
   it('stops what holds the port when told to', async () => {
     await workspace(API)
-    const child = spawn(
-      process.execPath,
-      [
-        '-e',
-        `require('node:net').createServer().listen(${API}, '127.0.0.1', () => setInterval(() => {}, 1000))`,
-      ],
-      { detached: true, stdio: 'ignore' },
-    )
+    const child = spawn(process.execPath, ['-e', SERVER(API)], {
+      detached: !windows,
+      stdio: 'ignore',
+    })
 
     try {
       for (let attempt = 0; attempt < 50; attempt += 1) {
@@ -160,51 +191,94 @@ describe('the ports check', () => {
       expect(out.data.ports.api).toBe(API)
       expect(await env('apps/api/.env')).toMatch(new RegExp(`^PORT=${API}$`, 'm'))
     } finally {
-      try {
-        process.kill(-(child.pid ?? 0), 'SIGKILL')
-      } catch {}
+      stop(child.pid)
     }
   })
 
-  it('stops the whole tree on Ctrl+C, even what escaped into its own process group', async () => {
+  // Windows has no signal one process can send another as Ctrl+C: Node's SIGINT there ends the process at once, so
+  // ports.mjs would never see it. The check that follows covers Windows, and CI presses a real Ctrl+C on `pnpm dev`.
+  it.skipIf(windows)(
+    'stops the whole tree on Ctrl+C, even what escaped into its own process group',
+    async () => {
+      await workspace(API)
+      const api = join(root, 'apps', 'api')
+
+      // What `pnpm -r --parallel` does to every app: the server ends up in a process group the terminal never signals.
+      await writeFile(
+        join(api, 'runner.mjs'),
+        [
+          "import { spawn } from 'node:child_process'",
+          `const server = ${JSON.stringify(SERVER(API))}`,
+          "spawn(process.execPath, ['-e', server], { detached: true, stdio: 'ignore' }).unref()",
+          'setInterval(() => {}, 1000)',
+        ].join('\n'),
+      )
+
+      const supervisor = spawn(
+        process.execPath,
+        ['scripts/ports.mjs', '--json', '--', process.execPath, 'runner.mjs'],
+        { cwd: api, detached: true, stdio: 'ignore' },
+      )
+
+      try {
+        for (let attempt = 0; attempt < 100 && !(await listening(API)); attempt += 1) {
+          await new Promise((done) => setTimeout(done, 100))
+        }
+
+        expect(await listening(API), 'the fixture never took the port').toBe(true)
+
+        supervisor.kill('SIGINT')
+        await new Promise((done) => supervisor.once('exit', done))
+
+        expect(await listening(API), `something is still listening on ${API}`).toBe(false)
+      } finally {
+        stop(supervisor.pid)
+      }
+    },
+    30_000,
+  )
+
+  it('stops what the command left running when the command ends', async () => {
     await workspace(API)
     const api = join(root, 'apps', 'api')
 
-    // What `pnpm -r --parallel` does to every app: the server ends up in a process group the terminal never signals.
+    // The command starts a server it does not wait for, and exits once ports.mjs has had time to see the server.
     await writeFile(
       join(api, 'runner.mjs'),
       [
+        "import { writeFileSync } from 'node:fs'",
         "import { spawn } from 'node:child_process'",
-        `const server = "require('node:net').createServer().listen(${API}, '127.0.0.1', () => setInterval(() => {}, 1000))"`,
-        "spawn(process.execPath, ['-e', server], { detached: true, stdio: 'ignore' }).unref()",
-        'setInterval(() => {}, 1000)',
+        `const server = ${JSON.stringify(SERVER(API))}`,
+        "const child = spawn(process.execPath, ['-e', server], { detached: true, stdio: 'ignore' })",
+        "writeFileSync('server.pid', String(child.pid))",
+        'child.unref()',
+        'setTimeout(() => {}, 5000)',
       ].join('\n'),
     )
 
     const supervisor = spawn(
       process.execPath,
       ['scripts/ports.mjs', '--json', '--', process.execPath, 'runner.mjs'],
-      { cwd: api, detached: true, stdio: 'ignore' },
+      { cwd: api, stdio: 'ignore' },
     )
-
-    const listening = () =>
-      spawnSync('lsof', ['-ti', `tcp:${API}`, '-sTCP:LISTEN'], { encoding: 'utf8' }).stdout.trim()
+    const exited = new Promise((done) => supervisor.once('exit', done))
+    let server: number | undefined
 
     try {
-      for (let attempt = 0; attempt < 100 && listening() === ''; attempt += 1) {
+      for (let attempt = 0; attempt < 100 && !(await listening(API)); attempt += 1) {
         await new Promise((done) => setTimeout(done, 100))
       }
 
-      expect(listening(), 'the fixture never took the port').not.toBe('')
+      expect(await listening(API), 'the fixture never took the port').toBe(true)
+      server = Number(await readFile(join(api, 'server.pid'), 'utf8'))
 
-      supervisor.kill('SIGINT')
-      await new Promise((done) => supervisor.once('exit', done))
+      await exited
 
-      expect(listening(), `something is still listening on ${API}`).toBe('')
+      expect(await listening(API), `something is still listening on ${API}`).toBe(false)
+      expect(alive(server), `the server, pid ${server}, outlived the command`).toBe(false)
     } finally {
-      try {
-        process.kill(-(supervisor.pid ?? 0), 'SIGKILL')
-      } catch {}
+      stop(supervisor.pid)
+      stop(server)
     }
   }, 30_000)
 
