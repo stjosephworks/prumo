@@ -1,6 +1,7 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport } from '@test/support/fake-transport'
 import { memoryTokenStore } from '@test/support/memory-token-store'
+import { createTestQueryClient } from '@test/support/query-client'
 import { render, screen, userEvent, waitFor } from '@testing-library/react-native'
 import { createAuthClient } from '@/api-contract'
 import { SignOutButton } from '@/features/auth/sign-out-button'
@@ -10,7 +11,7 @@ import { clearUserData } from '@/features/storage/storage'
 jest.mock('@/features/storage/storage', () => ({ clearUserData: jest.fn() }))
 
 async function signOutWith(signOut: () => Response | Promise<Response>) {
-  const queryClient = new QueryClient()
+  const queryClient = createTestQueryClient()
   const onSignedOut = jest.fn()
   const auth = createAuthClient({
     baseUrl: API_URL,

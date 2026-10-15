@@ -1,6 +1,7 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
 import { memoryTokenStore } from '@test/support/memory-token-store'
+import { createTestQueryClient } from '@test/support/query-client'
 import { renderRouter, screen } from 'expo-router/testing-library'
 import type { ReactNode } from 'react'
 import { Text } from 'react-native'
@@ -23,7 +24,7 @@ async function renderAt(getSession: () => Response | Promise<Response>) {
     tokens: memoryTokenStore(TOKENS),
   })
   const clients = { auth, api: createClient({ baseUrl: API_URL, fetch: auth.fetch }) }
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const queryClient = createTestQueryClient()
 
   function Providers({ children }: { children: ReactNode }) {
     return (
