@@ -1,5 +1,6 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
+import { createTestQueryClient } from '@test/support/query-client'
 import { render, screen, userEvent, within } from '@testing-library/react-native'
 import { createClient, type Profile } from '@/api-contract'
 import { ProfileForm } from '@/features/profile/profile-form'
@@ -36,9 +37,7 @@ describe('ProfileForm', () => {
       }),
     })
 
-    // A mutation left without an observer starts a five-minute garbage-collection timer, and Jest's worker would wait
-    // it out. Infinity schedules none, as TanStack Query's testing guide advises.
-    const queryClient = new QueryClient({ defaultOptions: { mutations: { gcTime: Infinity } } })
+    const queryClient = createTestQueryClient()
 
     await render(
       <QueryClientProvider client={queryClient}>

@@ -1,5 +1,6 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
+import { createTestQueryClient } from '@test/support/query-client'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
@@ -40,7 +41,7 @@ describe('ProfileForm', () => {
     })
 
     render(
-      <QueryClientProvider client={new QueryClient()}>
+      <QueryClientProvider client={createTestQueryClient()}>
         <ProfileForm api={api} profile={profile} />
       </QueryClientProvider>,
     )

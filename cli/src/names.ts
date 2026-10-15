@@ -1,5 +1,6 @@
 import { readdirSync, statSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
+import { EXTENDED_BY_PNPM } from './pnpm-extended.ts'
 
 const PROJECT_NAME = /^[a-z][a-z0-9-]*$/
 
@@ -22,7 +23,25 @@ export function validateProjectName(name: string): string | undefined {
     return 'That is the name an app takes inside a workspace; choose another.'
   }
 
-  return undefined
+  return extendedByPnpm(name)
+}
+
+function extendedByPnpm(name: string): string | undefined {
+  const added = Object.hasOwn(EXTENDED_BY_PNPM, name) ? EXTENDED_BY_PNPM[name] : undefined
+
+  if (added === undefined) {
+    return undefined
+  }
+
+  const shown =
+    added.length > 3
+      ? `${added.slice(0, 3).join(', ')} and ${added.length - 3} more`
+      : added.join(', ')
+
+  return (
+    `pnpm extends the npm package "${name}" with ${shown}, and would install them into a project of that name. ` +
+    `Choose another, such as "${name}-app".`
+  )
 }
 
 // Why a directory cannot receive a project, or undefined when it can: it does not exist yet, or it is empty.
