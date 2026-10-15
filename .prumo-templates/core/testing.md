@@ -67,6 +67,12 @@ for both, so no timer starts, and `retry: false` for queries, so a failure shows
 Query's testing guide gives. Vitest does not wait on the timer, and `web` uses the same helper so that one rule
 holds in both.
 
+**`web` turns route code splitting off under Vitest**, in `vite.config.ts`. Split, a route's component is a module
+Vite transforms the first time a test renders it, inside the one second a `find*` query waits, and on a loaded CI
+runner the first page of a test file missed it. The wait is not the problem and is not raised: with the transform
+gone the same load passes, and past that load a longer wait fails the same tests anyway. **What it costs:** the
+tests never load a route's lazy chunk; the build and its preview do.
+
 A coverage threshold turns a proxy into a target. Whoever is below writes tests to raise the number rather
 than to check anything; whoever is above stops thinking. With no database mocks a test costs more to write,
 which pushes even harder towards the cheap way of raising coverage: the test that asserts nothing.
