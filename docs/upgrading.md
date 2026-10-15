@@ -1,0 +1,139 @@
+# Upgrading a project
+
+Prumo writes a project once and does not come back to it. There is no `prumo upgrade`, and updating a
+project's `.prumo/` in place comes after 1.0. What a later version changed in the files it generates is
+listed here, so a team can carry the change over by hand.
+
+The version that generated a project is `prumo` in its `.prumo/config.json`. A config without that field was
+written by 0.1.0.
+
+## The method
+
+Generate two reference projects with the same answers, one at the version the project came from and one at
+the version you are moving to. The difference between them is what Prumo changed; the difference between the
+older one and your project is what your team changed.
+
+1. Read the answers from `.prumo/config.json` and turn each into its flag:
+
+   | Field | Flag |
+   |---|---|
+   | `types` | `--types api,web` |
+   | `architecture` | `--alone` or `--monorepo` |
+   | `multiTenant` | `--multi-tenant` or `--single-tenant` |
+   | `mcp` | `--mcp` or `--no-mcp` |
+   | `email` | `--email` or `--no-email` |
+   | `social` | `--social google,apple`, or `--no-social` when it is empty |
+
+   `email` and `social` exist from 0.4.0. A project generated before has neither, so its reference at the old
+   version leaves both flags out, and its reference at the new one passes `--no-email --no-social`.
+
+2. Generate both, under the project's own name so that nothing differs by name alone:
+
+   ```sh
+   mkdir ../ref-old ../ref-new
+   (cd ../ref-old && npx @stjoseph/prumo@0.4.2 new acme --types api,web --monorepo --single-tenant --no-mcp --no-email --no-social --skip-install)
+   (cd ../ref-new && npx @stjoseph/prumo@0.5.1 new acme --types api,web --monorepo --single-tenant --no-mcp --no-email --no-social --skip-install)
+   ```
+
+3. Diff each file the sections below list:
+
+   ```sh
+   git diff --no-index ../ref-old/acme/scripts/ports.mjs ../ref-new/acme/scripts/ports.mjs   # what Prumo changed
+   git diff --no-index ../ref-old/acme/scripts/ports.mjs scripts/ports.mjs                   # what your team changed
+   ```
+
+   When the second diff is empty, copy the new file over. When it is not, the file is the team's now: apply
+   Prumo's change to it by hand, and keep what the team wrote.
+
+**Do not overwrite blindly.** A generated file the team edited carries decisions Prumo knows nothing about,
+and copying the new version deletes them without a trace. That holds most of all for `package.json`,
+`README.md`, `.env` (whose secret is generated afresh for every project) and the `.prumo/` documents, which
+belong to the team from the day they are written.
+
+With `--skip-install` the formatter does not run, so a workspace reference keeps the contract import as the
+template writes it. Formatting never touches the files listed here.
+
+## Where a file lands
+
+A path below is given as the project sees it when generated `alone`. In a workspace, each app's files sit under
+`apps/<type>/`, and the workspace root holds its own `scripts/ports.mjs`, `.githooks/` and `.gitattributes`:
+an app inside a workspace has no `.githooks/` or `.gitattributes` of its own.
+
+## What changed, release by release
+
+### 0.5.1
+
+| File | Types | Change |
+|---|---|---|
+| `test/support/query-client.ts` | web, mobile | New. `createTestQueryClient()` builds a test's `QueryClient` with `retry: false` and `gcTime: Infinity` |
+| Every spec that builds a `QueryClient`, and web's `test/support/render-app.tsx` | web, mobile | Build it with `createTestQueryClient()` instead of `new QueryClient()` |
+| `.prumo/core/testing.md` | every type | The rule names the helper instead of the option to remember |
+
+Why: a query or mutation left without an observer starts a five-minute timer, and Jest's worker waits on it until
+it is force-exited. 0.4.2 fixed one mobile spec; the helper fixes every test that will be written.
+
+`prumo new` also refuses a name pnpm's compatibility database extends, such as `ws`. Nothing in a project changes,
+but a project already named that way installs packages it never asked for: renaming the root `package.json` stops it.
+
+### 0.5.0
+
+| File | Types | Change |
+|---|---|---|
+| `.gitattributes` | every type, at the root | New. `* text=auto eol=lf` |
+| `scripts/ports.mjs` | every type, and the workspace root | Largely rewritten |
+| `scripts/database.mjs` | api | Migrates through the shell |
+| `README.md` | api, workspace | States the Windows requirements |
+
+Why: Prumo and its projects run natively on Windows from 0.5.0. `.gitattributes` keeps a Windows checkout in LF,
+which Biome would otherwise flag in every file. `ports.mjs` finds and stops a port's holders on Windows, and it
+also fixes macOS and Linux: an app's processes now stop when what started them is gone, so a Ctrl+C soon after
+`pnpm dev` no longer leaves apps running with their ports held. `database.mjs` runs `pnpm db:migrate` through the
+shell, which is how Node starts pnpm's shim on Windows. `prumo clean` removes `database.mjs` once the database
+exists, and only when the file is still the one its version shipped: a project already cleaned has nothing to
+change there, and one that copies the new file deletes it by hand when the database exists.
+
+### 0.4.3
+
+Nothing generated changed. `prumo new` without a terminal refuses a single type given neither `--alone` nor
+`--monorepo`.
+
+### 0.4.2
+
+| File | Types | Change |
+|---|---|---|
+| `migrations/package.json` | api | New. `{ "type": "module" }` |
+| `test/support/global-setup.ts` | api | `teardown` stops the container only when one started |
+| `test/features/profile/profile-form.spec.tsx` | mobile | Its `QueryClient` sets `mutations.gcTime` to `Infinity`; 0.5.1 replaces this with the helper |
+| `.prumo/database/migrations.md`, `.prumo/core/testing.md` | api, every type | Say why, in the two rules above |
+
+Why: Node loads the migrations as TypeScript by type stripping and, with no module type declared, warned
+`MODULE_TYPELESS_PACKAGE_JSON` in every test worker. When the Postgres image could not be pulled, the teardown
+threw a second error over the one that mattered. And the mobile profile test left a timer that made Jest
+force-exit its worker.
+
+### 0.4.1
+
+| File | Types | Change |
+|---|---|---|
+| `package.json` | mobile | Adds `expo-dev-client`; `ios` and `android` run `expo run:ios` and `expo run:android` through `ports.mjs` |
+| `README.md` | api, web, mobile, workspace | Says what email, social sign-in and MCP change, and how the mobile app runs |
+
+Why: the mobile app runs in a development build instead of Expo Go. This one is a choice, not a fix: a project
+happy with Expo Go can stay on it.
+
+### 0.4.0 and 0.3.0
+
+Not a matter of copying files. 0.3.0 replaced Better Auth with the API's own authentication, and 0.4.0 added
+email verification, password reset, social sign-in and MCP scopes, each across the API and its clients. A
+project generated before either keeps what it has; to adopt one, generate a reference with the feature and port
+it as you would any feature, with the reference as the example.
+
+### 0.2.0
+
+| File | Types | Change |
+|---|---|---|
+| `package.json` | api, web, mobile | `better-auth`, every `@better-auth/*` package and the api's `auth` from 1.7.6 to 1.7.7, adding `@better-auth/core` |
+| `package.json` | every type | `engines.node` rises to `>=22.18.0` |
+
+Why: Better Auth 1.7.7 fixes a critical advisory present in 1.7.6. A project from 0.1.x still on Better Auth
+should take this one, or a later release of Better Auth.

@@ -138,12 +138,21 @@ Once written, those documents belong to the team. Prumo does not come back and r
 | [`docs/structure.md`](https://github.com/stjosephworks/prumo/blob/main/docs/structure.md) | The `.prumo/` layout, and the rule deciding which areas a project receives |
 | [`docs/document-template.md`](https://github.com/stjosephworks/prumo/blob/main/docs/document-template.md) | The shape every convention document fills |
 | [`docs/maintaining-templates.md`](https://github.com/stjosephworks/prumo/blob/main/docs/maintaining-templates.md) | How a template is changed, and how the change is proved |
+| [`docs/upgrading.md`](https://github.com/stjosephworks/prumo/blob/main/docs/upgrading.md) | What each release changed in the files it generates, and how an existing project carries it over |
 
 ## Releasing
 
 `main` publishes itself. A push to `main` runs the whole CI, and when `cli/package.json` carries a version the
 registry does not have yet, the `publish` job sends it to npm through npm's trusted publishing, with provenance and
 without a token in the repository. Any other push to `main` publishes nothing.
+
+## Upgrading a project
+
+Prumo does not update a project it generated, and there is no `prumo upgrade`. For each release that changed
+the generated files, [`docs/upgrading.md`](https://github.com/stjosephworks/prumo/blob/main/docs/upgrading.md)
+lists what to copy or change and why, and gives one method: generate a reference project with the same answers
+at the old and the new version, and diff the files listed. A file your team has edited is merged by hand, never
+overwritten.
 
 ## Status
 
