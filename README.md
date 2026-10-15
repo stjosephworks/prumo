@@ -60,7 +60,9 @@ committed, so the first commit is yours and the diff shows everything Prumo wrot
 writes into the current directory instead, which must be empty, and names the project after it. If
 anything fails or is interrupted, Prumo removes what it wrote, so the same command can run again.
 A project cannot be named `api`, `web`, `mobile` or `site`: those are the names its apps take inside
-a workspace.
+a workspace. Nor can it take the name of a package that pnpm's compatibility database extends, such as `ws`:
+pnpm applies the extension to the project's own `package.json` and installs what it adds. Prumo names
+the packages and suggests another name.
 
 Every question also has a flag, which is how CI runs it without a terminal. Outside an interactive
 terminal every question that applies needs its flag, the layout of a single type included: a missing
