@@ -1,6 +1,7 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
 import { memoryTokenStore } from '@test/support/memory-token-store'
+import { createTestQueryClient } from '@test/support/query-client'
 import { render, screen, userEvent } from '@testing-library/react-native'
 import { createAuthClient } from '@/api-contract'
 import { SignInForm } from '@/features/auth/sign-in-form'
@@ -23,7 +24,7 @@ describe('SignInForm', () => {
     const user = userEvent.setup()
 
     await render(
-      <QueryClientProvider client={new QueryClient()}>
+      <QueryClientProvider client={createTestQueryClient()}>
         <SignInForm auth={auth} onSignedIn={onSignedIn} />
       </QueryClientProvider>,
     )

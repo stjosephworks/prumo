@@ -1,6 +1,7 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
 import { memoryTokenStore } from '@test/support/memory-token-store'
+import { createTestQueryClient } from '@test/support/query-client'
 import { render, screen, userEvent, waitFor } from '@testing-library/react-native'
 import * as WebBrowser from 'expo-web-browser'
 import { createAuthClient } from '@/api-contract'
@@ -28,7 +29,7 @@ async function renderButtons(exchange: () => Response) {
   })
 
   await render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={createTestQueryClient()}>
       <SocialButtons auth={auth} onSignedIn={onSignedIn} />
     </QueryClientProvider>,
   )

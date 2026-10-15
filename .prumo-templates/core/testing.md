@@ -15,7 +15,8 @@ Do not mock `EntityManager` or any concrete class from a library.
 
 **In a client, replace the network through the injected transport**: pass a fake `fetch` to `createClient`.
 Do not add a request-mocking library. Test a component that shows an error by rendering it and asserting
-**where** the error appears.
+**where** the error appears. Build every test's `QueryClient` with `createTestQueryClient()` from
+`@test/support/query-client`, never with `new QueryClient()`: the defaults a test needs live there, once.
 
 Measure coverage and report it. Do not block a merge on a coverage threshold.
 
@@ -59,9 +60,18 @@ written in a mobile test is a mistake an assistant will make.
 is **asynchronous** and its matchers need no setup. `expo-secure-store` needs the native Keychain or Keystore,
 which Jest does not have, so a test builds the auth client with an in-memory token store, which is why a form
 asks only for the auth methods it calls. And `jest-expo` leaves the app manifest empty, so `expo-linking` cannot
-know the app's scheme: a test that reaches `Linking.createURL` mocks it with the scheme it expects. A test rendering a `useMutation` builds
-its `QueryClient` with `mutations: { gcTime: Infinity }`: once unmounted, the mutation otherwise starts TanStack
-Query's five-minute garbage-collection timer, and Jest force-exits the worker still waiting on it.
+know the app's scheme: a test that reaches `Linking.createURL` mocks it with the scheme it expects. And a query
+or mutation left without an observer once a test unmounts starts TanStack Query's five-minute garbage-collection
+timer, which Jest's worker waits on until it is force-exited. `createTestQueryClient()` sets `gcTime: Infinity`
+for both, so no timer starts, and `retry: false` for queries, so a failure shows at once: the two defaults TanStack
+Query's testing guide gives. Vitest does not wait on the timer, and `web` uses the same helper so that one rule
+holds in both.
+
+**`web` turns route code splitting off under Vitest**, in `vite.config.ts`. Split, a route's component is a module
+Vite transforms the first time a test renders it, inside the one second a `find*` query waits, and on a loaded CI
+runner the first page of a test file missed it. The wait is not the problem and is not raised: with the transform
+gone the same load passes, and past that load a longer wait fails the same tests anyway. **What it costs:** the
+tests never load a route's lazy chunk; the build and its preview do.
 
 A coverage threshold turns a proxy into a target. Whoever is below writes tests to raise the number rather
 than to check anything; whoever is above stops thinking. With no database mocks a test costs more to write,
