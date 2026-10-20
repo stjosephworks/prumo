@@ -24,6 +24,7 @@ describe('SocialButtons', () => {
       )
       expect(href.searchParams.get('client')).toBe('web')
       expect(href.searchParams.get('returnTo')).toBe('/orders')
+      expect(href.searchParams.get('origin')).toBe(window.location.origin)
     }
   })
 

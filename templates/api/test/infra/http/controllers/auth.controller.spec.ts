@@ -1,3 +1,4 @@
+import { testEnv } from '@test/support/setup'
 import { ORIGIN, PASSWORD, testApp } from '@test/support/test-app'
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -80,6 +81,29 @@ describe('auth controller, on the web', () => {
       expect(response.statusCode).toBe(403)
       expect(response.headers['content-type']).toContain('application/problem+json')
     }
+  })
+})
+
+describe('auth controller, with several web apps', () => {
+  it('lets each of them lean on its cookie, and tells the browser so', async () => {
+    const backoffice = 'http://localhost:5174'
+    const several = await testApp({ env: { ...testEnv(), WEB_ORIGIN: [ORIGIN, backoffice] } })
+    const cookie = `access_token=${cookiesOf((await several.signUp()).response).access_token}`
+    const signedOut = await several.app.inject({
+      method: 'POST',
+      url: '/api/auth/sign-out',
+      headers: { cookie, origin: backoffice },
+    })
+    const preflight = await several.app.inject({
+      method: 'OPTIONS',
+      url: '/api/auth/sign-out',
+      headers: { origin: backoffice, 'access-control-request-method': 'POST' },
+    })
+
+    expect(signedOut.statusCode).toBe(204)
+    expect(preflight.headers['access-control-allow-origin']).toBe(backoffice)
+
+    await several.app.close()
   })
 })
 
