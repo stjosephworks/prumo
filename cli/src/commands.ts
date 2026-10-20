@@ -19,6 +19,11 @@ export const COMMANDS: CommandHelp[] = [
     options: [
       { flag: '--types <list>', description: 'Comma-separated: api, web, mobile, site' },
       {
+        flag: '--app <name>=<type>',
+        description:
+          'Advanced, repeatable: an app with a name of its own, as backoffice=web; only web and site may repeat',
+      },
+      {
         flag: '--alone',
         description:
           'One project of one type; without a terminal, one type needs this or --monorepo',
@@ -42,6 +47,13 @@ export const COMMANDS: CommandHelp[] = [
       { flag: '--skip-install', description: 'Do not run pnpm install' },
       JSON_OPTION,
     ],
+  },
+  {
+    name: 'add',
+    usage: 'prumo add <type> [name] [options]',
+    summary:
+      'Add an app to this workspace, named after its type unless a name is given; only the Prumo version that generated the project adds to it',
+    options: [{ flag: '--skip-install', description: 'Do not run pnpm install' }, JSON_OPTION],
   },
   {
     name: 'db',

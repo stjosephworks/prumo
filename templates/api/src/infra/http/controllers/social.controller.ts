@@ -51,10 +51,14 @@ export async function socialController(fastify: FastifyInstance): Promise<void> 
     path: '/api/auth/social',
   } as const
 
-  const back = (client: SocialClient, query: Record<string, string>) =>
+  // A web app is sent back to itself, so only an origin this API trusts is ever a destination.
+  const trusted = (origin: string | undefined) =>
+    origin !== undefined && env.WEB_ORIGIN.includes(origin) ? origin : env.WEB_ORIGIN[0]
+
+  const back = (client: SocialClient, origin: string, query: Record<string, string>) =>
     client === 'mobile'
       ? `${env.MOBILE_APP_SCHEME}://social?${new URLSearchParams(query)}`
-      : `${env.WEB_ORIGIN}/sign-in?${new URLSearchParams(query)}`
+      : `${origin}/sign-in?${new URLSearchParams(query)}`
 
   // Apple's answer is a form.
   app.addContentTypeParser(
@@ -73,11 +77,19 @@ export async function socialController(fastify: FastifyInstance): Promise<void> 
         querystring: z.object({
           client: z.enum(['web', 'mobile']).default('web'),
           returnTo: z.string().max(512).optional(),
+          // The web app that started, when there are several; one the API does not trust is refused.
+          origin: z.string().max(512).optional(),
         }),
       },
     },
     async (request, reply) => {
-      const { client, returnTo } = request.query
+      const { client, returnTo, origin: requested } = request.query
+
+      if (requested !== undefined && !env.WEB_ORIGIN.includes(requested)) {
+        throw new HttpError(422, 'origin is not one of the web apps this API trusts')
+      }
+
+      const origin = client === 'web' ? trusted(requested) : ''
 
       if (client === 'mobile' && env.MOBILE_APP_SCHEME === undefined) {
         throw new HttpError(
@@ -92,8 +104,9 @@ export async function socialController(fastify: FastifyInstance): Promise<void> 
         returnTo: safePath(returnTo),
       })
 
-      // The client rides beside the token, so an error found before the flow is read still goes to the right place.
-      reply.setCookie(BROWSER_COOKIE, `${client}~${started.browserToken}`, {
+      // The client and its origin ride beside the token, so an error found before the flow is read still goes to the
+      // right place.
+      reply.setCookie(BROWSER_COOKIE, `${client}~${origin}~${started.browserToken}`, {
         ...cookie,
         maxAge: BROWSER_COOKIE_MAX_AGE_S,
       })
@@ -132,16 +145,17 @@ export async function socialController(fastify: FastifyInstance): Promise<void> 
       },
     },
     async (request, reply) => {
-      const [client, browserToken] = (request.cookies[BROWSER_COOKIE] ?? 'web~').split('~') as [
-        SocialClient,
-        string,
-      ]
+      const [client, written, browserToken] = (request.cookies[BROWSER_COOKIE] ?? 'web~~').split(
+        '~',
+      ) as [SocialClient, string | undefined, string | undefined]
+      // Read back through the list, so a cookie edited by hand cannot name a destination of its own.
+      const origin = trusted(written)
       const { state, code, error } = request.query
 
       reply.clearCookie(BROWSER_COOKIE, cookie)
 
       if (error !== undefined || state === undefined || code === undefined) {
-        return reply.redirect(back(client, { error: 'social_sign_in_failed' }))
+        return reply.redirect(back(client, origin, { error: 'social_sign_in_failed' }))
       }
 
       try {
@@ -154,15 +168,17 @@ export async function socialController(fastify: FastifyInstance): Promise<void> 
         })
 
         if (outcome.client === 'mobile') {
-          return reply.redirect(back('mobile', { code: outcome.code }))
+          return reply.redirect(back('mobile', origin, { code: outcome.code }))
         }
 
         setCookies(reply, outcome.tokens)
 
-        return reply.redirect(`${env.WEB_ORIGIN}${outcome.returnTo}`)
+        return reply.redirect(`${origin}${outcome.returnTo}`)
       } catch (caught) {
         if (caught instanceof DomainError) {
-          return reply.redirect(back(client, { error: caught.code ?? 'social_sign_in_failed' }))
+          return reply.redirect(
+            back(client, origin, { error: caught.code ?? 'social_sign_in_failed' }),
+          )
         }
 
         throw caught

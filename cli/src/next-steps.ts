@@ -1,4 +1,5 @@
 import { relative } from 'node:path'
+import { type App, appsOfType, defaultApps } from './apps.ts'
 import type { AppType } from './compose.ts'
 
 // What to type after `prumo new`, built from the scripts the templates ship rather than written per case. Every app
@@ -8,12 +9,14 @@ export function nextSteps({
   target,
   cwd,
   types,
+  apps = defaultApps(types),
   architecture,
   installed,
 }: {
   target: string
   cwd: string
   types: AppType[]
+  apps?: App[]
   architecture: 'alone' | 'monorepo'
   installed: boolean
 }): string[] {
@@ -28,8 +31,8 @@ export function nextSteps({
     steps.push(['pnpm install'])
   }
 
-  if (types.includes('mobile')) {
-    const run = architecture === 'alone' ? 'pnpm' : 'pnpm --filter mobile'
+  for (const mobile of appsOfType(apps, 'mobile')) {
+    const run = architecture === 'alone' ? 'pnpm' : `pnpm --filter ${mobile.name}`
 
     steps.push([`${run} ios`, 'or android: the development build the mobile app opens in'])
   }

@@ -20,7 +20,7 @@ still verify the password against a decoy hash, and answer exactly as for a wron
 Give the web its tokens in `httpOnly`, `SameSite=Lax` cookies: the access cookie on `/`, the refresh cookie only
 on `/api/auth/refresh`, both `Secure` when `API_URL` is https. Give a native client its tokens in the body, and
 only when it sends `X-Auth-Transport: bearer`; it then sends `Authorization: Bearer`. Refuse with 403 any
-request that changes state, carries a cookie and no bearer, and does not come from `WEB_ORIGIN`.
+request that changes state, carries a cookie and no bearer, and does not come from an origin in `WEB_ORIGIN`, the comma-separated list of the web apps.
 
 Every route is protected by the global `preHandler` hook in `auth.hook.ts`. Mark a route that needs no session
 with `config: { public: true }`; that means only *do not answer 401*, and the token is still read. Read the

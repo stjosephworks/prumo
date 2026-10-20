@@ -19,12 +19,19 @@ const workspace = values.architecture === 'monorepo'
 const dbPort = process.env.PRUMO_DB_PORT ?? '5432'
 const appPort = 3000
 const webPort = 4173
-const sitePort = 3200
 
 const windows = process.platform === 'win32'
 
-const appDir = (type) => (workspace ? join(project, 'apps', type) : project)
 const config = JSON.parse(readFileSync(join(project, '.prumo', 'config.json'), 'utf8'))
+// Every app by its name; a project written before apps had names holds one per type, named after it.
+const apps = config.apps ?? types.map((type) => ({ name: type, type }))
+const appsOfType = (type) => apps.filter((app) => app.type === type)
+const appDir = (app) => (workspace ? join(project, 'apps', app.name) : project)
+const envValue = (app, key) =>
+  new RegExp(`^${key}=(.*)$`, 'm').exec(
+    readFileSync(join(appDir(app), '.env.example'), 'utf8'),
+  )?.[1]
+const [apiApp] = appsOfType('api')
 
 // On Windows pnpm is a .cmd shim, which Node starts only through a shell, and a shell given an argument list is
 // deprecated (DEP0190): there the command goes as one line, each part quoted when it needs it.
@@ -51,7 +58,7 @@ function linuxContainers() {
   return { ok: os === 'linux', os }
 }
 
-const containers = types.includes('api') ? linuxContainers() : { ok: true }
+const containers = apiApp !== undefined ? linuxContainers() : { ok: true }
 
 function skip(what) {
   const here =
@@ -167,7 +174,7 @@ function apiEnv(api) {
 }
 
 async function verifyApi() {
-  const api = appDir('api')
+  const api = appDir(apiApp)
 
   if (!containers.ok) {
     step('api: build', () => run('pnpm', ['build'], api))
@@ -191,7 +198,10 @@ async function verifyApi() {
           const ready = await (await fetch(`http://localhost:${appPort}/api/health/ready`)).json()
           if (ready.status !== 'ok') throw new Error(`readiness is ${JSON.stringify(ready)}`)
           if (config.mcp === true) await verifyMcpDiscovery()
-          if (workspace && types.includes('web')) await verifyContract()
+          if (workspace) {
+            for (const web of appsOfType('web')) await verifyContract(web)
+          }
+          if (appsOfType('web').length > 0) await verifyOrigins()
         },
       ),
     )
@@ -235,9 +245,9 @@ async function codeMailedTo(email) {
 
 // A session as the web holds one. With email verification on, sign-up opens none: the code the API wrote to its log
 // is entered first, as a person would from their inbox.
-async function webSession() {
+async function webSession(origin = 'http://localhost:5173') {
   const API = `http://localhost:${appPort}`
-  const headers = { 'content-type': 'application/json', origin: 'http://localhost:5173' }
+  const headers = { 'content-type': 'application/json', origin }
   const email = `contract-${Date.now()}@example.com`
   let response = await fetch(`${API}/api/auth/sign-up`, {
     method: 'POST',
@@ -262,10 +272,30 @@ async function webSession() {
     .join('; ')
 }
 
-async function verifyContract() {
-  const web = appDir('web')
+const originOf = (web) => `http://localhost:${envValue(web, 'WEB_PORT')}`
+
+// Every web app leans on its cookie from its own origin, and the API trusts each of them; nothing else.
+async function verifyOrigins() {
+  await step('api: trusts every web app, and no other origin', async () => {
+    for (const origin of [...appsOfType('web').map(originOf), 'https://elsewhere.invalid']) {
+      const trusted = origin !== 'https://elsewhere.invalid'
+      const cookie = await webSession(trusted ? origin : undefined)
+      const response = await fetch(`http://localhost:${appPort}/api/auth/sign-out`, {
+        method: 'POST',
+        headers: { cookie, origin },
+      })
+
+      if (response.status !== (trusted ? 204 : 403)) {
+        throw new Error(`sign-out from ${origin} answered ${response.status}`)
+      }
+    }
+  })
+}
+
+async function verifyContract(app) {
+  const web = appDir(app)
   const spec = join(web, 'src', 'contract.spec.ts')
-  const cookie = await webSession()
+  const cookie = await webSession(originOf(app))
 
   writeFileSync(
     spec,
@@ -273,7 +303,7 @@ async function verifyContract() {
 import { describe, expect, it } from 'vitest'
 
 const API = 'http://localhost:${appPort}'
-const ORIGIN = 'http://localhost:5173'
+const ORIGIN = '${originOf(app)}'
 
 describe('the hand-written contract against the running API', () => {
   it('describes what /users/me actually returns', async () => {
@@ -302,8 +332,8 @@ describe('the hand-written contract against the running API', () => {
   )
 
   try {
-    step('workspace: the contract answers the running API', () =>
-      run('pnpm', ['--filter', 'web', 'test'], project, { CONTRACT_COOKIE: cookie }),
+    step(`${app.name}: the contract answers the running API`, () =>
+      run('pnpm', ['--filter', app.name, 'test'], project, { CONTRACT_COOKIE: cookie }),
     )
   } finally {
     // The check belongs to CI, not to the generated project: it leaves nothing behind for the next run to lint.
@@ -311,11 +341,11 @@ describe('the hand-written contract against the running API', () => {
   }
 }
 
-async function verifyWeb() {
-  const web = appDir('web')
+async function verifyWeb(app) {
+  const web = appDir(app)
 
-  step('web: build', () => run('pnpm', ['build'], web))
-  await step('web: preview serves it', () =>
+  step(`${app.name}: build`, () => run('pnpm', ['build'], web))
+  await step(`${app.name}: preview serves it`, () =>
     withServer(
       'pnpm',
       ['preview', '--port', String(webPort), '--strictPort'],
@@ -331,23 +361,27 @@ async function verifyWeb() {
   )
 }
 
-function verifyMobile() {
-  const mobile = appDir('mobile')
+function verifyMobile(app) {
+  const mobile = appDir(app)
 
-  step('mobile: bundle ios and android', () =>
+  step(`${app.name}: bundle ios and android`, () =>
     run('pnpm', ['bundle'], mobile, { EXPO_PUBLIC_API_URL: `http://localhost:${appPort}` }),
   )
 }
 
-async function verifySite() {
-  const site = appDir('site')
-  const build = step('site: build', () => run('pnpm', ['build'], site))
+async function verifySite(app) {
+  const site = appDir(app)
+  // Each site starts on the port its own start script names.
+  const sitePort = /--port (\d+)/.exec(
+    JSON.parse(readFileSync(join(site, 'package.json'), 'utf8')).scripts.start,
+  )?.[1]
+  const build = step(`${app.name}: build`, () => run('pnpm', ['build'], site))
 
   if (!/[┌└├]\s+○\s+\/(\s|$)/m.test(build)) {
     throw new Error(`the home route is not static:\n${build}`)
   }
 
-  await step('site: start serves its metadata', () =>
+  await step(`${app.name}: start serves its metadata`, () =>
     withServer('pnpm', ['start'], site, `http://localhost:${sitePort}/`, {}, async () => {
       const html = await (await fetch(`http://localhost:${sitePort}/`)).text()
       if (!/<title>/.test(html) || !/<meta name="description"/.test(html)) {
@@ -361,14 +395,16 @@ step('lint', () => run('pnpm', ['lint'], project))
 step('typecheck', () => run('pnpm', ['typecheck'], project))
 if (containers.ok) {
   step('test', () => run('pnpm', ['test'], project))
-} else if (workspace && types.length > 1) {
-  step('test, except the api', () => run('pnpm', ['-r', '--filter', '!api', 'test'], project))
+} else if (workspace && apps.length > 1) {
+  step('test, except the api', () =>
+    run('pnpm', ['-r', '--filter', `!${apiApp?.name ?? 'api'}`, 'test'], project),
+  )
 }
 
-if (types.includes('web')) await verifyWeb()
-if (types.includes('mobile')) verifyMobile()
-if (types.includes('site')) await verifySite()
-if (types.includes('api')) await verifyApi()
+for (const app of appsOfType('web')) await verifyWeb(app)
+for (const app of appsOfType('mobile')) verifyMobile(app)
+for (const app of appsOfType('site')) await verifySite(app)
+if (apiApp !== undefined) await verifyApi()
 
 // The pre-commit hook is a shell script, which Git for Windows runs through the sh it ships.
 step('commit, through the pre-commit hook', () => {

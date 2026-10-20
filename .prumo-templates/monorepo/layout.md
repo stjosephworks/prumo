@@ -5,7 +5,10 @@
 Put deployable things in `apps/` and shared code in `packages/`.
 
 Name an app directory after its type (`apps/api`, `apps/web`, `apps/mobile`, `apps/site`), never after
-the product.
+the product. A second web or site, or an app renamed on purpose, is named for its role (`apps/backoffice`,
+`apps/blog`), still never after the product. The directory, the package and the root script share that name, and
+`.prumo/config.json` lists every app with its type. Only `web` and `site` repeat; a workspace holds one `api` and
+one `mobile`.
 
 Keep one package from the start: the integration layer between the clients and the API. It holds URL
 construction, the `ApiError` parsing, the hand-written contract types and the query factories.
@@ -58,6 +61,7 @@ Layout:
 
 ```
 ✅  apps/api  apps/web  packages/api-contract
+✅  apps/api  apps/web  apps/backoffice  packages/api-contract
 ❌  apps/acme-backend  packages/shared
 ```
 

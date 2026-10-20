@@ -52,7 +52,7 @@ describe('prumo', () => {
     const help = prumo([])
 
     expect(help.status).toBe(0)
-    for (const command of ['new', 'db', 'clean', 'doctor', 'version', 'help']) {
+    for (const command of ['new', 'add', 'db', 'clean', 'doctor', 'version', 'help']) {
       expect(help.stdout).toMatch(new RegExp(`^  ${command} `, 'm'))
     }
     expect(prumo(['new', '--help']).stdout).toBe(prumo(['help', 'new']).stdout)
@@ -61,6 +61,7 @@ describe('prumo', () => {
     const json = document(prumo(['help', '--json']).stdout)
     expect(json.data.commands.map((command: { name: string }) => command.name)).toEqual([
       'new',
+      'add',
       'db',
       'clean',
       'doctor',
@@ -152,6 +153,29 @@ describe('prumo', () => {
         message: 'The database name is required. Outside an interactive terminal, pass --name.',
       },
     })
+  })
+
+  it('finds an api that was given a name of its own', async () => {
+    root = await mkdtemp(join(tmpdir(), 'prumo-cli-'))
+    const api = join(root, 'apps/server')
+
+    await mkdir(join(root, '.prumo'), { recursive: true })
+    await writeFile(
+      join(root, '.prumo/config.json'),
+      JSON.stringify({
+        types: ['api', 'web'],
+        apps: [
+          { name: 'server', type: 'api' },
+          { name: 'web', type: 'web' },
+        ],
+        architecture: 'monorepo',
+        multiTenant: false,
+      }),
+    )
+    await cp(join(templates, 'api/scripts'), join(api, 'scripts'), { recursive: true })
+    await writeFile(join(api, '.env'), 'DATABASE_URL=MISSING\n')
+
+    expect(document(prumo(['db', '--json'], root).stdout).error.code).toBe('needs_input')
   })
 })
 

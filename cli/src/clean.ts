@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { readdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises'
-import { dirname, join, relative } from 'node:path'
+import { basename, dirname, join, relative } from 'node:path'
+import { rootDevPrefix } from './compose.ts'
 import { apiPath, findProjectRoot, readConfig } from './database.ts'
 import { readJsonc, setJsonc } from './jsonc.ts'
 import { CliError } from './output.ts'
@@ -25,7 +26,6 @@ type Rule = {
 const SAMPLE_URL = 'postgresql://app:app@localhost:5432/app'
 
 export const API_DEV_PREFIX = 'node scripts/database.mjs --check && '
-export const ROOT_DEV_PREFIX = 'node apps/api/scripts/database.mjs --check && '
 export const SETUP_SCRIPT = 'node scripts/database.mjs'
 
 export const EXAMPLE_BLOCK =
@@ -136,7 +136,7 @@ function rulesFor(root: string, api: string, templates: string): { rules: Rule[]
 
   if (api !== root) {
     rules.push(
-      devRule('root-dev-check', 'package.json', ROOT_DEV_PREFIX),
+      devRule('root-dev-check', 'package.json', rootDevPrefix(basename(api))),
       textRule(
         'root-readme',
         'README.md',

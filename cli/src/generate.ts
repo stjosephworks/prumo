@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { appDirectory, appsOf, appsOfType } from './apps.ts'
 import { runCommand } from './command.ts'
 import { type AppType, composeWorkspace, copyTemplate } from './compose.ts'
 import { type Answers, writeContext } from './context.ts'
@@ -19,7 +20,7 @@ async function nameProject(root: string, name: string): Promise<void> {
   await rewrite(join(root, 'README.md'), (text) => text.replace(/^# .*$/m, `# ${name}`))
 }
 
-async function nameMobileApp(app: string, name: string): Promise<void> {
+export async function nameMobileApp(app: string, name: string): Promise<void> {
   await rewrite(join(app, 'app.json'), (text) => {
     let result = setJsonc(text, ['expo', 'name'], name)
     result = setJsonc(result, ['expo', 'slug'], name)
@@ -33,7 +34,7 @@ const SCHEME_LINES = /^# The mobile app's scheme.*\nMOBILE_APP_SCHEME=.*\n/m
 
 // Social sign-in sends a mobile app back by its scheme, the one app.json was given. Without a mobile app the setting
 // names nothing, so it goes. Without social sign-in its marker already took it.
-async function settleMobileScheme(api: string, scheme: string | null): Promise<void> {
+export async function settleMobileScheme(api: string, scheme: string | null): Promise<void> {
   for (const file of ['.env.example', '.env']) {
     const path = join(api, file)
 
@@ -49,7 +50,7 @@ async function settleMobileScheme(api: string, scheme: string | null): Promise<v
 
 // `.env` stays out of git, so the example is the committed truth and a fresh project gets a copy it can start with.
 // Only the secret differs: a sample value is public, so every generated API draws its own.
-async function writeLocalEnv(app: string, type: AppType): Promise<void> {
+export async function writeLocalEnv(app: string, type: AppType): Promise<void> {
   const example = join(app, '.env.example')
 
   if (!existsSync(example)) {
@@ -72,7 +73,7 @@ export type ChildOutput = 'inherit' | 'stderr'
 
 // Compose names the container and volume after the project; without this, every workspace's apps/api is `api`
 // and a second project's database replaces the first's.
-async function nameCompose(api: string, name: string): Promise<void> {
+export async function nameCompose(api: string, name: string): Promise<void> {
   await rewrite(join(api, 'docker-compose.yml'), (text) => {
     if (!/^name: .*$/m.test(text)) {
       throw new Error(`${join(api, 'docker-compose.yml')} no longer carries a top-level name`)
@@ -89,13 +90,21 @@ function interrupt(): void {
   interrupted = true
 }
 
+// From here until the returned function is called, Ctrl+C stops the next step instead of Prumo itself.
+export function watchInterrupt(): () => void {
+  interrupted = false
+  process.on('SIGINT', interrupt)
+
+  return () => process.off('SIGINT', interrupt)
+}
+
 function stopIfInterrupted(): void {
   if (interrupted) {
     throw new CliError('interrupted', 'Interrupted. Nothing was kept.')
   }
 }
 
-function run(command: string, args: string[], cwd: string, output: ChildOutput): void {
+export function run(command: string, args: string[], cwd: string, output: ChildOutput): void {
   stopIfInterrupted()
 
   // Under --json stdout belongs to the result document, so a child's output goes to stderr instead.
@@ -155,9 +164,7 @@ export async function generate({
   }
 
   const created = !existsSync(target)
-
-  interrupted = false
-  process.on('SIGINT', interrupt)
+  const unwatch = watchInterrupt()
 
   try {
     await write({ templates, knowledge, target, answers, install, childOutput })
@@ -165,7 +172,7 @@ export async function generate({
     await discard(target, created)
     throw error
   } finally {
-    process.off('SIGINT', interrupt)
+    unwatch()
   }
 }
 
@@ -185,6 +192,7 @@ async function write({
   childOutput: ChildOutput
 }): Promise<void> {
   const [only] = answers.types
+  const apps = appsOf(answers)
 
   if (answers.architecture === 'alone' && only !== undefined) {
     await copyTemplate(join(templates, only), target)
@@ -200,28 +208,25 @@ async function write({
       await nameMobileApp(target, answers.name)
     }
   } else {
-    await composeWorkspace({
-      templates,
-      target,
-      types: answers.types,
-      features: enabledFor(answers),
-    })
+    const at = (app: { name: string }) => join(target, 'apps', app.name)
+
+    await composeWorkspace({ templates, target, apps, features: enabledFor(answers) })
     await nameProject(target, answers.name)
 
-    for (const type of answers.types) {
-      await writeLocalEnv(join(target, 'apps', type), type)
+    for (const app of apps) {
+      await writeLocalEnv(at(app), app.type)
     }
 
-    if (answers.types.includes('api')) {
-      await nameCompose(join(target, 'apps', 'api'), answers.name)
+    for (const api of appsOfType(apps, 'api')) {
+      await nameCompose(at(api), answers.name)
       await settleMobileScheme(
-        join(target, 'apps', 'api'),
+        at(api),
         answers.types.includes('mobile') ? schemeFor(answers.name) : null,
       )
     }
 
-    if (answers.types.includes('mobile')) {
-      await nameMobileApp(join(target, 'apps', 'mobile'), answers.name)
+    for (const mobile of appsOfType(apps, 'mobile')) {
+      await nameMobileApp(at(mobile), answers.name)
     }
   }
 
@@ -235,9 +240,13 @@ async function write({
     run('pnpm', ['exec', 'biome', 'check', '--write'], target, childOutput)
 
     // The route tree is generated from the route files, and cutting MCP removed one.
-    if (answers.types.includes('web')) {
-      const web = answers.architecture === 'alone' ? target : join(target, 'apps', 'web')
-      run('pnpm', ['exec', 'tsr', 'generate'], web, childOutput)
+    for (const web of appsOfType(apps, 'web')) {
+      run(
+        'pnpm',
+        ['exec', 'tsr', 'generate'],
+        appDirectory(target, answers.architecture, web),
+        childOutput,
+      )
     }
   }
 }
