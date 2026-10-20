@@ -158,7 +158,8 @@ export async function addApp({
 
     if (install) {
       await journal.keep(join(root, 'pnpm-lock.yaml'))
-      run('pnpm', ['install'], root, childOutput)
+      // The new app is a new importer in the lockfile, which pnpm under CI would otherwise refuse to write.
+      run('pnpm', ['install', '--no-frozen-lockfile'], root, childOutput)
       // Only what this run wrote: the rest of the workspace is the team's, formatted as they left it.
       run(
         'pnpm',
