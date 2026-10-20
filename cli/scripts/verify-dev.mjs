@@ -63,18 +63,21 @@ if (config.types.includes('api')) {
   throw new Error('verify-dev.mjs runs projects without an api: an api needs its database first.')
 }
 
-const appDir = (type) =>
-  config.architecture === 'monorepo' ? join(project, 'apps', type) : project
+// Every app by its name; a project written before apps had names holds one per type, named after it.
+const apps = config.apps ?? config.types.map((type) => ({ name: type, type }))
 
-function portOf(type) {
-  const env = join(appDir(type), '.env')
+const appDir = (app) =>
+  config.architecture === 'monorepo' ? join(project, 'apps', app.name) : project
+
+function portOf(app) {
+  const env = join(appDir(app), '.env')
   const text = existsSync(env) ? readFileSync(env, 'utf8') : ''
-  const value = new RegExp(`^${PORTS[type].key}=(.*)$`, 'm').exec(text)?.[1]?.trim()
+  const value = new RegExp(`^${PORTS[app.type].key}=(.*)$`, 'm').exec(text)?.[1]?.trim()
 
-  return Number(value ?? PORTS[type].fallback)
+  return Number(value ?? PORTS[app.type].fallback)
 }
 
-const ports = config.types.map(portOf)
+const ports = apps.map(portOf)
 
 function say(message) {
   process.stdout.write(`${message}\n`)
