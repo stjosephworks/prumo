@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { readFile, rm, writeFile } from 'node:fs/promises'
-import { join, relative } from 'node:path'
+import { join, relative, sep } from 'node:path'
 import { type App, appsOf, appsOfType, PORTS, typesOf, validateApps } from './apps.ts'
 import {
   type AppType,
@@ -167,7 +167,8 @@ export async function addApp({
           'biome',
           'check',
           '--write',
-          ...result.written.map((path) => relative(root, path)),
+          // Written with forward slashes, which every system takes and a Windows shell needs no quotes for.
+          ...result.written.map((path) => relative(root, path).split(sep).join('/')),
         ],
         root,
         childOutput,
@@ -292,7 +293,10 @@ async function write({
       await rewrite(join(at(api), file), (text) => {
         const list = (envLine(text, 'WEB_ORIGIN') ?? '').split(',').filter((entry) => entry !== '')
 
-        return withEnvLine(text, 'WEB_ORIGIN', [...list, origin].join(','))
+        // An API with no web app yet already names the first web port, which is where this one lands.
+        return list.includes(origin)
+          ? text
+          : withEnvLine(text, 'WEB_ORIGIN', [...list, origin].join(','))
       })
     }
 
