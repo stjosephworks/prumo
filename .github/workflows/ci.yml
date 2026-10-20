@@ -125,6 +125,11 @@ jobs:
       - name: Generate ${{ matrix.name }}
         run: node ${{ github.workspace }}/cli/src/cli.ts new ${{ matrix.name }} --types ${{ matrix.types }} --${{ matrix.architecture }} ${{ matrix.tenancy || '--single-tenant' }} ${{ matrix.flags }}
         working-directory: ${{ runner.temp }}
+      # A workspace grows by one web app, installed and formatted as prumo add does it, before it is verified.
+      - name: Add an app to ${{ matrix.name }}
+        if: matrix.architecture == 'monorepo'
+        run: node ${{ github.workspace }}/cli/src/cli.ts add web portal
+        working-directory: ${{ runner.temp }}/${{ matrix.name }}
       - name: Verify ${{ matrix.name }}
         run: >
           node cli/scripts/verify.mjs ${{ runner.temp }}/${{ matrix.name }}
@@ -262,6 +267,11 @@ jobs:
       - name: Generate ${{ matrix.name }}
         run: node ${{ github.workspace }}/cli/src/cli.ts new ${{ matrix.name }} --types ${{ matrix.types }} --${{ matrix.architecture }} --single-tenant ${{ matrix.flags }}
         working-directory: ${{ runner.temp }}
+      # A workspace grows by one web app, installed and formatted as prumo add does it, before it is verified.
+      - name: Add an app to ${{ matrix.name }}
+        if: matrix.architecture == 'monorepo'
+        run: node ${{ github.workspace }}/cli/src/cli.ts add web portal
+        working-directory: ${{ runner.temp }}/${{ matrix.name }}
       - name: Verify ${{ matrix.name }}
         run: >
           node cli/scripts/verify.mjs ${{ runner.temp }}/${{ matrix.name }}
