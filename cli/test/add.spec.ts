@@ -116,6 +116,20 @@ describe('prumo add', () => {
     expect(existsSync(join(target, '.prumo/api'))).toBe(true)
   })
 
+  it('gives an api workspace its first web app, its contract package and one trusted origin', async () => {
+    const target = await workspace({ types: ['api'] })
+
+    await add(target, 'web', 'portal')
+
+    expect(existsSync(join(target, 'packages/api-contract/src'))).toBe(true)
+    expect(existsSync(join(target, 'apps/portal/src/api-contract'))).toBe(false)
+    for (const file of ['.env', '.env.example']) {
+      expect(await read(join(target, 'apps/api', file))).toMatch(
+        /^WEB_ORIGIN=http:\/\/localhost:5173$/m,
+      )
+    }
+  })
+
   it('refuses what it cannot add, before writing anything', async () => {
     const target = await workspace()
     const config = join(target, '.prumo/config.json')
