@@ -25,7 +25,7 @@ authorization profile:
 - Identify a client by its metadata document (CIMD) only. Do not enable dynamic client registration.
 - Check the client and its redirect URI, by exact match, before any error may be redirected.
 - Require PKCE with `S256`, and a `resource` equal to `mcpResource(env)`, which becomes the token's audience.
-- Send the browser to the web app's `/consent`. Show the client's name, the host of its `client_id` and the
+- Send the browser to `/consent` on the first web app in `WEB_ORIGIN`. Show the client's name, the host of its `client_id` and the
   host of its redirect URI, and warn when that redirect returns to this device.
 - Return the code with `iss` (RFC 9207), and spend it once: a code presented twice revokes the session its
   first exchange started.
