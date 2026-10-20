@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { defaultApps } from '../src/apps.ts'
 import { composeWorkspace, copyTemplate } from '../src/compose.ts'
 import { removeWhatBaseDeclares } from '../src/jsonc.ts'
 
@@ -13,7 +14,7 @@ describe('composeWorkspace', () => {
 
   beforeAll(async () => {
     target = join(await mkdtemp(join(tmpdir(), 'prumo-compose-')), 'workspace')
-    await composeWorkspace({ templates, target, types: ['api', 'web'] })
+    await composeWorkspace({ templates, target, apps: defaultApps(['api', 'web']) })
   })
 
   afterAll(async () => {
@@ -86,7 +87,7 @@ describe('composeWorkspace with web and mobile', () => {
 
   beforeAll(async () => {
     target = join(await mkdtemp(join(tmpdir(), 'prumo-compose-')), 'workspace')
-    await composeWorkspace({ templates, target, types: ['api', 'web', 'mobile'] })
+    await composeWorkspace({ templates, target, apps: defaultApps(['api', 'web', 'mobile']) })
   })
 
   afterAll(async () => {
@@ -124,7 +125,11 @@ describe('composeWorkspace with clients whose contracts differ', () => {
     await write(join(root, 'mobile/src/api-contract/client.ts'), '// diverged\n', { flag: 'a' })
 
     await expect(
-      composeWorkspace({ templates: root, target: join(root, 'out'), types: ['web', 'mobile'] }),
+      composeWorkspace({
+        templates: root,
+        target: join(root, 'out'),
+        apps: defaultApps(['web', 'mobile']),
+      }),
     ).rejects.toThrow('differs from')
 
     await rm(root, { recursive: true, force: true })
@@ -136,7 +141,11 @@ describe('composeWorkspace with every type', () => {
 
   beforeAll(async () => {
     target = join(await mkdtemp(join(tmpdir(), 'prumo-compose-')), 'workspace')
-    await composeWorkspace({ templates, target, types: ['api', 'web', 'mobile', 'site'] })
+    await composeWorkspace({
+      templates,
+      target,
+      apps: defaultApps(['api', 'web', 'mobile', 'site']),
+    })
   })
 
   afterAll(async () => {
@@ -151,6 +160,67 @@ describe('composeWorkspace with every type', () => {
     expect(workspace).toContain('sharp: false')
     expect(existsSync(join(target, 'apps/site/pnpm-workspace.yaml'))).toBe(false)
     expect(site).not.toContain('@app/api-contract')
+  })
+})
+
+describe('composeWorkspace with apps named on purpose', () => {
+  let target: string
+
+  const read = async (path: string) => readFile(join(target, path), 'utf8')
+  const manifest = async (path: string) => JSON.parse(await read(path))
+
+  beforeAll(async () => {
+    target = join(await mkdtemp(join(tmpdir(), 'prumo-compose-')), 'workspace')
+    await composeWorkspace({
+      templates,
+      target,
+      apps: [
+        { name: 'server', type: 'api' },
+        { name: 'web', type: 'web' },
+        { name: 'backoffice', type: 'web' },
+        { name: 'site', type: 'site' },
+        { name: 'blog', type: 'site' },
+      ],
+    })
+  })
+
+  afterAll(async () => {
+    await rm(join(target, '..'), { recursive: true, force: true })
+  })
+
+  it('puts each app under its name, with a package and a root script of that name', async () => {
+    const root = await manifest('package.json')
+
+    for (const name of ['server', 'web', 'backoffice', 'site', 'blog']) {
+      expect((await manifest(`apps/${name}/package.json`)).name).toBe(name)
+      expect(root.scripts[name]).toBe(`pnpm --filter ${name} dev`)
+    }
+
+    expect(existsSync(join(target, 'apps/api'))).toBe(false)
+    expect(root.scripts.api).toBeUndefined()
+    expect(root.scripts.dev).toBe(
+      'node apps/server/scripts/database.mjs --check && node scripts/ports.mjs --all -- pnpm -r --parallel dev',
+    )
+  })
+
+  it('gives a second web and site the next port, and the api every web app to trust', async () => {
+    expect(await read('apps/web/.env.example')).toMatch(/^WEB_PORT=5173$/m)
+    expect(await read('apps/backoffice/.env.example')).toMatch(/^WEB_PORT=5174$/m)
+    expect(await read('apps/blog/.env.example')).toMatch(/^SITE_PORT=3201$/m)
+    expect((await manifest('apps/blog/package.json')).scripts.start).toBe('next start --port 3201')
+    expect((await manifest('apps/site/package.json')).scripts.start).toBe('next start --port 3200')
+    expect(await read('apps/server/.env.example')).toMatch(
+      /^WEB_ORIGIN=http:\/\/localhost:5173,http:\/\/localhost:5174$/m,
+    )
+  })
+
+  it('shares the one contract with every web app', async () => {
+    for (const web of ['web', 'backoffice']) {
+      expect(existsSync(join(target, `apps/${web}/src/api-contract`))).toBe(false)
+      expect((await manifest(`apps/${web}/package.json`)).dependencies['@app/api-contract']).toBe(
+        'workspace:*',
+      )
+    }
   })
 })
 

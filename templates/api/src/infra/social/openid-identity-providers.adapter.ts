@@ -1,4 +1,4 @@
-import { importPKCS8, SignJWT } from 'jose'
+import { importPKCS8, SignJWT } from 'jose' // prumo:apple
 import * as oidc from 'openid-client'
 import { SocialSignInFailedError } from '@/domain/auth/errors/social-sign-in-failed.error'
 import type {

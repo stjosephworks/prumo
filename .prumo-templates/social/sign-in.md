@@ -12,7 +12,8 @@ in the `social_sign_in` cookie that the callback must present. Use PKCE wherever
 it, and a nonce always. Turn Apple's `form_post` callback into a redirect to the same address, so the cookie
 comes with it.
 
-Return the web to the path it asked for, only a path on the web app, with session cookies. Return a mobile app
+Return the web to the path it asked for, only a path, with session cookies, on the web app that started: it sends
+its `origin`, which must be in `WEB_ORIGIN`, and the `social_sign_in` cookie carries it to the callback. Return a mobile app
 to `MOBILE_APP_SCHEME://social` with a one-time code it exchanges at `/api/auth/social/exchange` for its tokens,
 within two minutes. A mobile app opens the trip with `expo-web-browser`'s `openAuthSessionAsync`.
 

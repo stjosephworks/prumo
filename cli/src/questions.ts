@@ -1,3 +1,4 @@
+import { type App, defaultApps, parseApp, TYPES, typesOf, validateApps } from './apps.ts'
 import type { Asker } from './asker.ts'
 import type { AppType } from './compose.ts'
 import type { Answers } from './context.ts'
@@ -8,6 +9,7 @@ import { CliError } from './output.ts'
 export type Flags = {
   name: string | undefined
   types: string | undefined
+  apps: string[] | undefined
   alone: boolean
   monorepo: boolean
   multiTenant: boolean
@@ -19,8 +21,6 @@ export type Flags = {
   social: string | undefined
   noSocial: boolean
 }
-
-const TYPES: AppType[] = ['api', 'web', 'mobile', 'site']
 
 const TENANT_AWARE: AppType[] = ['api', 'web', 'mobile']
 
@@ -53,7 +53,7 @@ function parseTypes(value: string): AppType[] {
 }
 
 // A warning does not stop generation: it names a consequence the developer may have chosen on purpose.
-export type Resolved = Answers & { target: string; warnings: string[] }
+export type Resolved = Answers & { apps: App[]; target: string; warnings: string[] }
 
 function parseProviders(value: string): SocialProvider[] {
   const providers = value
@@ -116,19 +116,28 @@ export async function resolveAnswers(
     throw new CliError('target_not_empty', occupied)
   }
 
+  const named = (flags.apps ?? []).map(parseApp)
   let types: AppType[]
 
   if (flags.types !== undefined) {
     types = parseTypes(flags.types)
+  } else if (named.length > 0) {
+    types = []
   } else if (asker !== undefined) {
     types = await asker.types()
   } else {
     missing('--types')
   }
 
+  // The types answered take their own names; an app named on purpose comes after them.
+  let apps: App[] = [...defaultApps(types), ...named]
   let architecture: Answers['architecture']
 
-  if (types.length > 1) {
+  if (named.length > 0 && flags.alone) {
+    throw new CliError('invalid_input', '--app names an app inside a workspace; drop --alone.')
+  }
+
+  if (apps.length > 1 || named.length > 0) {
     if (flags.alone) {
       throw new CliError(
         'invalid_input',
@@ -143,6 +152,20 @@ export async function resolveAnswers(
   } else {
     missing('--alone or --monorepo')
   }
+
+  // Renaming an app, or adding another web or site, is for those who ask: offered once, after the types were asked
+  // rather than passed, and answered no by default. With flags, --app says it.
+  if (
+    architecture === 'monorepo' &&
+    flags.types === undefined &&
+    named.length === 0 &&
+    asker !== undefined
+  ) {
+    apps = await asker.apps(apps, name)
+  }
+
+  validateApps(apps, name)
+  types = typesOf(apps)
 
   let multiTenant = false
 
@@ -226,5 +249,5 @@ export async function resolveAnswers(
     )
   }
 
-  return { name, types, architecture, multiTenant, mcp, email, social, target, warnings }
+  return { name, types, apps, architecture, multiTenant, mcp, email, social, target, warnings }
 }

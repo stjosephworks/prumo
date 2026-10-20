@@ -26,7 +26,7 @@ export function SocialButtons({
       )}
       {/* prumo:google */}
       <a
-        href={auth.socialSignInUrl('google', 'web', returnTo)}
+        href={auth.socialSignInUrl('google', 'web', returnTo, window.location.origin)}
         className={buttonVariants({ variant: 'outline' })}
       >
         Continue with Google
@@ -34,7 +34,7 @@ export function SocialButtons({
       {/* prumo:end-google */}
       {/* prumo:apple */}
       <a
-        href={auth.socialSignInUrl('apple', 'web', returnTo)}
+        href={auth.socialSignInUrl('apple', 'web', returnTo, window.location.origin)}
         className={buttonVariants({ variant: 'outline' })}
       >
         Continue with Apple

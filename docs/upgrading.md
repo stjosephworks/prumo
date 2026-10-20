@@ -18,11 +18,14 @@ older one and your project is what your team changed.
    | Field | Flag |
    |---|---|
    | `types` | `--types api,web` |
+   | `apps` | `--app <name>=<type>` for each app whose name is not its type, in order; those types leave `--types` |
    | `architecture` | `--alone` or `--monorepo` |
    | `multiTenant` | `--multi-tenant` or `--single-tenant` |
    | `mcp` | `--mcp` or `--no-mcp` |
    | `email` | `--email` or `--no-email` |
    | `social` | `--social google,apple`, or `--no-social` when it is empty |
+
+   `apps` exists from 0.6.0, and only in a workspace.
 
    `email` and `social` exist from 0.4.0. A project generated before has neither, so its reference at the old
    version leaves both flags out, and its reference at the new one passes `--no-email --no-social`.
@@ -56,10 +59,33 @@ template writes it. Formatting never touches the files listed here.
 ## Where a file lands
 
 A path below is given as the project sees it when generated `alone`. In a workspace, each app's files sit under
-`apps/<type>/`, and the workspace root holds its own `scripts/ports.mjs`, `.githooks/` and `.gitattributes`:
-an app inside a workspace has no `.githooks/` or `.gitattributes` of its own.
+`apps/<name>/`, the name being the app's type unless it was named on purpose, and the workspace root holds its own
+`scripts/ports.mjs`, `.githooks/` and `.gitattributes`: an app inside a workspace has no `.githooks/` or
+`.gitattributes` of its own.
 
 ## What changed, release by release
+
+### 0.6.0
+
+| File | Types | Change |
+|---|---|---|
+| `src/infra/config/env.ts` | api | `WEB_ORIGIN` is a comma-separated list of origins, parsed into an array; one origin is a list of one |
+| `src/infra/http/hooks/origin.hook.ts`, `src/infra/http/app.ts` | api | The origin check and CORS accept every origin in the list |
+| `src/infra/http/controllers/oauth.controller.ts` | api | MCP consent opens on the first origin |
+| `src/infra/http/controllers/social.controller.ts` | api | Takes an optional `origin`, refused unless trusted, and sends the web back to it |
+| `test/support/setup.ts`, `test/infra/config/env.spec.ts`, two controller specs | api | `WEB_ORIGIN` as an array; new cases for several web apps |
+| `.env.example`, `README.md` | api | Say that `WEB_ORIGIN` is a list |
+| `src/api-contract/auth.ts`, or `packages/api-contract/src/auth.ts` | web, mobile | `socialSignInUrl` takes an optional `origin` |
+| `src/features/auth/social-buttons.tsx` and its spec | web | Pass `window.location.origin` |
+| `scripts/ports.mjs` | every type, and the workspace root | Finds the apps through `.prumo/config.json`, and keys its result by app name |
+| `.prumo/monorepo/*.md`, `.prumo/api/auth.md`, `.prumo/social/sign-in.md`, `.prumo/mcp/server.md` | workspace, api | Apps named on purpose, and several web apps |
+| `src/infra/social/openid-identity-providers.adapter.ts` | api | Without Apple, the `jose` import goes with it |
+
+Why: a workspace may hold apps named on purpose, and more than one web or site, through `prumo new --app
+<name>=<type>` or, later, `prumo add <type> [name]`. `prumo add` works only from the version that generated the
+project, so a project from before 0.6.0 does not take it. `.prumo/config.json` lists them in `apps`, which a workspace from an older version lacks; without
+it, `ports.mjs` reads one app per type, named after it, as before. Nothing else changes for a project that keeps its
+default names, and a single `WEB_ORIGIN` keeps working.
 
 ### 0.5.1
 

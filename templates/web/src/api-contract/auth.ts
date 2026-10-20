@@ -178,9 +178,21 @@ export function createAuthClient({
     // prumo:end-email
     // prumo:social
     // Where to send the browser to sign in with a provider: the API takes it there and back. The web comes back
-    // signed in; a mobile app comes back with a code to exchange.
-    socialSignInUrl: (provider: SocialProvider, client: 'web' | 'mobile', returnTo = '/') =>
-      `${url(`/social/${provider}`)}?${new URLSearchParams({ client, returnTo })}`,
+    // signed in, to the origin it names when the API trusts several; a mobile app comes back with a code to exchange.
+    socialSignInUrl: (
+      provider: SocialProvider,
+      client: 'web' | 'mobile',
+      returnTo = '/',
+      origin?: string,
+    ) => {
+      const query = new URLSearchParams({ client, returnTo })
+
+      if (origin !== undefined) {
+        query.set('origin', origin)
+      }
+
+      return `${url(`/social/${provider}`)}?${query}`
+    },
 
     exchangeSocialCode: async (code: string): Promise<void> => {
       await begin('/social/exchange', { code })

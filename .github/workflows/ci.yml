@@ -104,6 +104,11 @@ jobs:
             types: api,web,mobile,site
             architecture: monorepo
             flags: --mcp --email --social google,apple
+          # Apps named on purpose: a renamed api, and a second web and site, each verified, the api trusting both webs.
+          - name: named-apps
+            types: web,site
+            architecture: monorepo
+            flags: --app server=api --app backoffice=web --app blog=site --no-mcp --email --social google
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4

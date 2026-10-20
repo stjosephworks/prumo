@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util'
 import * as prompt from '@clack/prompts'
+import { addApp } from './add.ts'
+import { TYPES } from './apps.ts'
 import { terminalAsker } from './asker.ts'
 import { assetsFor, requireAssets } from './assets.ts'
 import { cleanText, planClean } from './clean.ts'
 import { COMMANDS, findCommand, helpText } from './commands.ts'
+import type { AppType } from './compose.ts'
 import { runDatabase } from './database.ts'
 import { doctor, doctorText, systemProbe, toolChecks } from './doctor.ts'
 import { generate } from './generate.ts'
@@ -36,6 +39,7 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
     allowPositionals: true,
     options: {
       types: { type: 'string' },
+      app: { type: 'string', multiple: true },
       alone: { type: 'boolean', default: false },
       monorepo: { type: 'boolean', default: false },
       'multi-tenant': { type: 'boolean', default: false },
@@ -75,6 +79,7 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
     {
       name,
       types: values.types,
+      apps: values.app,
       alone: values.alone,
       monorepo: values.monorepo,
       multiTenant: values['multi-tenant'],
@@ -90,9 +95,9 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
     cwd,
   )
 
-  if (!json && answers.types.length > 1) {
+  if (!json && answers.architecture === 'monorepo' && answers.apps.length > 1) {
     prompt.log.info(
-      `${answers.types.length} types make a workspace: apps/ and packages/ under one root.`,
+      `${answers.apps.length} apps make a workspace: apps/ and packages/ under one root.`,
     )
   }
 
@@ -120,6 +125,7 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
       target,
       cwd,
       types: chosen.types,
+      apps: chosen.apps,
       architecture: chosen.architecture,
       installed: install,
     })
@@ -128,6 +134,54 @@ async function runNew(args: string[], json: boolean): Promise<Result> {
   }
 
   return { data: { ...chosen, target, installed: install, warnings }, text: '' }
+}
+
+async function runAdd(args: string[], json: boolean): Promise<Result> {
+  const { values, positionals } = parseArgs({
+    args,
+    allowPositionals: true,
+    options: {
+      'skip-install': { type: 'boolean', default: false },
+      json: { type: 'boolean', default: false },
+    },
+  })
+  const [type, name, ...extra] = positionals
+
+  if (type === undefined || extra.length > 0) {
+    throw new CliError('usage', 'Usage: prumo add <type> [name], as in `prumo add web backoffice`.')
+  }
+
+  if (!TYPES.includes(type as AppType)) {
+    throw new CliError('invalid_app', `Unknown type: ${type}. Choose from ${TYPES.join(', ')}.`)
+  }
+
+  const install = !values['skip-install']
+  const tools = toolChecks(systemProbe, install ? ['pnpm'] : [])
+
+  if (tools.some((check) => check.status !== 'ok')) {
+    throw new CliError('not_ready', 'This machine is missing something Prumo needs.', {
+      ready: false,
+      checks: tools,
+    })
+  }
+
+  const added = await addApp({
+    ...requireAssets(assetsFor(import.meta.dirname)),
+    cwd: process.cwd(),
+    type: type as AppType,
+    name,
+    install,
+    childOutput: json ? 'stderr' : 'inherit',
+  })
+  const steps = [
+    ...(install ? [] : ['pnpm install']),
+    `pnpm ${added.app.name}  # on port ${added.port}`,
+  ]
+
+  return {
+    data: added,
+    text: `Added ${added.app.name}, a ${added.app.type}, in apps/${added.app.name}.\nNext:\n${steps.map((step) => `  ${step}\n`).join('')}`,
+  }
 }
 
 async function runClean(args: string[], json: boolean): Promise<Result> {
@@ -238,6 +292,8 @@ async function main(argv: string[]): Promise<void> {
       result = await runClean(args, json)
     } else if (name === 'new') {
       result = await runNew(args, json)
+    } else if (name === 'add') {
+      result = await runAdd(args, json)
     } else {
       throw new CliError('unknown_command', `Unknown command "${name}". Run \`prumo help\`.`)
     }
