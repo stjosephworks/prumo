@@ -9,7 +9,8 @@ and `test` as well, each running through `pnpm -r`.
 **Every app answers to `dev`.** When a framework names its development command differently, keep its name and
 alias it: `"dev": "pnpm start:dev"` in the API, `"dev": "pnpm start"` in mobile.
 
-**Give every app its own port.** The API holds 3000, so the site runs on 3200.
+**Give every app its own port.** The API holds 3000, so the site runs on 3200. A second app of a type takes the
+next port of that type: a second web 5174, a second site 3201.
 
 Keep compiler options in `tsconfig.base.json` at the workspace root. Extend it by relative path from each
 app and package, overriding only what differs.
@@ -82,8 +83,9 @@ Extending the base:
 **The hook.** Pre-push runs the root `typecheck`, so a type error in any package stops the push.
 
 **Review only.** That a new app extends the base rather than copying it, answers to `dev`, runs on a port no
-other app uses, and has a root script named after it. A missing `dev` fails nothing: `pnpm -r` skips a package
-without the script, so the app simply does not start.
+other app uses, has a root script named after it, and is listed in `.prumo/config.json`, where `scripts/ports.mjs`
+finds it. `prumo add <type> [name]` writes all of it; an app added by hand needs the same. A missing `dev` fails
+nothing: `pnpm -r` skips a package without the script, so the app simply does not start.
 
 **The reversal condition, stated so it is measurable rather than a feeling:** without caching,
 `pnpm -r typecheck` runs `tsc` in every package from scratch every time. Turborepo belongs on the table the

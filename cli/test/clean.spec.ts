@@ -40,7 +40,8 @@ describe('clean', () => {
       },
     })
 
-    const api = answers.architecture === 'alone' ? target : join(target, 'apps/api')
+    const name = answers.apps?.find((app) => app.type === 'api')?.name ?? 'api'
+    const api = answers.architecture === 'alone' ? target : join(target, 'apps', name)
     const env = await readFile(join(api, '.env'), 'utf8')
     await writeFile(
       join(api, '.env'),
@@ -86,6 +87,27 @@ describe('clean', () => {
 
     const again = await planClean({ cwd: target, templates, force: false })
     expect(again.items.every((item) => item.status === 'absent')).toBe(true)
+  })
+
+  it('cleans a workspace whose api was renamed', async () => {
+    const { target, api } = await project({
+      types: ['api', 'web'],
+      apps: [
+        { name: 'server', type: 'api' },
+        { name: 'web', type: 'web' },
+      ],
+      architecture: 'monorepo',
+    })
+    const plan = await planClean({ cwd: target, templates, force: false })
+
+    expect(plan.items.every((item) => item.status === 'pending')).toBe(true)
+
+    await plan.apply()
+
+    expect(JSON.parse(await read(join(target, 'package.json'))).scripts.dev).toBe(
+      'node scripts/ports.mjs --all -- pnpm -r --parallel dev',
+    )
+    expect(existsSync(join(api, 'scripts/database.mjs'))).toBe(false)
   })
 
   it('keeps what the team changed and cleans the rest of an alone API', async () => {

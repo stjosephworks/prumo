@@ -14,22 +14,23 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { parseArgs } from 'node:util'
 
-// Where each app keeps its port, what it falls back to, and how its dev command is told about it.
-const APPS = {
+// Where an app of each type keeps its port, what it falls back to, and how its dev command is told about it.
+const TYPES = {
   api: { key: 'PORT', fallback: 3000, flag: [] },
   web: { key: 'WEB_PORT', fallback: 5173, flag: ['--port', '--strictPort'] },
   site: { key: 'SITE_PORT', fallback: 3200, flag: ['--port'] },
   mobile: { key: 'METRO_PORT', fallback: 8081, flag: ['--port'] },
 }
 
-// A port that moves takes these with it: the key to write, in which app, from which app's port.
+// A port that moves takes these with it: the key to write, in every app of which type. A list holds one URL per app,
+// so only the moving app's entry changes.
 const FOLLOWERS = {
   api: [
-    { app: 'api', key: 'API_URL' },
-    { app: 'web', key: 'VITE_API_URL' },
-    { app: 'mobile', key: 'EXPO_PUBLIC_API_URL' },
+    { type: 'api', key: 'API_URL' },
+    { type: 'web', key: 'VITE_API_URL' },
+    { type: 'mobile', key: 'EXPO_PUBLIC_API_URL' },
   ],
-  web: [{ app: 'api', key: 'WEB_ORIGIN' }],
+  web: [{ type: 'api', key: 'WEB_ORIGIN', list: true }],
   site: [],
   mobile: [],
 }
@@ -117,36 +118,43 @@ function projectRoot() {
 const root = projectRoot()
 const workspace = existsSync(join(root, 'apps'))
 
-function directoryOf(type) {
-  return workspace ? join(root, 'apps', type) : root
+function readConfig() {
+  const path = join(root, '.prumo', 'config.json')
+
+  return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {}
 }
 
-function typeOf(directory) {
-  const name = basename(directory)
+// Every app of the project, as { name, type, directory }. A workspace lists its apps in .prumo/config.json; one written
+// before apps had names holds one per type, named after it. An alone project is its one app, named after its type.
+function projectApps() {
+  const config = readConfig()
 
-  if (APPS[name] !== undefined) {
-    return name
+  if (!workspace) {
+    // A project is named by its author, so only .prumo/config.json says what it is.
+    const type = TYPES[basename(root)] !== undefined ? basename(root) : config.types?.[0]
+
+    return type === undefined ? [] : [{ name: type, type, directory: root }]
   }
 
-  // An alone project is named by its author, so only .prumo/config.json says what it is.
-  const config = join(root, '.prumo', 'config.json')
-  const types = existsSync(config) ? JSON.parse(readFileSync(config, 'utf8')).types : []
+  const listed = config.apps ?? (config.types ?? []).map((type) => ({ name: type, type }))
 
-  return types[0]
+  return listed
+    .map((app) => ({ ...app, directory: join(root, 'apps', app.name) }))
+    .filter(
+      (app) => TYPES[app.type] !== undefined && existsSync(join(app.directory, 'package.json')),
+    )
 }
 
-function typesToCheck() {
-  if (!values.all) {
-    return [typeOf(here)]
-  }
+const apps = projectApps()
 
-  return Object.keys(APPS).filter((type) => existsSync(join(directoryOf(type), 'package.json')))
+function appsToCheck() {
+  return values.all ? apps : apps.filter((app) => app.directory === here)
 }
 
-function portOf(type) {
-  const app = APPS[type]
+function portOf(app) {
+  const { key, fallback } = TYPES[app.type]
 
-  return Number(envValue(readEnv(directoryOf(type)), app.key) ?? app.fallback)
+  return Number(envValue(readEnv(app.directory), key) ?? fallback)
 }
 
 function listening(host, port) {
@@ -269,22 +277,31 @@ async function nextFree(from) {
   throw new Failure('port_busy', `No free port between ${from + 1} and ${from + PORTS_TRIED - 1}.`)
 }
 
-function movePort(type, port) {
-  const app = APPS[type]
+function movePort(app, from, port) {
+  const before = `http://localhost:${from}`
+  const after = `http://localhost:${port}`
 
-  writeEnvValue(directoryOf(type), app.key, port)
+  writeEnvValue(app.directory, TYPES[app.type].key, port)
 
-  for (const follower of FOLLOWERS[type]) {
-    const directory = directoryOf(follower.app)
+  for (const follower of FOLLOWERS[app.type]) {
+    for (const other of apps.filter((each) => each.type === follower.type)) {
+      const current = envValue(readEnv(other.directory), follower.key)
+      const entries = (current ?? '').split(',').map((entry) => entry.trim())
+      const value =
+        follower.list && current !== undefined
+          ? (entries.includes(before)
+              ? entries.map((entry) => (entry === before ? after : entry))
+              : [...entries, after]
+            ).join(',')
+          : after
 
-    if (existsSync(join(directory, 'package.json'))) {
-      writeEnvValue(directory, follower.key, `http://localhost:${port}`)
+      writeEnvValue(other.directory, follower.key, value)
     }
   }
 }
 
-async function settle(type) {
-  const port = portOf(type)
+async function settle(app) {
+  const port = portOf(app)
 
   if (!(await taken(port))) {
     return port
@@ -292,12 +309,12 @@ async function settle(type) {
 
   const found = holders(port)
 
-  say(`${type} wants port ${port}, held by ${describe(found)}.`)
+  say(`${app.name} wants port ${port}, held by ${describe(found)}.`)
 
   const moved = async () => {
     const free = await nextFree(port)
-    movePort(type, free)
-    say(`${type} moved to port ${free}, written to .env.`)
+    movePort(app, port, free)
+    say(`${app.name} moved to port ${free}, written to .env.`)
     return free
   }
 
@@ -311,7 +328,7 @@ async function settle(type) {
   if (!interactive) {
     throw new Failure(
       'port_busy',
-      `Port ${port} is in use by ${describe(found)}. Pass --kill to stop it, or --change to move ${type} to the next free port.`,
+      `Port ${port} is in use by ${describe(found)}. Pass --kill to stop it, or --change to move ${app.name} to the next free port.`,
     )
   }
 
@@ -669,10 +686,8 @@ async function main() {
   const starting = command === undefined ? undefined : startJob()
 
   try {
-    for (const type of typesToCheck()) {
-      if (type !== undefined) {
-        ports[type] = await settle(type)
-      }
+    for (const app of appsToCheck()) {
+      ports[app.name] = await settle(app)
     }
   } catch (error) {
     ;(await starting)?.close()
@@ -685,10 +700,10 @@ async function main() {
 
   // Only an app tells its command which port to use. A workspace root wraps `pnpm`, which would pass a stray
   // `--port` on to every app it runs.
-  const [type] = values.all ? [] : Object.keys(ports)
-  const flag = APPS[type ?? '']?.flag ?? []
+  const [app] = values.all ? [] : appsToCheck()
+  const flag = app === undefined ? [] : TYPES[app.type].flag
   const withPort = flag.flatMap((entry) =>
-    entry === '--port' ? ['--port', String(ports[type])] : [entry],
+    entry === '--port' ? ['--port', String(ports[app.name])] : [entry],
   )
   // Before the command starts, so that it and everything it starts are members from their first instant.
   const job = await starting

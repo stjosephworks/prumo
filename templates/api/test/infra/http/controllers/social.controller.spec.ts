@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { IDENTITY_PROVIDERS } from '@/domain/auth/ports/identity-providers.port'
 
 const WEB = 'http://localhost:5173'
+const BACKOFFICE = 'http://localhost:5174'
 
 // Whichever provider the project kept: the flow is the same for each.
 const PROVIDER = [
@@ -26,7 +27,7 @@ function stateOf(response: LightMyRequestResponse): string {
 
 beforeEach(async () => {
   ;({ app } = await testApp({
-    env: { ...testEnv(), MOBILE_APP_SCHEME: 'acme' },
+    env: { ...testEnv(), WEB_ORIGIN: [WEB, BACKOFFICE], MOBILE_APP_SCHEME: 'acme' },
     configure: (container) =>
       container.register(IDENTITY_PROVIDERS, { useValue: new FakeIdentityProviders() }),
   }))
@@ -67,6 +68,27 @@ describe('social sign-in on the web', () => {
 
     expect(forwarded.headers.location).toBe(`${WEB}/sign-in?error=social_sign_in_failed`)
     expect(back.headers.location).toBe(`${WEB}/`)
+  })
+
+  it('sends each web app back to itself, and refuses an origin it does not trust', async () => {
+    const started = await app.inject({
+      url: `/api/auth/social/${PROVIDER}?returnTo=/orders&origin=${encodeURIComponent(BACKOFFICE)}`,
+    })
+    const back = await app.inject({
+      url: `/api/auth/social/${PROVIDER}/callback?code=c&state=${stateOf(started)}`,
+      headers: { cookie: browserCookie(started) },
+    })
+    const failed = await app.inject({
+      url: `/api/auth/social/${PROVIDER}/callback?error=access_denied`,
+      headers: { cookie: browserCookie(started) },
+    })
+    const foreign = await app.inject({
+      url: `/api/auth/social/${PROVIDER}?origin=${encodeURIComponent('https://evil.example')}`,
+    })
+
+    expect(back.headers.location).toBe(`${BACKOFFICE}/orders`)
+    expect(failed.headers.location).toBe(`${BACKOFFICE}/sign-in?error=social_sign_in_failed`)
+    expect(foreign.statusCode).toBe(422)
   })
 
   it('turns a form post, as Apple sends, into a redirect the browser’s cookie comes with', async () => {

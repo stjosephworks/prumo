@@ -7,7 +7,8 @@ const PROJECT_NAME = /^[a-z][a-z0-9-]*$/
 // npm refuses a longer package name.
 const MAX_LENGTH = 214
 
-// In a workspace each app's package is named after its type, and `pnpm --filter <type>` would match the root too.
+// In a workspace an app's package is named after its type by default, and `pnpm --filter <type>` would match the
+// root too. A name given on purpose is checked against the project's in apps.ts.
 const RESERVED = ['api', 'web', 'mobile', 'site']
 
 export function validateProjectName(name: string): string | undefined {

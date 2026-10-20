@@ -304,3 +304,101 @@ describe('the ports check', () => {
     expect(result.stderr).toBe(`--port ${WEB} --strictPort`)
   })
 })
+
+describe('the ports check with apps named on purpose', () => {
+  let root: string
+  let release: (() => Promise<void>) | undefined
+
+  afterEach(async () => {
+    await release?.()
+    release = undefined
+    await rm(root, { recursive: true, force: true })
+  })
+
+  const BACKOFFICE = 39_004
+
+  // An api renamed server, and a second web beside the first: only config.json says what each directory is.
+  async function workspace() {
+    root = await mkdtemp(join(tmpdir(), 'prumo-ports-named-'))
+
+    const apps = [
+      { name: 'server', type: 'api' },
+      { name: 'web', type: 'web' },
+      { name: 'backoffice', type: 'web' },
+    ]
+
+    await mkdir(join(root, '.prumo'), { recursive: true })
+    await writeFile(
+      join(root, '.prumo/config.json'),
+      JSON.stringify({ types: ['api', 'web'], apps, architecture: 'monorepo' }),
+    )
+    await cp(join(templates, 'workspace/scripts'), join(root, 'scripts'), { recursive: true })
+
+    for (const app of apps) {
+      const directory = join(root, 'apps', app.name)
+      await mkdir(directory, { recursive: true })
+      await writeFile(join(directory, 'package.json'), '{}')
+      await cp(join(templates, app.type, 'scripts'), join(directory, 'scripts'), {
+        recursive: true,
+      })
+    }
+
+    await writeFile(
+      join(root, 'apps/server/.env'),
+      `PORT=${API}\nAPI_URL=http://localhost:${API}\nWEB_ORIGIN=http://localhost:${WEB},http://localhost:${BACKOFFICE}\n`,
+    )
+    await writeFile(
+      join(root, 'apps/web/.env'),
+      `WEB_PORT=${WEB}\nVITE_API_URL=http://localhost:${API}\n`,
+    )
+    await writeFile(
+      join(root, 'apps/backoffice/.env'),
+      `WEB_PORT=${BACKOFFICE}\nVITE_API_URL=http://localhost:${API}\n`,
+    )
+  }
+
+  const env = (path: string) => readFile(join(root, path), 'utf8')
+
+  it('checks every app by its name, each with its own port', async () => {
+    await workspace()
+
+    const { status, out } = ports(root, ['--all', '--json'])
+
+    expect(status).toBe(0)
+    expect(out.data).toEqual({ ports: { server: API, web: WEB, backoffice: BACKOFFICE } })
+    expect(ports(join(root, 'apps/backoffice'), ['--check', '--json']).out.data).toEqual({
+      ports: { backoffice: BACKOFFICE },
+    })
+  })
+
+  it('moves one web app and only its own entry in the list the api trusts', async () => {
+    await workspace()
+    release = await hold(BACKOFFICE)
+
+    const { status, out } = ports(join(root, 'apps/backoffice'), ['--check', '--change', '--json'])
+    const moved = out.data?.ports?.backoffice
+
+    expect(status).toBe(0)
+    expect(moved).toBeGreaterThan(BACKOFFICE)
+    expect(await env('apps/backoffice/.env')).toContain(`WEB_PORT=${moved}`)
+    expect(await env('apps/web/.env')).toContain(`WEB_PORT=${WEB}`)
+    expect(await env('apps/server/.env')).toContain(
+      `WEB_ORIGIN=http://localhost:${WEB},http://localhost:${moved}\n`,
+    )
+  })
+
+  it('points every web app at the api when the api moves', async () => {
+    await workspace()
+    release = await hold(API)
+
+    const { status, out } = ports(join(root, 'apps/server'), ['--check', '--change', '--json'])
+    const moved = out.data?.ports?.server
+
+    expect(status).toBe(0)
+    expect(await env('apps/server/.env')).toContain(`API_URL=http://localhost:${moved}`)
+
+    for (const web of ['web', 'backoffice']) {
+      expect(await env(`apps/${web}/.env`)).toContain(`VITE_API_URL=http://localhost:${moved}`)
+    }
+  })
+})

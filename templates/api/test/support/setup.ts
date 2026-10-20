@@ -25,7 +25,7 @@ export function testEnv(): Env {
     DATABASE_URL: databaseUrl,
     JWT_SECRET: 'test-secret-that-is-at-least-32-characters',
     API_URL: 'http://localhost:3000',
-    WEB_ORIGIN: 'http://localhost:5173',
+    WEB_ORIGIN: ['http://localhost:5173'],
     LOG_LEVEL: 'error',
   }
 }

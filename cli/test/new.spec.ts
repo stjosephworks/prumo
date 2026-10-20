@@ -14,6 +14,7 @@ const knowledge = resolve(import.meta.dirname, '../../.prumo-templates')
 const flags = (overrides: Partial<Flags>): Flags => ({
   name: 'acme',
   types: undefined,
+  apps: undefined,
   alone: false,
   monorepo: false,
   multiTenant: false,
@@ -143,6 +144,60 @@ describe('resolveAnswers outside a terminal', () => {
   })
 })
 
+describe('resolveAnswers with apps named on purpose', () => {
+  const rest = { singleTenant: true, noMcp: true, noEmail: true, noSocial: true }
+
+  it('adds each --app after the types, and makes a workspace of them', async () => {
+    const answers = await resolveAnswers(
+      flags({ types: 'api,web', apps: ['backoffice=web'], ...rest }),
+      undefined,
+    )
+
+    expect(answers.apps).toEqual([
+      { name: 'api', type: 'api' },
+      { name: 'web', type: 'web' },
+      { name: 'backoffice', type: 'web' },
+    ])
+    expect(answers.types).toEqual(['api', 'web'])
+    expect(answers.architecture).toBe('monorepo')
+  })
+
+  it('renames an app when its type is left out of --types, even when it is the only one', async () => {
+    const answers = await resolveAnswers(
+      flags({ apps: ['admin=web'], singleTenant: true }),
+      undefined,
+    )
+
+    expect(answers.apps).toEqual([{ name: 'admin', type: 'web' }])
+    expect(answers.types).toEqual(['web'])
+    expect(answers.architecture).toBe('monorepo')
+  })
+
+  it('refuses --alone, a second api and a name taken', async () => {
+    await expect(
+      resolveAnswers(flags({ apps: ['admin=web'], alone: true, ...rest }), undefined),
+    ).rejects.toThrow('--app names an app inside a workspace')
+    await expect(
+      resolveAnswers(flags({ types: 'api', apps: ['worker=api'], ...rest }), undefined),
+    ).rejects.toMatchObject({ code: 'invalid_app', message: expect.stringContaining('one api') })
+    await expect(
+      resolveAnswers(flags({ types: 'web', apps: ['web=web'], ...rest }), undefined),
+    ).rejects.toThrow('Another app is already named "web"')
+    await expect(
+      resolveAnswers(flags({ types: 'web', apps: ['acme=site'], ...rest }), undefined),
+    ).rejects.toThrow('project’s name')
+  })
+
+  it('lets MCP authorize through a web app that was renamed', async () => {
+    const answers = await resolveAnswers(
+      flags({ types: 'api', apps: ['admin=web'], ...rest, noMcp: false, mcp: true }),
+      undefined,
+    )
+
+    expect(answers.mcp).toBe(true)
+  })
+})
+
 describe('resolveAnswers in a terminal', () => {
   function scripted(answers: Partial<Asker & { asked: string[] }> = {}) {
     const asked: string[] = []
@@ -158,6 +213,10 @@ describe('resolveAnswers in a terminal', () => {
       architecture: async () => {
         asked.push('architecture')
         return 'monorepo'
+      },
+      apps: async (defaults) => {
+        asked.push('apps')
+        return defaults
       },
       multiTenant: async () => {
         asked.push('multiTenant')
@@ -186,10 +245,11 @@ describe('resolveAnswers in a terminal', () => {
 
     const answers = await resolveAnswers(flags({ name: undefined }), asker)
 
-    expect(asked).toEqual(['name', 'types', 'architecture', 'multiTenant', 'email'])
+    expect(asked).toEqual(['name', 'types', 'architecture', 'apps', 'multiTenant', 'email'])
     expect(answers).toEqual({
       name: 'from-prompt',
       types: ['api'],
+      apps: [{ name: 'api', type: 'api' }],
       architecture: 'monorepo',
       multiTenant: true,
       mcp: false,
@@ -420,6 +480,48 @@ describe('generate', () => {
     expect(existsSync(join(target, '.env'))).toBe(false)
     expect(app.expo.scheme).toBe('acme')
     expect(JSON.parse(await readFile(join(target, 'package.json'), 'utf8')).name).toBe('acme')
+  })
+
+  it('generates apps named on purpose, and records them for every tool that reads the project', async () => {
+    root = await mkdtemp(join(tmpdir(), 'prumo-new-'))
+    const target = join(root, 'acme')
+    const apps = [
+      { name: 'server', type: 'api' },
+      { name: 'web', type: 'web' },
+      { name: 'backoffice', type: 'web' },
+    ] as const
+
+    await generate({
+      templates,
+      knowledge,
+      target,
+      install: false,
+      answers: {
+        name: 'acme',
+        types: ['api', 'web'],
+        apps: [...apps],
+        architecture: 'monorepo',
+        multiTenant: false,
+        mcp: true,
+        email: false,
+        social: ['google'],
+      },
+    })
+
+    const config = JSON.parse(await readFile(join(target, '.prumo/config.json'), 'utf8'))
+    const serverEnv = await readFile(join(target, 'apps/server/.env'), 'utf8')
+
+    expect(config.apps).toEqual(apps)
+    expect(serverEnv).toMatch(/^JWT_SECRET=[\w-]{43}$/m)
+    expect(serverEnv).toMatch(/^WEB_ORIGIN=http:\/\/localhost:5173,http:\/\/localhost:5174$/m)
+    expect(await readFile(join(target, 'apps/server/docker-compose.yml'), 'utf8')).toMatch(
+      /^name: acme$/m,
+    )
+    expect(await readFile(join(target, 'apps/backoffice/.env'), 'utf8')).toMatch(/^WEB_PORT=5174$/m)
+    // MCP's consent page ships with every web app; the API opens it on the first.
+    expect(existsSync(join(target, 'apps/backoffice/src/routes/_authenticated/consent.tsx'))).toBe(
+      true,
+    )
   })
 
   it('gives a site the .env it needs to pick its port', async () => {

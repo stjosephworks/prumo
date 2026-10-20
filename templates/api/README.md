@@ -51,7 +51,8 @@ one comes from.
 <!-- prumo:mcp -->
 
 The MCP server answers at `/api/mcp`. This API is also the OAuth authorization server that issues its tokens: an MCP
-client finds it through `/.well-known/oauth-protected-resource`, and the user signs in and consents on the web app.
+client finds it through `/.well-known/oauth-protected-resource`, and the user signs in and consents on the first web
+app in `WEB_ORIGIN`.
 <!-- prumo:end-mcp -->
 
 ## Everyday commands

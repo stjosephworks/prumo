@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
-import type { AppType } from './compose.ts'
+import { appDirectory, appsOf, appsOfType } from './apps.ts'
 import type { Answers } from './context.ts'
 import { CliError } from './output.ts'
 
@@ -33,12 +33,9 @@ export function readConfig(root: string): Config {
 // Where the API sits, or undefined when the project has none.
 export function apiPath(root: string): string | undefined {
   const config = readConfig(root)
+  const [api] = appsOfType(appsOf(config), 'api')
 
-  if (!config.types.includes('api' satisfies AppType)) {
-    return undefined
-  }
-
-  return config.architecture === 'alone' ? root : join(root, 'apps', 'api')
+  return api === undefined ? undefined : appDirectory(root, config.architecture, api)
 }
 
 export function apiDirectory(root: string): string {

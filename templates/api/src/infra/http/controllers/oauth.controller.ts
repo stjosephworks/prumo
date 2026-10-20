@@ -129,8 +129,8 @@ export async function oauthController(fastify: FastifyInstance): Promise<void> {
           scopesSupported,
         )
 
-        // Signing in, if needed, and the consent itself happen on the web app.
-        return reply.redirect(`${env.WEB_ORIGIN}/consent?request=${authorization.id}`)
+        // Signing in, if needed, and the consent itself happen on the first web app.
+        return reply.redirect(`${env.WEB_ORIGIN[0]}/consent?request=${authorization.id}`)
       } catch (error) {
         if (error instanceof AuthorizationRequestError) {
           return reply.redirect(

@@ -1,12 +1,13 @@
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
+import { type App, appsOfType, PORTS, portOf } from './apps.ts'
 import { applyFeatures, cutFeatures, type Enabled, NONE } from './features.ts'
 import { prependProperty, readJsonc, removeWhatBaseDeclares, setJsonc } from './jsonc.ts'
 
 export type AppType = 'api' | 'web' | 'mobile' | 'site'
 
-const CLIENTS: AppType[] = ['web', 'mobile']
+export const CLIENTS: AppType[] = ['web', 'mobile']
 
 // One exception to one-version-per-dependency: stable NativeWind needs Tailwind 3.
 const NAMED_CATALOGS = [{ name: 'tailwind3', dependency: 'tailwindcss', major: '3' }]
@@ -35,6 +36,11 @@ const NOT_COPIED_SUFFIXES = ['.tsbuildinfo']
 
 // The name inside the package, and the name it is restored to. npm deletes a dotted .gitignore from a tarball.
 const PACKAGED_AS = { gitignore: '.gitignore' }
+
+// The root's `dev` sets the API's database up first, in whichever directory the API was given.
+export function rootDevPrefix(api: string): string {
+  return `node apps/${api}/scripts/database.mjs --check && `
+}
 
 const CONTRACT_IMPORT = "'@/api-contract'"
 const CONTRACT_PACKAGE = '@app/api-contract'
@@ -75,10 +81,13 @@ export async function copyTemplate(source: string, destination: string): Promise
   }
 }
 
-async function copyApp(templates: string, target: string, type: AppType): Promise<string> {
-  const destination = join(target, 'apps', type)
+export async function copyApp(templates: string, target: string, app: App): Promise<string> {
+  const destination = join(target, 'apps', app.name)
 
-  await copyTemplate(join(templates, type), destination)
+  await copyTemplate(join(templates, app.type), destination)
+
+  // The package is the app's name, which the root's `pnpm --filter <name>` finds it by.
+  await rewriteText(join(destination, 'package.json'), (text) => setJsonc(text, ['name'], app.name))
 
   // The workspace root carries both, for every app below it.
   for (const rootOnly of ['.githooks', '.gitattributes']) {
@@ -98,8 +107,8 @@ async function contractFiles(directory: string): Promise<Map<string, string>> {
   return files
 }
 
-async function extractContract(target: string, clients: AppType[]): Promise<void> {
-  const [first, ...others] = clients.map((client) => join(target, 'apps', client))
+export async function extractContract(target: string, clients: App[]): Promise<void> {
+  const [first, ...others] = clients.map((client) => join(target, 'apps', client.name))
 
   if (first === undefined) {
     return
@@ -125,19 +134,84 @@ async function extractContract(target: string, clients: AppType[]): Promise<void
   await rename(join(first, 'src', 'api-contract'), join(target, 'packages', 'api-contract', 'src'))
 
   for (const client of [first, ...others]) {
-    for (const directory of ['src', 'test']) {
-      for (const file of await sourceFiles(join(client, directory)).catch(() => [])) {
-        await rewriteText(file, (text) => text.replaceAll(CONTRACT_IMPORT, `'${CONTRACT_PACKAGE}'`))
-      }
-    }
-
-    await rewriteText(join(client, 'package.json'), (text) =>
-      setJsonc(text, ['dependencies', CONTRACT_PACKAGE], 'workspace:*'),
-    )
+    await importContract(client)
   }
 }
 
-function namedCatalogFor(dependency: string, version: string): string | undefined {
+// A client of the workspace imports the contract from its package rather than from a copy of its own.
+async function importContract(client: string): Promise<void> {
+  for (const directory of ['src', 'test']) {
+    for (const file of await sourceFiles(join(client, directory)).catch(() => [])) {
+      await rewriteText(file, (text) => text.replaceAll(CONTRACT_IMPORT, `'${CONTRACT_PACKAGE}'`))
+    }
+  }
+
+  await rewriteText(join(client, 'package.json'), (text) =>
+    setJsonc(text, ['dependencies', CONTRACT_PACKAGE], 'workspace:*'),
+  )
+}
+
+// A client added to a workspace that already shares a contract takes the team's, which may have grown since, and
+// drops the template's copy.
+export async function joinContract(client: string): Promise<void> {
+  await rm(join(client, 'src', 'api-contract'), { recursive: true })
+  await importContract(client)
+}
+
+function setEnvLine(text: string, key: string, value: string, file: string): string {
+  const line = new RegExp(`^${key}=.*$`, 'm')
+
+  if (!line.test(text)) {
+    throw new Error(`${file} no longer carries a ${key} line`)
+  }
+
+  return text.replace(line, `${key}=${value}`)
+}
+
+// A second web or site takes the next port of its type, written where the template wrote the first, and the API
+// trusts every web app, the first one first.
+async function placePorts(target: string, apps: App[]): Promise<void> {
+  for (const app of apps) {
+    const { key, from } = PORTS[app.type]
+    const port = portOf(apps, app)
+    const directory = join(target, 'apps', app.name)
+
+    if (port === from) {
+      continue
+    }
+
+    const example = join(directory, '.env.example')
+    await rewriteText(example, (text) => setEnvLine(text, key, String(port), example))
+
+    if (app.type === 'site') {
+      await rewriteText(join(directory, 'package.json'), (text) => {
+        const start = readJsonc<PackageJson>(text).scripts?.start ?? ''
+
+        if (!start.includes(`--port ${from}`)) {
+          throw new Error(`${join(directory, 'package.json')} no longer starts on --port ${from}`)
+        }
+
+        return setJsonc(
+          text,
+          ['scripts', 'start'],
+          start.replace(`--port ${from}`, `--port ${port}`),
+        )
+      })
+    }
+  }
+
+  const [api] = appsOfType(apps, 'api')
+  const webs = appsOfType(apps, 'web')
+
+  if (api !== undefined && webs.length > 1) {
+    const example = join(target, 'apps', api.name, '.env.example')
+    const origins = webs.map((web) => `http://localhost:${portOf(apps, web)}`).join(',')
+
+    await rewriteText(example, (text) => setEnvLine(text, 'WEB_ORIGIN', origins, example))
+  }
+}
+
+export function namedCatalogFor(dependency: string, version: string): string | undefined {
   return NAMED_CATALOGS.find(
     (entry) => entry.dependency === dependency && version.split('.')[0] === entry.major,
   )?.name
@@ -176,7 +250,7 @@ export function collectCatalog(packages: PackageJson[]): Catalogs {
   return catalogs
 }
 
-async function adaptAppConfig(target: string, app: string): Promise<void> {
+export async function adaptAppConfig(target: string, app: string): Promise<void> {
   const packagePath = join(app, 'package.json')
   let pkg = await readFile(packagePath, 'utf8')
   const parsed = readJsonc<PackageJson>(pkg)
@@ -215,7 +289,7 @@ async function adaptAppConfig(target: string, app: string): Promise<void> {
   await writeFile(biomePath, prependProperty(biome, 'extends', '//'))
 }
 
-async function takeBuildApprovals(app: string): Promise<string[]> {
+export async function takeBuildApprovals(app: string): Promise<string[]> {
   const path = join(app, 'pnpm-workspace.yaml')
   const text = await readFile(path, 'utf8').catch(() => undefined)
 
@@ -276,32 +350,37 @@ async function assertCatalogCovers(target: string, catalog: Dependencies): Promi
 export async function composeWorkspace({
   templates,
   target,
-  types,
+  apps,
   features = NONE,
 }: {
   templates: string
   target: string
-  types: AppType[]
+  apps: App[]
   features?: Enabled
 }): Promise<void> {
   await mkdir(target, { recursive: true })
   await copyTemplate(join(templates, 'workspace'), target)
 
   // The root README tells a first run what the features change, so it is cut like any app's.
+  // It also points into the API's directory, which may have been given a name of its own.
   const readme = join(target, 'README.md')
-  await writeFile(readme, cutFeatures(await readFile(readme, 'utf8'), features, readme))
+  const [api] = appsOfType(apps, 'api')
+  const cut = cutFeatures(await readFile(readme, 'utf8'), features, readme)
+  await writeFile(readme, cut.replaceAll('apps/api/', `apps/${api?.name ?? 'api'}/`))
 
-  const apps: string[] = []
+  const directories: string[] = []
 
-  for (const type of types) {
-    const app = await copyApp(templates, target, type)
+  for (const app of apps) {
+    const directory = await copyApp(templates, target, app)
 
     // Before the catalog is collected, so a dependency that leaves never reaches it.
-    await applyFeatures(app, type, features)
-    apps.push(app)
+    await applyFeatures(directory, app.type, features)
+    directories.push(directory)
   }
 
-  const clients = CLIENTS.filter((client) => types.includes(client))
+  await placePorts(target, apps)
+
+  const clients = apps.filter((app) => CLIENTS.includes(app.type))
 
   if (clients.length > 0) {
     await extractContract(target, clients)
@@ -314,18 +393,18 @@ export async function composeWorkspace({
   // parallel run would bury, so the root asks first and each app's own check then finds nothing to do.
   // `pnpm -r --parallel` starts each app in its own process group, so Ctrl+C reaches pnpm and leaves the apps
   // running. The ports script wraps the run, remembers what it started, and stops all of it on the way out.
-  const database = types.includes('api') ? 'node apps/api/scripts/database.mjs --check && ' : ''
+  const database = api === undefined ? '' : rootDevPrefix(api.name)
   const dev = `${database}node scripts/ports.mjs --all -- pnpm -r --parallel dev`
 
   await rewriteText(join(target, 'package.json'), (text) =>
-    types.reduce(
-      (pkg, type) => setJsonc(pkg, ['scripts', type], `pnpm --filter ${type} dev`),
+    apps.reduce(
+      (pkg, app) => setJsonc(pkg, ['scripts', app.name], `pnpm --filter ${app.name} dev`),
       setJsonc(text, ['scripts', 'dev'], dev),
     ),
   )
 
   const manifests = await Promise.all(
-    apps.map(async (app) =>
+    directories.map(async (app) =>
       readJsonc<PackageJson>(await readFile(join(app, 'package.json'), 'utf8')),
     ),
   )
@@ -337,10 +416,10 @@ export async function composeWorkspace({
 
   const approvals: string[] = []
 
-  for (const app of apps) {
-    await adaptAppConfig(target, app)
+  for (const directory of directories) {
+    await adaptAppConfig(target, directory)
 
-    for (const line of await takeBuildApprovals(app)) {
+    for (const line of await takeBuildApprovals(directory)) {
       if (!approvals.includes(line)) {
         approvals.push(line)
       }
