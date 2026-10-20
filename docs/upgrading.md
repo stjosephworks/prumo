@@ -65,6 +65,12 @@ A path below is given as the project sees it when generated `alone`. In a worksp
 
 ## What changed, release by release
 
+### 0.6.1
+
+Nothing generated changed. `prumo add` runs on Windows, where 0.6.0 failed after installing because it passed
+the new app's path to Biome with backslashes; and adding a first web app no longer lists its origin twice in the
+API's `WEB_ORIGIN`. A project 0.6.0 gave a doubled origin works as it is, and keeps one entry when edited by hand.
+
 ### 0.6.0
 
 | File | Types | Change |
