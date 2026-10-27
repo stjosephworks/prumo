@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Node 22.18 or later, pnpm 10.26 or later, and the API running for anything behind the sign-in. The build downloads its
+Node 22.23.4 or later, pnpm 10.26 or later, and the API running for anything behind the sign-in. The build downloads its
 font from Google Fonts, so it needs network access.
 
 ## Running it

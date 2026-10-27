@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Node 22.18 or later, pnpm 10.26 or later, and the API running. To open the app, a simulator or a device with a
+Node 22.23.4 or later, pnpm 10.26 or later, and the API running. To open the app, a simulator or a device with a
 development build of it, made on this machine with Xcode for iOS or Android Studio for Android. Expo Go cannot open
 it, because MMKV's native code is not part of Expo Go.
 
