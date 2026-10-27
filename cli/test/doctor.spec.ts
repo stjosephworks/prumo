@@ -8,7 +8,7 @@ const EVERYTHING = {
   'docker info --format {{.OSType}}': 'linux',
 }
 
-function probe(commands: Record<string, string> = EVERYTHING, nodeVersion = '22.18.0'): Probe {
+function probe(commands: Record<string, string> = EVERYTHING, nodeVersion = '22.23.4'): Probe {
   return {
     nodeVersion,
     run: (command, args) => {
@@ -35,10 +35,12 @@ describe('doctor', () => {
   })
 
   it('fails on a Node below the floor, and on a missing pnpm or git', async () => {
-    const report = await doctor(probe({}, '22.17.9'))
+    const report = await doctor(probe({}, '22.23.3'))
 
     expect(report.ready).toBe(false)
     expect(check(report, 'node')?.status).toBe('fail')
+    // The floor before Astro 7 raised it.
+    expect(check(await doctor(probe(undefined, '22.18.0')), 'node')?.detail).toContain('22.23.4')
     expect(check(report, 'pnpm')?.status).toBe('fail')
     expect(check(report, 'git')?.status).toBe('fail')
   })

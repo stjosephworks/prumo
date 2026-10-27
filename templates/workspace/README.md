@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Node 22.18 or later and pnpm 10.26 or later. For the API, Docker Desktop running: its database and tests run in it.
+Node 22.23.4 or later and pnpm 10.26 or later. For the API, Docker Desktop running: its database and tests run in it.
 On Windows, Docker Desktop needs its WSL2 backend and Linux containers. Keep the project in a Windows folder, or
 work entirely inside a WSL distribution; Windows tools on a project inside the WSL filesystem are not supported.
 
@@ -19,7 +19,7 @@ work entirely inside a WSL distribution; Windows tools on a project inside the W
 |---|---|
 | `pnpm install` | Installs every app and package |
 | `pnpm dev` | Starts every app at once, their output prefixed by app. Mobile runs without its QR code there; use `pnpm mobile` for that |
-| `pnpm api` · `pnpm web` · `pnpm mobile` · `pnpm site` | Starts one app; the workspace has a script for each app it holds, named after it |
+| `pnpm api` · `pnpm web` · `pnpm mobile` | Starts one app; the workspace has a script for each app it holds, named after it |
 | `pnpm lint` · `pnpm typecheck` · `pnpm test` | Runs across every app and package |
 
 ## Trying it

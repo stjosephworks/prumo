@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { type App, appsOf } from './apps.ts'
+import { type App, appsOf, templateOf } from './apps.ts'
 import type { AppType } from './compose.ts'
 import type { SocialProvider } from './features.ts'
 import { cliVersion } from './version.ts'
@@ -18,16 +18,22 @@ export type Answers = {
   social: SocialProvider[]
 }
 
-const CLIENTS: AppType[] = ['web', 'mobile', 'site']
+const CLIENTS: AppType[] = ['web', 'mobile']
+
+// Every web app shares `web`, its components; its framework's area holds the rest, since routing, rendering and
+// structure differ between them end to end.
+const CLIENT_AREAS = ['web-vite', 'web-next', 'web-astro', 'mobile']
 
 export function areasFor(answers: Answers): string[] {
   const has = (type: AppType) => answers.types.includes(type)
+  const templates: string[] = appsOf(answers).map(templateOf)
 
   return [
     'core',
     ...(has('api') ? ['api', 'database'] : []),
     ...(CLIENTS.some(has) ? ['client'] : []),
-    ...CLIENTS.filter(has),
+    ...(has('web') ? ['web'] : []),
+    ...CLIENT_AREAS.filter((area) => templates.includes(area)),
     ...(answers.architecture === 'monorepo' ? ['monorepo'] : []),
     ...(answers.multiTenant ? ['multi-tenancy'] : []),
     ...(answers.mcp ? ['mcp'] : []),
@@ -60,8 +66,8 @@ async function writeConfig(prumo: string, answers: Answers): Promise<void> {
   const config = {
     prumo: cliVersion(),
     types: answers.types,
-    // Only a workspace has apps/ to name a directory in.
-    ...(answers.architecture === 'monorepo' ? { apps: appsOf(answers) } : {}),
+    // Every app, with the framework of each web app, which nothing else records.
+    apps: appsOf(answers),
     architecture: answers.architecture,
     multiTenant: answers.multiTenant,
     mcp: answers.mcp,

@@ -1,0 +1,9 @@
+---
+import { VerifyEmail } from '@/features/auth/verify-email-form'
+import Narrow from '@/layouts/narrow.astro'
+---
+
+<Narrow title="Confirm your email">
+  <h1 class="text-2xl font-semibold">Confirm your email</h1>
+  <VerifyEmail client:only="react" />
+</Narrow>

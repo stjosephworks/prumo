@@ -15,12 +15,16 @@ import { basename, join, resolve } from 'node:path'
 
 const windows = process.platform === 'win32'
 
-// Where each app keeps its port and what it falls back to, as scripts/ports.mjs reads them.
+// Where each app keeps its port and what it falls back to, as scripts/ports.mjs reads them, by the template it came
+// from: a web app's is its framework's.
 const PORTS = {
-  web: { key: 'WEB_PORT', fallback: 5173 },
-  site: { key: 'SITE_PORT', fallback: 3200 },
+  'web-vite': { key: 'WEB_PORT', fallback: 5173 },
+  'web-next': { key: 'WEB_PORT', fallback: 3200 },
+  'web-astro': { key: 'WEB_PORT', fallback: 4321 },
   mobile: { key: 'METRO_PORT', fallback: 8081 },
 }
+
+const templateOf = (app) => (app.type === 'web' ? `web-${app.framework ?? 'vite'}` : app.type)
 
 const project = resolve(process.argv[2] ?? '')
 
@@ -72,9 +76,9 @@ const appDir = (app) =>
 function portOf(app) {
   const env = join(appDir(app), '.env')
   const text = existsSync(env) ? readFileSync(env, 'utf8') : ''
-  const value = new RegExp(`^${PORTS[app.type].key}=(.*)$`, 'm').exec(text)?.[1]?.trim()
+  const value = new RegExp(`^${PORTS[templateOf(app)].key}=(.*)$`, 'm').exec(text)?.[1]?.trim()
 
-  return Number(value ?? PORTS[app.type].fallback)
+  return Number(value ?? PORTS[templateOf(app)].fallback)
 }
 
 const ports = apps.map(portOf)

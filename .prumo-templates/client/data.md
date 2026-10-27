@@ -70,11 +70,11 @@ which reads as an application that is slow for no reason.
 
 ## Applies to
 
-Every client (`web`, `mobile` and `site`) for every call to the API.
+Every client (`web`, whatever its framework, and `mobile`) for every call to the API.
 
-The TanStack Query rules apply where Query is used, which is `web` and `mobile`. A `site` fetching on the
-server uses the wrapper, the hand-written types and the `ApiError`, and not the query factory or
-`useInfiniteQuery`.
+The TanStack Query rules apply where Query is used: in a Vite app and in mobile throughout, and in the signed-in part
+of a Next or Astro app, which runs in the browser. A public page of Next or Astro fetching on the server or at build
+time uses the wrapper, the hand-written types and the `ApiError`, and not the query factory or `useInfiniteQuery`.
 
 ## Examples
 

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { addApp } from '../src/add.ts'
-import type { App } from '../src/apps.ts'
+import { parseTypeEntry } from '../src/apps.ts'
 import type { Answers } from '../src/context.ts'
 import { generate } from '../src/generate.ts'
 import { cliVersion } from '../src/version.ts'
@@ -45,8 +45,9 @@ describe('prumo add', () => {
 
   const read = (path: string) => readFile(path, 'utf8')
   const json = async (path: string) => JSON.parse(await read(path))
-  const add = (cwd: string, type: App['type'], name?: string, assets = { templates, knowledge }) =>
-    addApp({ ...assets, cwd, type, name, install: false })
+  // The type as `prumo add` takes it: `web`, or `web:next` with its framework.
+  const add = (cwd: string, type: string, name?: string, assets = { templates, knowledge }) =>
+    addApp({ ...assets, cwd, ...parseTypeEntry(type, 'prumo add'), name, install: false })
 
   it('adds a second web app beside the first, trusted by the api and sharing its contract', async () => {
     const target = await workspace()
@@ -83,7 +84,7 @@ describe('prumo add', () => {
     expect((await json(join(target, '.prumo/config.json'))).apps).toEqual([
       { name: 'api', type: 'api' },
       { name: 'web', type: 'web' },
-      { name: 'backoffice', type: 'web' },
+      { name: 'backoffice', type: 'web', framework: 'vite' },
     ])
   })
 
@@ -130,6 +131,27 @@ describe('prumo add', () => {
     }
   })
 
+  it('lets a first web app on Next replace the origin the api trusted by default', async () => {
+    const target = await workspace({ types: ['api'] })
+
+    await add(target, 'web:next', 'portal')
+
+    expect(await read(join(target, 'apps/portal/.env'))).toMatch(/^WEB_PORT=3200$/m)
+    expect(await read(join(target, 'apps/portal/.env'))).toMatch(
+      /^NEXT_PUBLIC_API_URL=http:\/\/localhost:3000$/m,
+    )
+    expect((await json(join(target, '.prumo/config.json'))).apps).toContainEqual({
+      name: 'portal',
+      type: 'web',
+      framework: 'next',
+    })
+    for (const file of ['.env', '.env.example']) {
+      expect(await read(join(target, 'apps/api', file))).toMatch(
+        /^WEB_ORIGIN=http:\/\/localhost:3200$/m,
+      )
+    }
+  })
+
   it('refuses what it cannot add, before writing anything', async () => {
     const target = await workspace()
     const config = join(target, '.prumo/config.json')
@@ -137,16 +159,16 @@ describe('prumo add', () => {
 
     await expect(add(target, 'api', 'worker')).rejects.toMatchObject({ code: 'invalid_app' })
     await expect(add(target, 'web')).rejects.toMatchObject({ code: 'invalid_app' })
-    await expect(add(target, 'site', 'docs')).rejects.toMatchObject({ code: 'invalid_app' })
+    expect(() => parseTypeEntry('site', 'prumo add', 'invalid_app')).toThrow('site became web:next')
 
     await writeFile(config, (await read(config)).replace(cliVersion(), '0.6.99'))
-    await expect(add(target, 'site')).rejects.toMatchObject({
+    await expect(add(target, 'web:next', 'blog')).rejects.toMatchObject({
       code: 'version_mismatch',
-      message: expect.stringContaining('npx @stjoseph/prumo@0.6.99 add site site'),
+      message: expect.stringContaining('npx @stjoseph/prumo@0.6.99 add web:next blog'),
     })
 
     await writeFile(config, (await read(config)).replace('0.6.99', '0.4.3'))
-    await expect(add(target, 'site')).rejects.toMatchObject({
+    await expect(add(target, 'web:next', 'blog')).rejects.toMatchObject({
       code: 'version_mismatch',
       message: expect.stringContaining('exists from 0.6.0'),
     })
@@ -157,15 +179,15 @@ describe('prumo add', () => {
   it('refuses an alone project', async () => {
     const target = await workspace({ types: ['web'], architecture: 'alone' })
 
-    await expect(add(target, 'site')).rejects.toMatchObject({ code: 'not_a_workspace' })
+    await expect(add(target, 'web:next', 'blog')).rejects.toMatchObject({ code: 'not_a_workspace' })
   })
 
   it('puts the workspace back as it was when a step fails halfway', async () => {
     const target = await workspace()
-    // A knowledge base without the site's area fails at the last step, after every other file was written.
+    // A knowledge base without Next's area fails at the last step, after every other file was written.
     const broken = join(root, 'knowledge')
     await cp(knowledge, broken, { recursive: true })
-    await rm(join(broken, 'site'), { recursive: true })
+    await rm(join(broken, 'web-next'), { recursive: true })
 
     const files = [
       'package.json',
@@ -177,10 +199,12 @@ describe('prumo add', () => {
     ]
     const before = await Promise.all(files.map((file) => read(join(target, file))))
 
-    await expect(add(target, 'site', 'blog', { templates, knowledge: broken })).rejects.toThrow()
+    await expect(
+      add(target, 'web:next', 'blog', { templates, knowledge: broken }),
+    ).rejects.toThrow()
 
     expect(await Promise.all(files.map((file) => read(join(target, file))))).toEqual(before)
     expect(existsSync(join(target, 'apps/blog'))).toBe(false)
-    expect(existsSync(join(target, '.prumo/site'))).toBe(false)
+    expect(existsSync(join(target, '.prumo/web-next'))).toBe(false)
   })
 })

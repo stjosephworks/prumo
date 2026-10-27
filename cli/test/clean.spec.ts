@@ -172,7 +172,8 @@ describe('clean', () => {
       install: false,
       answers: {
         name: 'acme',
-        types: ['site'],
+        types: ['web'],
+        apps: [{ name: 'web', type: 'web', framework: 'next' }],
         architecture: 'alone',
         multiTenant: false,
         mcp: false,

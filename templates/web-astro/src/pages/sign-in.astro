@@ -1,0 +1,13 @@
+---
+import { SignIn } from '@/features/auth/sign-in-form'
+import { SocialSignIn } from '@/features/auth/social-buttons' // prumo:social
+import Narrow from '@/layouts/narrow.astro'
+---
+
+<Narrow title="Sign in">
+  <h1 class="text-2xl font-semibold">Sign in</h1>
+  {/* prumo:social */}
+  <SocialSignIn client:only="react" />
+  {/* prumo:end-social */}
+  <SignIn client:only="react" />
+</Narrow>

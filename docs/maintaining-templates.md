@@ -69,8 +69,15 @@ disagreeing about which file is canonical.
 **If the template is ever regenerated, remove those three again.** No Expo runtime command writes
 them, verified against SDK 57, so nothing brings them back after the first removal.
 
-`templates/site` needs no equivalent step: `agentRules: false` in `next.config.ts` keeps Next from
+`templates/web-next` needs no equivalent step: `agentRules: false` in `next.config.ts` keeps Next from
 writing its own.
+
+`templates/web-astro` passes `--ignore-lock` to `astro dev` and `astro preview`. Under an AI coding agent, on macOS
+and Linux, Astro 7 otherwise starts its server detached and returns at once, and `pnpm dev` loses the server it
+started. **Keep the flag if the scripts are ever regenerated.**
+
+The forms under `features/auth`, `features/oauth` and `features/profile` are the same file in `web-vite`, `web-next`
+and `web-astro`, but for the router: a fix to one is copied to the other two.
 
 ## When running a template contradicts a document
 

@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { appDirectory, appsOf, appsOfType } from './apps.ts'
+import { appDirectory, appsOf, appsOfType, templateOf } from './apps.ts'
 import { runCommand } from './command.ts'
 import { type AppType, composeWorkspace, copyTemplate } from './compose.ts'
 import { type Answers, writeContext } from './context.ts'
@@ -191,20 +191,20 @@ async function write({
   install: boolean
   childOutput: ChildOutput
 }): Promise<void> {
-  const [only] = answers.types
   const apps = appsOf(answers)
+  const [only] = apps
 
   if (answers.architecture === 'alone' && only !== undefined) {
-    await copyTemplate(join(templates, only), target)
-    await applyFeatures(target, only, enabledFor(answers))
+    await copyTemplate(join(templates, templateOf(only)), target)
+    await applyFeatures(target, templateOf(only), enabledFor(answers))
     await nameProject(target, answers.name)
-    await writeLocalEnv(target, only)
+    await writeLocalEnv(target, only.type)
 
-    if (only === 'api') {
+    if (only.type === 'api') {
       await nameCompose(target, answers.name)
     }
 
-    if (only === 'mobile') {
+    if (only.type === 'mobile') {
       await nameMobileApp(target, answers.name)
     }
   } else {
@@ -241,7 +241,7 @@ async function write({
     run('pnpm', ['exec', 'biome', 'check', '--write'], target, childOutput)
 
     // The route tree is generated from the route files, and cutting MCP removed one.
-    for (const web of appsOfType(apps, 'web')) {
+    for (const web of apps.filter((app) => templateOf(app) === 'web-vite')) {
       run(
         'pnpm',
         ['exec', 'tsr', 'generate'],

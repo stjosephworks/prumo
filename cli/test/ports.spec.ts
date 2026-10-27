@@ -90,8 +90,9 @@ describe('the ports check', () => {
       const app = join(root, 'apps', type)
       await mkdir(app, { recursive: true })
       await writeFile(join(app, 'package.json'), '{}')
-      await cp(join(templates, type, 'scripts'), join(app, 'scripts'), { recursive: true })
-      await cp(join(templates, type, '.env.example'), join(app, '.env'))
+      const template = type === 'web' ? 'web-vite' : type
+      await cp(join(templates, template, 'scripts'), join(app, 'scripts'), { recursive: true })
+      await cp(join(templates, template, '.env.example'), join(app, '.env'))
     }
 
     // Ports nothing on a development machine is likely to hold, so a real server never decides a test.
@@ -317,14 +318,14 @@ describe('the ports check with apps named on purpose', () => {
 
   const BACKOFFICE = 39_004
 
-  // An api renamed server, and a second web beside the first: only config.json says what each directory is.
+  // An api renamed server, and a second web on Next beside the first: only config.json says what each directory is.
   async function workspace() {
     root = await mkdtemp(join(tmpdir(), 'prumo-ports-named-'))
 
     const apps = [
       { name: 'server', type: 'api' },
-      { name: 'web', type: 'web' },
-      { name: 'backoffice', type: 'web' },
+      { name: 'web', type: 'web', framework: 'vite' },
+      { name: 'backoffice', type: 'web', framework: 'next' },
     ]
 
     await mkdir(join(root, '.prumo'), { recursive: true })
@@ -338,9 +339,13 @@ describe('the ports check with apps named on purpose', () => {
       const directory = join(root, 'apps', app.name)
       await mkdir(directory, { recursive: true })
       await writeFile(join(directory, 'package.json'), '{}')
-      await cp(join(templates, app.type, 'scripts'), join(directory, 'scripts'), {
-        recursive: true,
-      })
+      await cp(
+        join(templates, `${app.type}${app.framework ? `-${app.framework}` : ''}`, 'scripts'),
+        join(directory, 'scripts'),
+        {
+          recursive: true,
+        },
+      )
     }
 
     await writeFile(
@@ -353,7 +358,7 @@ describe('the ports check with apps named on purpose', () => {
     )
     await writeFile(
       join(root, 'apps/backoffice/.env'),
-      `WEB_PORT=${BACKOFFICE}\nVITE_API_URL=http://localhost:${API}\n`,
+      `WEB_PORT=${BACKOFFICE}\nNEXT_PUBLIC_API_URL=http://localhost:${API}\n`,
     )
   }
 
@@ -397,8 +402,9 @@ describe('the ports check with apps named on purpose', () => {
     expect(status).toBe(0)
     expect(await env('apps/server/.env')).toContain(`API_URL=http://localhost:${moved}`)
 
-    for (const web of ['web', 'backoffice']) {
-      expect(await env(`apps/${web}/.env`)).toContain(`VITE_API_URL=http://localhost:${moved}`)
-    }
+    expect(await env('apps/web/.env')).toContain(`VITE_API_URL=http://localhost:${moved}`)
+    expect(await env('apps/backoffice/.env')).toContain(
+      `NEXT_PUBLIC_API_URL=http://localhost:${moved}`,
+    )
   })
 })
