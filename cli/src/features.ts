@@ -70,11 +70,13 @@ export const FEATURES: Record<Feature, Spec> = {
         'test/features/oauth',
       ],
       'web-next': ['src/features/oauth', 'src/app/(signed-in)/consent', 'test/features/oauth'],
+      'web-astro': ['src/features/oauth', 'src/pages/consent.astro', 'test/features/oauth'],
     },
     dependencies: {
       api: ['@modelcontextprotocol/client', '@modelcontextprotocol/server'],
       'web-vite': [],
       'web-next': [],
+      'web-astro': [],
     },
   },
   // Verification and password reset: a code sent through the Mailer port, its table in a migration of its own.
@@ -126,6 +128,15 @@ export const FEATURES: Record<Feature, Spec> = {
         'src/app/(auth)/reset-password',
         'test/features/auth/email-flows.spec.tsx',
       ],
+      'web-astro': [
+        'src/features/auth/verify-email-form.tsx',
+        'src/features/auth/forgot-password-form.tsx',
+        'src/features/auth/reset-password-form.tsx',
+        'src/pages/verify-email.astro',
+        'src/pages/forgot-password.astro',
+        'src/pages/reset-password.astro',
+        'test/features/auth/email-flows.spec.tsx',
+      ],
       mobile: [
         'src/features/auth/verify-email-form.tsx',
         'src/features/auth/forgot-password-form.tsx',
@@ -174,6 +185,10 @@ export const FEATURES: Record<Feature, Spec> = {
         'test/features/auth/social-buttons.spec.tsx',
       ],
       'web-next': [
+        'src/features/auth/social-buttons.tsx',
+        'test/features/auth/social-buttons.spec.tsx',
+      ],
+      'web-astro': [
         'src/features/auth/social-buttons.tsx',
         'test/features/auth/social-buttons.spec.tsx',
       ],
@@ -243,9 +258,12 @@ async function sourceFiles(directory: string): Promise<string[]> {
 
   const entries = await readdir(directory, { withFileTypes: true, recursive: true })
 
-  return entries
-    .filter((entry) => entry.isFile() && /\.tsx?$/.test(entry.name))
-    .map((entry) => join(entry.parentPath, entry.name))
+  return (
+    entries
+      // An Astro page carries markers too, around the island a feature brings.
+      .filter((entry) => entry.isFile() && /\.(tsx?|astro)$/.test(entry.name))
+      .map((entry) => join(entry.parentPath, entry.name))
+  )
 }
 
 export async function applyFeatures(

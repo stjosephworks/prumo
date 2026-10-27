@@ -364,6 +364,29 @@ async function verifyWeb(app) {
   )
 }
 
+// Every page is built ahead of time; the public one carries its metadata, and the HTML ships no React of its own.
+async function verifyAstro(app) {
+  const web = appDir(app)
+
+  step(`${app.name}: build`, () => run('pnpm', ['build'], web))
+  await step(`${app.name}: preview serves its metadata`, () =>
+    withServer(
+      'pnpm',
+      ['preview', '--port', String(webPort)],
+      web,
+      `http://localhost:${webPort}/`,
+      {},
+      async () => {
+        const html = await (await fetch(`http://localhost:${webPort}/`)).text()
+        if (!/<title>/.test(html) || !/<meta name="description"/.test(html)) {
+          throw new Error('the served HTML carries no title or description')
+        }
+        if (/<astro-island/.test(html)) throw new Error('the public home page hydrates an island')
+      },
+    ),
+  )
+}
+
 function verifyMobile(app) {
   const mobile = appDir(app)
 
@@ -406,6 +429,7 @@ if (containers.ok) {
 
 for (const app of websOn('vite')) await verifyWeb(app)
 for (const app of websOn('next')) await verifyNext(app)
+for (const app of websOn('astro')) await verifyAstro(app)
 for (const app of appsOfType('mobile')) verifyMobile(app)
 if (apiApp !== undefined) await verifyApi()
 

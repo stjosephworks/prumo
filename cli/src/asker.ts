@@ -30,6 +30,10 @@ export const FRAMEWORK_HINTS: Record<WebFramework, { label: string; hint: string
     label: 'Next.js',
     hint: 'SEO and a full app: public pages rendered on the server, React throughout',
   },
+  astro: {
+    label: 'Astro + React',
+    hint: 'content first, as in a blog, docs or marketing, with little JavaScript; React where it acts',
+  },
 }
 
 const DONE = 'done'

@@ -94,6 +94,9 @@ jobs:
           - name: a-next-web
             types: web:next
             architecture: alone
+          - name: an-astro-web
+            types: web:astro
+            architecture: alone
           # One type laid out as a workspace, and the one multi-tenant project.
           - name: a-tenant-workspace
             types: api
@@ -104,13 +107,13 @@ jobs:
           - name: everything
             types: api,web,mobile
             architecture: monorepo
-            flags: --app site=web:next --mcp --email --social google,apple
+            flags: --app site=web:next --app press=web:astro --mcp --email --social google,apple
           # Apps named on purpose: a renamed api, and a second web on each framework, each verified, the api trusting
           # every one.
           - name: named-apps
             types: web
             architecture: monorepo
-            flags: --app server=api --app backoffice=web --app site=web:next --app blog=web:next --no-mcp --email --social google
+            flags: --app server=api --app backoffice=web --app site=web:next --app blog=web:next --app press=web:astro --app guide=web:astro --no-mcp --email --social google
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -244,6 +247,9 @@ jobs:
           - name: a-next-web
             types: web:next
             architecture: alone
+          - name: an-astro-web
+            types: web:astro
+            architecture: alone
           # The runner's Docker runs Windows containers only, where postgres:18-alpine cannot: verify.mjs builds the
           # api and says it skipped its tests, migration and start.
           - name: an-api
@@ -254,7 +260,7 @@ jobs:
           - name: clients
             types: web,mobile
             architecture: monorepo
-            flags: --app site=web:next
+            flags: --app site=web:next --app press=web:astro
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4

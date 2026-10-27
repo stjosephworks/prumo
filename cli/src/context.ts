@@ -21,7 +21,7 @@ export type Answers = {
 const CLIENTS: AppType[] = ['web', 'mobile']
 
 // A web app's area is its framework's: routing, rendering and structure differ between them end to end.
-const CLIENT_AREAS = ['web-vite', 'web-next', 'mobile']
+const CLIENT_AREAS = ['web-vite', 'web-next', 'web-astro', 'mobile']
 
 export function areasFor(answers: Answers): string[] {
   const has = (type: AppType) => answers.types.includes(type)
