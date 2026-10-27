@@ -27,7 +27,8 @@ const config = JSON.parse(readFileSync(join(project, '.prumo', 'config.json'), '
 const apps = config.apps ?? types.map((type) => ({ name: type, type }))
 const appsOfType = (type) => apps.filter((app) => app.type === type)
 // A web app is verified by its framework; one written before frameworks was Vite's.
-const websOn = (framework) => appsOfType('web').filter((app) => (app.framework ?? 'vite') === framework)
+const websOn = (framework) =>
+  appsOfType('web').filter((app) => (app.framework ?? 'vite') === framework)
 const appDir = (app) => (workspace ? join(project, 'apps', app.name) : project)
 const envValue = (app, key) =>
   new RegExp(`^${key}=(.*)$`, 'm').exec(
