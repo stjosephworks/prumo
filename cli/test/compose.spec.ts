@@ -248,7 +248,7 @@ describe('copyTemplate from a published package', () => {
 
 describe('every template', () => {
   it('answers to dev, which is all the root scripts call', async () => {
-    for (const type of ['api', 'web-vite', 'web-next', 'mobile']) {
+    for (const type of ['api', 'web-vite', 'web-next', 'web-astro', 'mobile']) {
       const { scripts } = JSON.parse(await readFile(join(templates, type, 'package.json'), 'utf8'))
 
       expect(scripts.dev, `${type} has no dev script`).toBeTypeOf('string')
@@ -257,14 +257,14 @@ describe('every template', () => {
 
   it('checks its port before it starts, from one script every template carries', async () => {
     const copies = await Promise.all(
-      ['api', 'web-vite', 'web-next', 'mobile', 'workspace'].map((template) =>
+      ['api', 'web-vite', 'web-next', 'web-astro', 'mobile', 'workspace'].map((template) =>
         readFile(join(templates, template, 'scripts', 'ports.mjs'), 'utf8'),
       ),
     )
 
     expect(new Set(copies).size, 'the copies of ports.mjs have drifted apart').toBe(1)
 
-    for (const type of ['api', 'web-vite', 'web-next', 'mobile']) {
+    for (const type of ['api', 'web-vite', 'web-next', 'web-astro', 'mobile']) {
       const { scripts } = JSON.parse(await readFile(join(templates, type, 'package.json'), 'utf8'))
 
       expect(scripts.dev, `${type} starts without checking its port`).toContain('scripts/ports.mjs')
@@ -279,7 +279,7 @@ describe('every template', () => {
       '.githooks/pre-commit',
     ]) {
       const copies = await Promise.all(
-        ['api', 'web-vite', 'web-next', 'mobile', 'workspace'].map((template) =>
+        ['api', 'web-vite', 'web-next', 'web-astro', 'mobile', 'workspace'].map((template) =>
           readFile(join(templates, template, file), 'utf8'),
         ),
       )
@@ -293,6 +293,7 @@ describe('every template', () => {
       api: 'PORT=3000',
       'web-vite': 'WEB_PORT=5173',
       'web-next': 'WEB_PORT=3200',
+      'web-astro': 'WEB_PORT=4321',
       mobile: 'METRO_PORT=8081',
     }
 

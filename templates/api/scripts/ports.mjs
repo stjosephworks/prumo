@@ -20,6 +20,7 @@ const TEMPLATES = {
   api: { key: 'PORT', fallback: 3000, flag: [] },
   'web-vite': { key: 'WEB_PORT', fallback: 5173, flag: ['--port', '--strictPort'] },
   'web-next': { key: 'WEB_PORT', fallback: 3200, flag: ['--port'] },
+  'web-astro': { key: 'WEB_PORT', fallback: 4321, flag: ['--port'] },
   mobile: { key: 'METRO_PORT', fallback: 8081, flag: ['--port'] },
 }
 
@@ -31,10 +32,12 @@ const FOLLOWERS = {
     { template: 'api', key: 'API_URL' },
     { template: 'web-vite', key: 'VITE_API_URL' },
     { template: 'web-next', key: 'NEXT_PUBLIC_API_URL' },
+    { template: 'web-astro', key: 'PUBLIC_API_URL' },
     { template: 'mobile', key: 'EXPO_PUBLIC_API_URL' },
   ],
   'web-vite': WEB_ORIGIN,
   'web-next': WEB_ORIGIN,
+  'web-astro': WEB_ORIGIN,
   mobile: [],
 }
 

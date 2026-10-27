@@ -1,0 +1,18 @@
+---
+import { buttonVariants } from '@/components/ui/button'
+import Page from '@/layouts/page.astro'
+---
+
+<Page
+  title="Home"
+  description="Replace this with one sentence that tells a search result what this app is."
+>
+  <main class="mx-auto flex min-h-svh max-w-2xl flex-col justify-center gap-4 p-6">
+    <h1 class="text-4xl font-semibold tracking-tight">Home</h1>
+    <p class="text-lg text-muted-foreground">
+      This page is built once, ahead of time, and served as static HTML with no JavaScript. Everything behind the
+      sign-in runs in the browser.
+    </p>
+    <a href="/account" class={buttonVariants({ className: 'self-start' })}>Sign in</a>
+  </main>
+</Page>

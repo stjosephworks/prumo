@@ -20,6 +20,7 @@ const windows = process.platform === 'win32'
 const PORTS = {
   'web-vite': { key: 'WEB_PORT', fallback: 5173 },
   'web-next': { key: 'WEB_PORT', fallback: 3200 },
+  'web-astro': { key: 'WEB_PORT', fallback: 4321 },
   mobile: { key: 'METRO_PORT', fallback: 8081 },
 }
 

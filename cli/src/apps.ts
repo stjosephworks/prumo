@@ -3,9 +3,9 @@ import type { AppType } from './compose.ts'
 import { CliError } from './output.ts'
 
 // What a web app is built with. Absent on an app read from a config written before frameworks, which was Vite's.
-export type WebFramework = 'vite' | 'next'
+export type WebFramework = 'vite' | 'next' | 'astro'
 
-export const WEB_FRAMEWORKS: WebFramework[] = ['vite', 'next']
+export const WEB_FRAMEWORKS: WebFramework[] = ['vite', 'next', 'astro']
 
 // An app of a workspace: the directory under apps/, the package and the root script are all its name. By default it
 // is named after its type; an advanced answer renames it, or adds another web beside the first. Only a web app has a
@@ -13,7 +13,7 @@ export const WEB_FRAMEWORKS: WebFramework[] = ['vite', 'next']
 export type App = { name: string; type: AppType; framework?: WebFramework }
 
 // The directory under templates/ an app is copied from, and the key of everything that differs by it.
-export type Template = 'api' | 'mobile' | 'web-vite' | 'web-next'
+export type Template = 'api' | 'mobile' | 'web-vite' | 'web-next' | 'web-astro'
 
 export function templateOf(app: { type: AppType; framework?: WebFramework }): Template {
   return app.type === 'web' ? `web-${app.framework ?? 'vite'}` : app.type
@@ -167,6 +167,7 @@ export const PORTS: Record<Template, { key: string; from: number }> = {
   api: { key: 'PORT', from: 3000 },
   'web-vite': { key: 'WEB_PORT', from: 5173 },
   'web-next': { key: 'WEB_PORT', from: 3200 },
+  'web-astro': { key: 'WEB_PORT', from: 4321 },
   mobile: { key: 'METRO_PORT', from: 8081 },
 }
 
@@ -174,6 +175,7 @@ export const PORTS: Record<Template, { key: string; from: number }> = {
 export const API_URL_KEYS: Partial<Record<Template, string>> = {
   'web-vite': 'VITE_API_URL',
   'web-next': 'NEXT_PUBLIC_API_URL',
+  'web-astro': 'PUBLIC_API_URL',
   mobile: 'EXPO_PUBLIC_API_URL',
 }
 
