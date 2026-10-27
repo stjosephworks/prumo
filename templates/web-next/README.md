@@ -1,4 +1,4 @@
-# site
+# web
 
 ## Requirements
 
@@ -11,7 +11,7 @@ pnpm install
 pnpm dev
 ```
 
-The site runs on `http://localhost:3200`, leaving 3000 to the API. The port comes from `SITE_PORT` in `.env`, which
+The app runs on `http://localhost:3200`, leaving 3000 to the API. The port comes from `WEB_PORT` in `.env`, which
 `pnpm start` does not read: the production command keeps the port written in `package.json`.
 
 Before it starts, `pnpm dev` checks that the port is free. When something else holds it, it says what does, by
@@ -22,7 +22,7 @@ new port to `.env`, along with every URL that pointed at the old one. Without a 
 Ctrl+C stops everything `pnpm dev` started, not only what the terminal signals: the script remembers the processes
 it spawned, stops them, and frees the port. Anything it did not start is named and left alone.
 
-The site calls no API yet; when a page needs data, it fetches it on the server.
+A public page fetches its data on the server, from the API at `NEXT_PUBLIC_API_URL`.
 
 ## Everyday commands
 

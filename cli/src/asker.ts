@@ -1,5 +1,12 @@
 import * as prompt from '@clack/prompts'
-import { type App, appNameProblem, REPEATABLE } from './apps.ts'
+import {
+  type App,
+  appNameProblem,
+  REPEATABLE,
+  TYPES,
+  WEB_FRAMEWORKS,
+  type WebFramework,
+} from './apps.ts'
 import type { AppType } from './compose.ts'
 import type { Answers } from './context.ts'
 import { SOCIAL_PROVIDERS, type SocialProvider } from './features.ts'
@@ -9,13 +16,21 @@ export type Asker = {
   types: () => Promise<AppType[]>
   architecture: () => Promise<Answers['architecture']>
   apps: (defaults: App[], project: string) => Promise<App[]>
+  framework: (app: string) => Promise<WebFramework>
   multiTenant: () => Promise<boolean>
   mcp: () => Promise<boolean>
   email: () => Promise<boolean>
   social: () => Promise<SocialProvider[]>
 }
 
-const TYPES: AppType[] = ['api', 'web', 'mobile', 'site']
+// One line each, so the choice is made on what the app is for rather than on the framework's name.
+export const FRAMEWORK_HINTS: Record<WebFramework, { label: string; hint: string }> = {
+  vite: { label: 'Vite + React', hint: 'an app behind a sign-in, fastest to develop; no SEO' },
+  next: {
+    label: 'Next.js',
+    hint: 'SEO and a full app: public pages rendered on the server, React throughout',
+  },
+}
 
 const DONE = 'done'
 
@@ -56,7 +71,7 @@ export function terminalAsker(validateName: (name: string) => string | undefined
     apps: async (defaults, project) => {
       const advanced = answered(
         await prompt.confirm({
-          message: 'Advanced: rename the apps, or add another web or site?',
+          message: 'Advanced: rename the apps, or add another web app?',
           initialValue: false,
         }),
       )
@@ -101,6 +116,17 @@ export function terminalAsker(validateName: (name: string) => string | undefined
         await named(type, '')
       }
     },
+    framework: async (app) =>
+      answered(
+        await prompt.select<WebFramework>({
+          message: `Framework for ${app}`,
+          options: WEB_FRAMEWORKS.map((framework) => ({
+            value: framework,
+            ...FRAMEWORK_HINTS[framework],
+          })),
+          initialValue: 'vite',
+        }),
+      ),
     multiTenant: async () =>
       answered(await prompt.confirm({ message: 'Is it multi-tenant?', initialValue: false })),
     mcp: async () =>

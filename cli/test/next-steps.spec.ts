@@ -51,7 +51,7 @@ describe('nextSteps', () => {
       nextSteps({
         target: '/work/my app',
         cwd,
-        types: ['site'],
+        types: ['web'],
         architecture: 'alone',
         installed: true,
       })[0],
@@ -63,7 +63,7 @@ describe('nextSteps', () => {
     const scripts = async (type: string) =>
       Object.keys(JSON.parse(await readFile(join(templates, type, 'package.json'), 'utf8')).scripts)
 
-    for (const type of ['api', 'web', 'mobile', 'site']) {
+    for (const type of ['api', 'web-vite', 'web-next', 'mobile']) {
       expect(await scripts(type), type).toContain('dev')
     }
     expect(await scripts('mobile')).toEqual(expect.arrayContaining(['ios', 'android']))

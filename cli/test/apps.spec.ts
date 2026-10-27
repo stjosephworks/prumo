@@ -7,22 +7,41 @@ import {
   defaultApps,
   PORTS,
   parseApp,
+  parseTypeEntry,
   portOf,
   RESERVED_APP_NAMES,
+  templateOf,
   validateApps,
 } from '../src/apps.ts'
 
 const templates = resolve(import.meta.dirname, '../../templates')
 
 describe('parseApp', () => {
-  it('reads name=type, as --app takes it', () => {
+  it('reads name=type, as --app takes it, with a web framework when one is named', () => {
     expect(parseApp('backoffice=web')).toEqual({ name: 'backoffice', type: 'web' })
+    expect(parseApp('blog=web:next')).toEqual({ name: 'blog', type: 'web', framework: 'next' })
   })
 
   it('refuses anything else, naming what it expected', () => {
     expect(() => parseApp('backoffice')).toThrow('<name>=<type>')
-    expect(() => parseApp('a=web=site')).toThrow('<name>=<type>')
-    expect(() => parseApp('admin=desktop')).toThrow('Unknown type in --app admin=desktop')
+    expect(() => parseApp('a=web=api')).toThrow('<name>=<type>')
+    expect(() => parseApp('admin=desktop')).toThrow('--app admin=desktop: unknown type desktop')
+    expect(() => parseApp('admin=api:next')).toThrow('only web takes a framework')
+  })
+})
+
+describe('parseTypeEntry', () => {
+  it('reads a framework only after web, and tells a site where it went', () => {
+    expect(parseTypeEntry('web', '--types')).toEqual({ type: 'web' })
+    expect(parseTypeEntry('web:vite', '--types')).toEqual({ type: 'web', framework: 'vite' })
+    expect(() => parseTypeEntry('web:remix', '--types')).toThrow('web:vite, web:next')
+    expect(() => parseTypeEntry('site', '--types')).toThrow('site became web:next')
+  })
+
+  it('names the template a web app comes from by its framework, Vite when it has none', () => {
+    expect(templateOf({ type: 'web' })).toBe('web-vite')
+    expect(templateOf({ type: 'web', framework: 'next' })).toBe('web-next')
+    expect(templateOf({ type: 'api' })).toBe('api')
   })
 })
 
@@ -48,7 +67,7 @@ describe('app names', () => {
 })
 
 describe('validateApps', () => {
-  it('lets web and site repeat, and nothing else', () => {
+  it('lets web repeat, and nothing else', () => {
     const twoWebs = [...defaultApps(['api', 'web']), { name: 'backoffice', type: 'web' } as App]
 
     expect(() => validateApps(twoWebs, 'acme')).not.toThrow()
@@ -62,19 +81,20 @@ describe('validateApps', () => {
 })
 
 describe('portOf', () => {
-  it('gives the first app of a type its port, and each further one the next', async () => {
+  it('gives the first app of a template its port, and each further one the next', async () => {
     const apps: App[] = [
-      ...defaultApps(['api', 'web', 'site']),
-      { name: 'backoffice', type: 'web' },
-      { name: 'blog', type: 'site' },
+      ...defaultApps(['api', 'web']),
+      { name: 'backoffice', type: 'web', framework: 'vite' },
+      { name: 'blog', type: 'web', framework: 'next' },
+      { name: 'docs', type: 'web', framework: 'next' },
     ]
     const ports = Object.fromEntries(apps.map((app) => [app.name, portOf(apps, app)]))
 
-    expect(ports).toEqual({ api: 3000, web: 5173, site: 3200, backoffice: 5174, blog: 3201 })
+    expect(ports).toEqual({ api: 3000, web: 5173, backoffice: 5174, blog: 3200, docs: 3201 })
 
-    // The first port of a type is the one its template's .env.example declares.
-    for (const [type, { key, from }] of Object.entries(PORTS)) {
-      const example = await readFile(resolve(templates, type, '.env.example'), 'utf8')
+    // The first port of a template is the one its .env.example declares.
+    for (const [template, { key, from }] of Object.entries(PORTS)) {
+      const example = await readFile(resolve(templates, template, '.env.example'), 'utf8')
 
       expect(example).toMatch(new RegExp(`^${key}=${from}$`, 'm'))
     }

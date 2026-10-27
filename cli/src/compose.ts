@@ -1,11 +1,11 @@
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
-import { type App, appsOfType, PORTS, portOf } from './apps.ts'
+import { type App, appsOfType, PORTS, portOf, templateOf } from './apps.ts'
 import { applyFeatures, cutFeatures, type Enabled, NONE } from './features.ts'
 import { prependProperty, readJsonc, removeWhatBaseDeclares, setJsonc } from './jsonc.ts'
 
-export type AppType = 'api' | 'web' | 'mobile' | 'site'
+export type AppType = 'api' | 'web' | 'mobile'
 
 export const CLIENTS: AppType[] = ['web', 'mobile']
 
@@ -86,7 +86,7 @@ export async function copyTemplate(source: string, destination: string): Promise
 export async function copyApp(templates: string, target: string, app: App): Promise<string> {
   const destination = join(target, 'apps', app.name)
 
-  await copyTemplate(join(templates, app.type), destination)
+  await copyTemplate(join(templates, templateOf(app)), destination)
 
   // The package is the app's name, which the root's `pnpm --filter <name>` finds it by.
   await rewriteText(join(destination, 'package.json'), (text) => setJsonc(text, ['name'], app.name))
@@ -176,11 +176,11 @@ function setEnvLine(text: string, key: string, value: string, file: string): str
   return text.replace(line, `${key}=${value}`)
 }
 
-// A second web or site takes the next port of its type, written where the template wrote the first, and the API
-// trusts every web app, the first one first.
+// A second app of a template takes the next port, written where the template wrote the first, and the API trusts
+// every web app, the first one first.
 async function placePorts(target: string, apps: App[]): Promise<void> {
   for (const app of apps) {
-    const { key, from } = PORTS[app.type]
+    const { key, from } = PORTS[templateOf(app)]
     const port = portOf(apps, app)
     const directory = join(target, 'apps', app.name)
 
@@ -191,7 +191,7 @@ async function placePorts(target: string, apps: App[]): Promise<void> {
     const example = join(directory, '.env.example')
     await rewriteText(example, (text) => setEnvLine(text, key, String(port), example))
 
-    if (app.type === 'site') {
+    if (templateOf(app) === 'web-next') {
       await rewriteText(join(directory, 'package.json'), (text) => {
         const start = readJsonc<PackageJson>(text).scripts?.start ?? ''
 
@@ -211,7 +211,8 @@ async function placePorts(target: string, apps: App[]): Promise<void> {
   const [api] = appsOfType(apps, 'api')
   const webs = appsOfType(apps, 'web')
 
-  if (api !== undefined && webs.length > 1) {
+  // The template trusts Vite's first port; any other first web, or a second, rewrites the list.
+  if (api !== undefined && webs.length > 0) {
     const example = join(target, 'apps', api.name, '.env.example')
     const origins = webs.map((web) => `http://localhost:${portOf(apps, web)}`).join(',')
 
@@ -382,7 +383,7 @@ export async function composeWorkspace({
     const directory = await copyApp(templates, target, app)
 
     // Before the catalog is collected, so a dependency that leaves never reaches it.
-    await applyFeatures(directory, app.type, features)
+    await applyFeatures(directory, templateOf(app), features)
     directories.push(directory)
   }
 
