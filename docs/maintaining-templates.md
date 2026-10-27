@@ -56,7 +56,8 @@ node cli/scripts/verify-dev.mjs ./scratch
 ```
 
 `scripts/ports.mjs` ships identical in every template and at the workspace root. A change to one is copied to the
-other four, and `cli/test/ports.spec.ts` runs against them.
+other four, and `cli/test/ports.spec.ts` runs against them. So do `.githooks/pre-commit`, `.github/workflows/flow.yml`
+and `.github/rulesets/`, and `cli/test/compose.spec.ts` fails when a copy drifts.
 
 ## Regenerating `templates/mobile`
 

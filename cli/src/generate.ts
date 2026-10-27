@@ -232,7 +232,8 @@ async function write({
 
   await writeContext(knowledge, target, answers)
 
-  run('git', ['init', '--quiet'], target, childOutput)
+  // The branch flow starts from main, whatever the machine's init.defaultBranch says.
+  run('git', ['init', '--quiet', '--initial-branch=main'], target, childOutput)
 
   if (install) {
     run('pnpm', ['install'], target, childOutput)
