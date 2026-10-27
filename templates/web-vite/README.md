@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Node 22.18 or later, pnpm 10.26 or later, and the API running.
+Node 22.23.4 or later, pnpm 10.26 or later, and the API running.
 
 ## Running it
 

@@ -28,7 +28,7 @@ These accumulate. Every one is a machine a generated project will not run on.
 | Floor | Required by |
 |---|---|
 | PostgreSQL 18 | `uuidv7()`, which shipped in September 2025 |
-| Node 22.18 | Type stripping on by default, which loads the TypeScript migrations in the API and its tests. MikroORM v7 alone would require 22.17 |
+| Node 22.23.4 | Astro 7, whose `engines` require it; raised from 22.18 on 2026-10-27 for every project, not only one with an Astro web app. 22.18 itself brought type stripping on by default, which loads the TypeScript migrations in the API and its tests |
 | pnpm 10.26 | `allowBuilds` in every generated workspace, added in pnpm 10.26.0. `prumo doctor` and `prumo new` refuse an older one |
 | TypeScript 6.0 | Every template is pinned to and proved on it. MikroORM v7 alone would require 5.8 |
 
