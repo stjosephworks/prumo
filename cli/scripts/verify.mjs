@@ -246,13 +246,26 @@ async function codeMailedTo(email) {
   throw new Error(`no code was mailed to ${email}`)
 }
 
+// The API allows ten password attempts a minute, and a workspace with many web apps opens more sessions than that. A
+// refused attempt is retried once the API says it may be, as a client that respects the limit would.
+async function attempt(url, init) {
+  for (let tries = 0; ; tries += 1) {
+    const response = await fetch(url, init)
+
+    if (response.status !== 429 || tries === 3) return response
+
+    const seconds = Number(response.headers.get('retry-after') ?? 60)
+    await new Promise((resolve) => setTimeout(resolve, (seconds + 1) * 1000))
+  }
+}
+
 // A session as the web holds one. With email verification on, sign-up opens none: the code the API wrote to its log
 // is entered first, as a person would from their inbox.
 async function webSession(origin = 'http://localhost:5173') {
   const API = `http://localhost:${appPort}`
   const headers = { 'content-type': 'application/json', origin }
   const email = `contract-${Date.now()}@example.com`
-  let response = await fetch(`${API}/api/auth/sign-up`, {
+  let response = await attempt(`${API}/api/auth/sign-up`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ name: 'Contract', email, password: 'correct-horse-battery' }),
@@ -261,7 +274,7 @@ async function webSession(origin = 'http://localhost:5173') {
   if (response.status !== 201) throw new Error(`sign-up answered ${response.status}`)
 
   if ((await response.text()).includes('verificationRequired')) {
-    response = await fetch(`${API}/api/auth/email/verify`, {
+    response = await attempt(`${API}/api/auth/email/verify`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ email, code: await codeMailedTo(email) }),
