@@ -1,10 +1,11 @@
 name: Flow
 
 # Rulesets can require a pull request, but none of their rules can say where that pull request may come from.
-# This check is that rule: main takes alpha, alpha takes dev, and dev takes the branch the work was done on.
+# This check is that rule: main takes staging, staging takes dev, dev takes a project or a branch of a known kind, and
+# a project takes its tasks, or dev to stay current.
 on:
   pull_request:
-    branches: [main, alpha, dev]
+    branches: [main, staging, dev, 'project/**']
 
 jobs:
   flow:
@@ -17,20 +18,29 @@ jobs:
         run: |
           refuse() {
             echo "A pull request into $BASE must come from $1, and this one comes from $HEAD."
-            echo "The chain is: a branch of your own -> dev -> alpha -> main."
+            echo "The chain is: task/, fix/, chore/, docs/ or refactor/ -> dev -> staging -> main."
+            echo "Large work goes task/<name> -> project/<name> -> dev, and reaches dev only when it is ready to ship."
+            echo "A project takes dev too, to stay current."
             exit 1
           }
 
           case "$BASE" in
             main)
-              [ "$HEAD" = 'alpha' ] || refuse 'alpha'
+              [ "$HEAD" = 'staging' ] || refuse 'staging'
               ;;
-            alpha)
+            staging)
               [ "$HEAD" = 'dev' ] || refuse 'dev'
               ;;
             dev)
               case "$HEAD" in
-                main | alpha) refuse 'a branch of your own' ;;
+                project/* | task/* | fix/* | chore/* | docs/* | refactor/*) ;;
+                *) refuse 'project/, task/, fix/, chore/, docs/ or refactor/' ;;
+              esac
+              ;;
+            project/*)
+              case "$HEAD" in
+                task/* | dev) ;;
+                *) refuse 'task/ or dev' ;;
               esac
               ;;
           esac

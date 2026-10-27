@@ -42,6 +42,20 @@ A provider's sign-in button answers *That sign-in is not set up yet* until its s
 `.env.example` lists them and says where each one comes from.
 <!-- prumo:end-social -->
 
+## Branches
+
+Work lands through `dev` → `staging` → `main`, and large work through a `project/` branch first;
+`.prumo/core/git.md` has the rule. `.github/workflows/flow.yml` fails a pull request that skips a step. To make it
+required and refuse direct pushes on GitHub, push the three branches and create the two rulesets once, with the
+[GitHub CLI](https://cli.github.com):
+
+```sh
+git push -u origin main
+git push origin main:dev main:staging
+gh api repos/{owner}/{repo}/rulesets --input .github/rulesets/flow.json
+gh api repos/{owner}/{repo}/rulesets --input .github/rulesets/project.json
+```
+
 ## Conventions
 
 The rules this project follows live in `.prumo/`, and `AGENTS.md` points to them. Read those before

@@ -393,7 +393,12 @@ describe('generate', () => {
     expect(existsSync(join(target, '.prumo/api'))).toBe(false)
     expect(await readFile(join(target, 'CLAUDE.md'), 'utf8')).toBe('@AGENTS.md\n')
     expect(existsSync(join(target, '.git'))).toBe(true)
+    expect(await readFile(join(target, '.git/HEAD'), 'utf8')).toBe('ref: refs/heads/main\n')
     expect(existsSync(join(target, '.githooks/install.mjs'))).toBe(true)
+    expect(existsSync(join(target, '.github/workflows/flow.yml'))).toBe(true)
+    expect(existsSync(join(target, '.github/rulesets/project.json'))).toBe(true)
+    expect(await readFile(join(target, 'README.md'), 'utf8')).toContain('## Branches')
+    expect(index).toContain('[core/git.md](core/git.md)')
     expect(await readFile(join(target, '.gitattributes'), 'utf8')).toContain('eol=lf')
     expect(await readFile(join(target, '.env'), 'utf8')).toBe(
       await readFile(join(target, '.env.example'), 'utf8'),
@@ -469,6 +474,12 @@ describe('generate', () => {
     expect(existsSync(join(target, '.prumo/web'))).toBe(false)
     expect(existsSync(join(target, '.githooks/install.mjs'))).toBe(true)
     expect(existsSync(join(target, 'apps/api/.githooks'))).toBe(false)
+    expect(existsSync(join(target, '.github/workflows/flow.yml'))).toBe(true)
+    expect(existsSync(join(target, 'apps/api/.github'))).toBe(false)
+    expect(await readFile(join(target, 'README.md'), 'utf8')).toContain('## Branches')
+    expect(await readFile(join(target, 'apps/mobile/README.md'), 'utf8')).not.toContain(
+      '## Branches',
+    )
     expect(await readFile(join(target, '.gitattributes'), 'utf8')).toContain('eol=lf')
     expect(existsSync(join(target, 'apps/api/.gitattributes'))).toBe(false)
     expect(await readFile(join(target, 'apps/api/docker-compose.yml'), 'utf8')).toMatch(

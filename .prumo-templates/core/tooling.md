@@ -24,7 +24,7 @@ In a client using shadcn, turn `a11y.noLabelWithoutControl` and `a11y.useSemanti
 **Never import a class with `import type` where tsyringe reads its type at runtime**: a constructor
 dependency injected without `@inject`.
 
-Run `biome check --staged --write` in `.githooks/pre-commit`. Run `tsc --noEmit` in `.githooks/pre-push`.
+Run `biome check --staged --write --no-errors-on-unmatched` in `.githooks/pre-commit`. Run `tsc --noEmit` in `.githooks/pre-push`.
 Wire both with `"prepare": "node .githooks/install.mjs"`, which sets `core.hooksPath` inside a Git repository,
 does nothing outside one, and fails when Git is present and the setting cannot be written.
 
