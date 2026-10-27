@@ -92,13 +92,30 @@ describe('resolveAnswers outside a terminal', () => {
     expect(answers.mcp).toBe(false)
   })
 
-  it('does not ask a site whether it is multi-tenant, and refuses being told it is', async () => {
-    const answers = await resolveAnswers(flags({ types: 'site', alone: true }), undefined)
+  it('reads a web framework from --types, and gives Vite to a web that names none', async () => {
+    const rest = { singleTenant: true, noEmail: true, noMcp: true, noSocial: true }
 
-    expect(answers).toMatchObject({ architecture: 'alone', multiTenant: false })
+    expect(
+      (await resolveAnswers(flags({ types: 'web:next', alone: true, ...rest }), undefined)).apps,
+    ).toEqual([{ name: 'web', type: 'web', framework: 'next' }])
+    expect(
+      (
+        await resolveAnswers(
+          flags({ types: 'api,web', apps: ['blog=web:next'], ...rest }),
+          undefined,
+        )
+      ).apps,
+    ).toEqual([
+      { name: 'api', type: 'api' },
+      { name: 'web', type: 'web', framework: 'vite' },
+      { name: 'blog', type: 'web', framework: 'next' },
+    ])
+    await expect(resolveAnswers(flags({ types: 'site', alone: true }), undefined)).rejects.toThrow(
+      'site became web:next',
+    )
     await expect(
-      resolveAnswers(flags({ types: 'site', alone: true, multiTenant: true }), undefined),
-    ).rejects.toThrow('--multi-tenant needs one of api, web, mobile')
+      resolveAnswers(flags({ types: 'web,web:next', ...rest }), undefined),
+    ).rejects.toThrow('--app <name>=web')
   })
 
   it('reads the providers from --social and refuses what it cannot honour', async () => {
@@ -125,7 +142,10 @@ describe('resolveAnswers outside a terminal', () => {
       ),
     ).rejects.toThrow('--social needs api, and web or mobile')
     await expect(
-      resolveAnswers(flags({ types: 'site', alone: true, email: true }), undefined),
+      resolveAnswers(
+        flags({ types: 'web:next', alone: true, singleTenant: true, email: true }),
+        undefined,
+      ),
     ).rejects.toThrow('--email needs api')
   })
 
@@ -136,10 +156,10 @@ describe('resolveAnswers outside a terminal', () => {
   })
 
   it('refuses a name the workspace gives an app, or one npm would refuse', async () => {
-    for (const name of ['api', 'web', 'mobile', 'site', `a${'b'.repeat(214)}`]) {
-      await expect(resolveAnswers(flags({ name, types: 'site' }), undefined)).rejects.toMatchObject(
-        { code: 'invalid_input' },
-      )
+    for (const name of ['api', 'web', 'mobile', `a${'b'.repeat(214)}`]) {
+      await expect(resolveAnswers(flags({ name, types: 'web' }), undefined)).rejects.toMatchObject({
+        code: 'invalid_input',
+      })
     }
   })
 })
@@ -155,8 +175,8 @@ describe('resolveAnswers with apps named on purpose', () => {
 
     expect(answers.apps).toEqual([
       { name: 'api', type: 'api' },
-      { name: 'web', type: 'web' },
-      { name: 'backoffice', type: 'web' },
+      { name: 'web', type: 'web', framework: 'vite' },
+      { name: 'backoffice', type: 'web', framework: 'vite' },
     ])
     expect(answers.types).toEqual(['api', 'web'])
     expect(answers.architecture).toBe('monorepo')
@@ -168,7 +188,7 @@ describe('resolveAnswers with apps named on purpose', () => {
       undefined,
     )
 
-    expect(answers.apps).toEqual([{ name: 'admin', type: 'web' }])
+    expect(answers.apps).toEqual([{ name: 'admin', type: 'web', framework: 'vite' }])
     expect(answers.types).toEqual(['web'])
     expect(answers.architecture).toBe('monorepo')
   })
@@ -184,7 +204,7 @@ describe('resolveAnswers with apps named on purpose', () => {
       resolveAnswers(flags({ types: 'web', apps: ['web=web'], ...rest }), undefined),
     ).rejects.toThrow('Another app is already named "web"')
     await expect(
-      resolveAnswers(flags({ types: 'web', apps: ['acme=site'], ...rest }), undefined),
+      resolveAnswers(flags({ types: 'web', apps: ['acme=web:next'], ...rest }), undefined),
     ).rejects.toThrow('project’s name')
   })
 
@@ -217,6 +237,10 @@ describe('resolveAnswers in a terminal', () => {
       apps: async (defaults) => {
         asked.push('apps')
         return defaults
+      },
+      framework: async (app) => {
+        asked.push(`framework ${app}`)
+        return 'next'
       },
       multiTenant: async () => {
         asked.push('multiTenant')
@@ -260,10 +284,32 @@ describe('resolveAnswers in a terminal', () => {
     })
   })
 
+  it('asks the framework of every web app, after the apps are known', async () => {
+    const { asker, asked } = scripted({
+      types: async () => ['api', 'web'],
+      apps: async (defaults) => [...defaults, { name: 'blog', type: 'web' }],
+    })
+
+    const answers = await resolveAnswers(
+      flags({ singleTenant: true, noMcp: true, noEmail: true, noSocial: true }),
+      asker,
+    )
+
+    expect(asked).toEqual(['framework web', 'framework blog'])
+    expect(answers.apps).toEqual([
+      { name: 'api', type: 'api' },
+      { name: 'web', type: 'web', framework: 'next' },
+      { name: 'blog', type: 'web', framework: 'next' },
+    ])
+  })
+
   it('skips a question a flag already answered', async () => {
     const { asker, asked } = scripted()
 
-    const answers = await resolveAnswers(flags({ types: 'site', alone: true }), asker)
+    const answers = await resolveAnswers(
+      flags({ types: 'web:next', alone: true, singleTenant: true }),
+      asker,
+    )
 
     expect(asked).toEqual([])
     expect(answers).toMatchObject({ name: 'acme', architecture: 'alone', multiTenant: false })
@@ -301,10 +347,14 @@ describe('resolveAnswers in a terminal', () => {
       await mkdir(invalid)
 
       expect(
-        await resolveAnswers(flags({ name: '.', types: 'site', alone: true }), undefined, here),
+        await resolveAnswers(
+          flags({ name: '.', types: 'web', alone: true, singleTenant: true }),
+          undefined,
+          here,
+        ),
       ).toMatchObject({ name: 'my-site', target: here })
       await expect(
-        resolveAnswers(flags({ name: '.', types: 'site' }), undefined, invalid),
+        resolveAnswers(flags({ name: '.', types: 'web' }), undefined, invalid),
       ).rejects.toThrow('taken from this directory')
     } finally {
       await rm(root, { recursive: true, force: true })
@@ -382,6 +432,7 @@ describe('generate', () => {
     expect(config).toEqual({
       prumo: cliVersion(),
       types: ['mobile'],
+      apps: [{ name: 'mobile', type: 'mobile' }],
       architecture: 'alone',
       multiTenant: false,
       mcp: false,
@@ -535,7 +586,7 @@ describe('generate', () => {
     )
   })
 
-  it('gives a site the .env it needs to pick its port', async () => {
+  it('gives a web app on Next the .env it needs to pick its port, and records its framework', async () => {
     root = await mkdtemp(join(tmpdir(), 'prumo-new-'))
     const target = join(root, 'acme')
 
@@ -546,7 +597,8 @@ describe('generate', () => {
       install: false,
       answers: {
         name: 'acme',
-        types: ['site'],
+        types: ['web'],
+        apps: [{ name: 'web', type: 'web', framework: 'next' }],
         architecture: 'alone',
         multiTenant: false,
         mcp: false,
@@ -555,7 +607,13 @@ describe('generate', () => {
       },
     })
 
-    expect(await readFile(join(target, '.env'), 'utf8')).toMatch(/^SITE_PORT=3200$/m)
+    expect(await readFile(join(target, '.env'), 'utf8')).toMatch(/^WEB_PORT=3200$/m)
+    expect(existsSync(join(target, 'next.config.ts'))).toBe(true)
+    expect(existsSync(join(target, '.prumo/web-next'))).toBe(true)
+    expect(existsSync(join(target, '.prumo/web-vite'))).toBe(false)
+    expect(JSON.parse(await readFile(join(target, '.prumo/config.json'), 'utf8')).apps).toEqual([
+      { name: 'web', type: 'web', framework: 'next' },
+    ])
   })
 
   it('refuses to write into a directory that is not empty', async () => {
@@ -569,7 +627,7 @@ describe('generate', () => {
         install: false,
         answers: {
           name: 'bin',
-          types: ['site'],
+          types: ['web'],
           architecture: 'alone',
           multiTenant: false,
           mcp: false,
@@ -588,19 +646,19 @@ describe('generate when it fails', () => {
     await rm(root, { recursive: true, force: true })
   })
 
-  // A site template without its README fails after the files are copied, the way a failed install would.
+  // A web template without its README fails after the files are copied, the way a failed install would.
   async function brokenTemplates(): Promise<string> {
     const broken = join(root, 'templates')
 
-    await mkdir(join(broken, 'site'), { recursive: true })
-    await writeFile(join(broken, 'site', 'package.json'), '{ "name": "site" }\n')
+    await mkdir(join(broken, 'web-vite'), { recursive: true })
+    await writeFile(join(broken, 'web-vite', 'package.json'), '{ "name": "web" }\n')
 
     return broken
   }
 
   const answers = {
     name: 'acme',
-    types: ['site' as const],
+    types: ['web' as const],
     architecture: 'alone' as const,
     multiTenant: false,
     mcp: false,

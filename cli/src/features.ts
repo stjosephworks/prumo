@@ -1,12 +1,12 @@
 import { existsSync } from 'node:fs'
 import { readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { AppType } from './compose.ts'
+import type { Template } from './apps.ts'
 import { setJsonc } from './jsonc.ts'
 
 // What a project may leave out. The templates ship with every one of them; a project that answered no receives the
 // template without it: these files deleted, these dependencies removed, and every line or block marked
-// `// prumo:<feature>` cut, READMEs included. A feature a type does not list has nothing to cut there.
+// `// prumo:<feature>` cut, READMEs included. A feature a template does not list has nothing to cut there.
 export const FEATURE_NAMES = ['mcp', 'email', 'social', 'google', 'apple'] as const
 
 export type Feature = (typeof FEATURE_NAMES)[number]
@@ -40,8 +40,8 @@ export function enabledFor(answers: {
 }
 
 type Spec = {
-  files: Partial<Record<AppType, string[]>>
-  dependencies: Partial<Record<AppType, string[]>>
+  files: Partial<Record<Template, string[]>>
+  dependencies: Partial<Record<Template, string[]>>
 }
 
 export const FEATURES: Record<Feature, Spec> = {
@@ -64,11 +64,15 @@ export const FEATURES: Record<Feature, Spec> = {
         'test/infra/oauth',
         'test/infra/http/controllers/mcp.controller.spec.ts',
       ],
-      web: ['src/features/oauth', 'src/routes/_authenticated/consent.tsx', 'test/features/oauth'],
+      'web-vite': [
+        'src/features/oauth',
+        'src/routes/_authenticated/consent.tsx',
+        'test/features/oauth',
+      ],
     },
     dependencies: {
       api: ['@modelcontextprotocol/client', '@modelcontextprotocol/server'],
-      web: [],
+      'web-vite': [],
     },
   },
   // Verification and password reset: a code sent through the Mailer port, its table in a migration of its own.
@@ -102,7 +106,7 @@ export const FEATURES: Record<Feature, Spec> = {
         'test/support/fakes/fake-one-time-codes.ts',
         'test/support/fakes/in-memory-email-code.repository.ts',
       ],
-      web: [
+      'web-vite': [
         'src/features/auth/verify-email-form.tsx',
         'src/features/auth/forgot-password-form.tsx',
         'src/features/auth/reset-password-form.tsx',
@@ -154,7 +158,10 @@ export const FEATURES: Record<Feature, Spec> = {
         'test/support/fakes/social-fakes.ts',
         'test/support/fake-oidc-server.ts',
       ],
-      web: ['src/features/auth/social-buttons.tsx', 'test/features/auth/social-buttons.spec.tsx'],
+      'web-vite': [
+        'src/features/auth/social-buttons.tsx',
+        'test/features/auth/social-buttons.spec.tsx',
+      ],
       mobile: [
         'src/features/auth/social-buttons.tsx',
         'test/features/auth/social-buttons.spec.tsx',
@@ -226,7 +233,11 @@ async function sourceFiles(directory: string): Promise<string[]> {
     .map((entry) => join(entry.parentPath, entry.name))
 }
 
-export async function applyFeatures(app: string, type: AppType, enabled: Enabled): Promise<void> {
+export async function applyFeatures(
+  app: string,
+  template: Template,
+  enabled: Enabled,
+): Promise<void> {
   const sources = [
     ...(await sourceFiles(join(app, 'src'))),
     ...(await sourceFiles(join(app, 'test'))),
@@ -243,11 +254,11 @@ export async function applyFeatures(app: string, type: AppType, enabled: Enabled
       continue
     }
 
-    for (const file of FEATURES[feature].files[type] ?? []) {
+    for (const file of FEATURES[feature].files[template] ?? []) {
       await rm(join(app, file), { recursive: true, force: true })
     }
 
-    for (const dependency of FEATURES[feature].dependencies[type] ?? []) {
+    for (const dependency of FEATURES[feature].dependencies[template] ?? []) {
       dropped.push(dependency)
       for (const section of ['dependencies', 'devDependencies']) {
         pkg = setJsonc(pkg, [section, dependency], undefined)

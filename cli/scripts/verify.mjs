@@ -26,6 +26,8 @@ const config = JSON.parse(readFileSync(join(project, '.prumo', 'config.json'), '
 // Every app by its name; a project written before apps had names holds one per type, named after it.
 const apps = config.apps ?? types.map((type) => ({ name: type, type }))
 const appsOfType = (type) => apps.filter((app) => app.type === type)
+// A web app is verified by its framework; one written before frameworks was Vite's.
+const websOn = (framework) => appsOfType('web').filter((app) => (app.framework ?? 'vite') === framework)
 const appDir = (app) => (workspace ? join(project, 'apps', app.name) : project)
 const envValue = (app, key) =>
   new RegExp(`^${key}=(.*)$`, 'm').exec(
@@ -199,7 +201,7 @@ async function verifyApi() {
           if (ready.status !== 'ok') throw new Error(`readiness is ${JSON.stringify(ready)}`)
           if (config.mcp === true) await verifyMcpDiscovery()
           if (workspace) {
-            for (const web of appsOfType('web')) await verifyContract(web)
+            for (const web of websOn('vite')) await verifyContract(web)
           }
           if (appsOfType('web').length > 0) await verifyOrigins()
         },
@@ -369,9 +371,9 @@ function verifyMobile(app) {
   )
 }
 
-async function verifySite(app) {
+async function verifyNext(app) {
   const site = appDir(app)
-  // Each site starts on the port its own start script names.
+  // Each app on Next starts on the port its own start script names.
   const sitePort = /--port (\d+)/.exec(
     JSON.parse(readFileSync(join(site, 'package.json'), 'utf8')).scripts.start,
   )?.[1]
@@ -401,9 +403,9 @@ if (containers.ok) {
   )
 }
 
-for (const app of appsOfType('web')) await verifyWeb(app)
+for (const app of websOn('vite')) await verifyWeb(app)
+for (const app of websOn('next')) await verifyNext(app)
 for (const app of appsOfType('mobile')) verifyMobile(app)
-for (const app of appsOfType('site')) await verifySite(app)
 if (apiApp !== undefined) await verifyApi()
 
 // The pre-commit hook is a shell script, which Git for Windows runs through the sh it ships.

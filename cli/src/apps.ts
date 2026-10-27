@@ -2,15 +2,28 @@ import { join } from 'node:path'
 import type { AppType } from './compose.ts'
 import { CliError } from './output.ts'
 
-// An app of a workspace: the directory under apps/, the package and the root script are all its name. By default it
-// is named after its type; an advanced answer renames it, or adds another web or site beside the first.
-export type App = { name: string; type: AppType }
+// What a web app is built with. Absent on an app read from a config written before frameworks, which was Vite's.
+export type WebFramework = 'vite' | 'next'
 
-export const TYPES: AppType[] = ['api', 'web', 'mobile', 'site']
+export const WEB_FRAMEWORKS: WebFramework[] = ['vite', 'next']
+
+// An app of a workspace: the directory under apps/, the package and the root script are all its name. By default it
+// is named after its type; an advanced answer renames it, or adds another web beside the first. Only a web app has a
+// framework, and until it is asked or defaulted it may have none.
+export type App = { name: string; type: AppType; framework?: WebFramework }
+
+// The directory under templates/ an app is copied from, and the key of everything that differs by it.
+export type Template = 'api' | 'mobile' | 'web-vite' | 'web-next'
+
+export function templateOf(app: { type: AppType; framework?: WebFramework }): Template {
+  return app.type === 'web' ? `web-${app.framework ?? 'vite'}` : app.type
+}
+
+export const TYPES: AppType[] = ['api', 'web', 'mobile']
 
 // A second api would need its own database, contract and clients to point at it, and a second mobile app its own
 // scheme for the API to send it back to; neither is offered.
-export const REPEATABLE: AppType[] = ['web', 'site']
+export const REPEATABLE: AppType[] = ['web']
 
 const APP_NAME = /^[a-z][a-z0-9-]*$/
 
@@ -148,16 +161,62 @@ const PNPM_COMMANDS = [
 
 export const RESERVED_APP_NAMES = [...ROOT_SCRIPTS, ...PNPM_COMMANDS]
 
-// Where an app of a type keeps its port and the first one it takes; a second app of the type takes the next.
-export const PORTS: Record<AppType, { key: string; from: number }> = {
+// Where an app keeps its port and the first one it takes; a second app of the same template takes the next. Every web
+// app keeps it under one key, each framework starting from its own default.
+export const PORTS: Record<Template, { key: string; from: number }> = {
   api: { key: 'PORT', from: 3000 },
-  web: { key: 'WEB_PORT', from: 5173 },
-  site: { key: 'SITE_PORT', from: 3200 },
+  'web-vite': { key: 'WEB_PORT', from: 5173 },
+  'web-next': { key: 'WEB_PORT', from: 3200 },
   mobile: { key: 'METRO_PORT', from: 8081 },
 }
 
-export function defaultApps(types: AppType[]): App[] {
-  return types.map((type) => ({ name: type, type }))
+// Where a client reads the API's address, which each bundler exposes to the browser under its own prefix.
+export const API_URL_KEYS: Partial<Record<Template, string>> = {
+  'web-vite': 'VITE_API_URL',
+  'web-next': 'NEXT_PUBLIC_API_URL',
+  mobile: 'EXPO_PUBLIC_API_URL',
+}
+
+// A type as `--types` and `--app` write it: `web`, or `web:next` to choose its framework.
+export type TypeEntry = { type: AppType; framework?: WebFramework }
+
+export function parseTypeEntry(value: string, where: string, code = 'invalid_input'): TypeEntry {
+  const [type = '', framework, ...rest] = value.split(':').map((part) => part.trim())
+
+  if (type === 'site') {
+    throw new CliError(
+      code,
+      `${where}: site became web:next, a web app built with Next. Write web:next.`,
+    )
+  }
+
+  if (!TYPES.includes(type as AppType)) {
+    throw new CliError(
+      code,
+      `${where}: unknown type ${type || '(none)'}. Choose from ${TYPES.join(', ')}.`,
+    )
+  }
+
+  if (framework === undefined && rest.length === 0) {
+    return { type: type as AppType }
+  }
+
+  if (type !== 'web' || rest.length > 0 || !WEB_FRAMEWORKS.includes(framework as WebFramework)) {
+    throw new CliError(
+      code,
+      `${where}: only web takes a framework, one of ${WEB_FRAMEWORKS.map((each) => `web:${each}`).join(', ')}; got "${value}".`,
+    )
+  }
+
+  return { type: 'web', framework: framework as WebFramework }
+}
+
+export function defaultApps(entries: (AppType | TypeEntry)[]): App[] {
+  return entries.map((entry) => {
+    const { type, framework } = typeof entry === 'string' ? { type: entry } : entry
+
+    return framework === undefined ? { name: type, type } : { name: type, type, framework }
+  })
 }
 
 export function typesOf(apps: App[]): AppType[] {
@@ -168,25 +227,20 @@ export function appsOfType(apps: App[], type: AppType): App[] {
   return apps.filter((app) => app.type === type)
 }
 
-// `name=type`, as `--app backoffice=web` writes it.
+// `name=type`, as `--app backoffice=web` or `--app blog=web:next` writes it.
 export function parseApp(value: string): App {
   const [name = '', type = '', ...rest] = value.split('=').map((part) => part.trim())
 
   if (rest.length > 0 || name === '' || type === '') {
     throw new CliError(
       'invalid_app',
-      `--app takes <name>=<type>, as in backoffice=web; got "${value}".`,
+      `--app takes <name>=<type>, as in backoffice=web or blog=web:next; got "${value}".`,
     )
   }
 
-  if (!TYPES.includes(type as AppType)) {
-    throw new CliError(
-      'invalid_app',
-      `Unknown type in --app ${value}: ${type}. Choose from ${TYPES.join(', ')}.`,
-    )
-  }
+  const [app] = defaultApps([parseTypeEntry(type, `--app ${value}`, 'invalid_app')])
 
-  return { name, type: type as AppType }
+  return { ...(app as App), name }
 }
 
 // Why a name cannot name an app beside the others, or undefined when it can.
@@ -229,9 +283,11 @@ export function validateApps(apps: App[], project: string): void {
   }
 }
 
-// Each app's port: the type's first, then the next for each further app of that type.
+// Each app's port: its template's first, then the next for each further app of that template.
 export function portOf(apps: App[], app: App): number {
-  return PORTS[app.type].from + appsOfType(apps, app.type).indexOf(app)
+  const template = templateOf(app)
+
+  return PORTS[template].from + apps.filter((each) => templateOf(each) === template).indexOf(app)
 }
 
 export function appDirectory(root: string, architecture: 'alone' | 'monorepo', app: App): string {

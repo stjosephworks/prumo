@@ -1,4 +1,13 @@
-import { type App, defaultApps, parseApp, TYPES, typesOf, validateApps } from './apps.ts'
+import {
+  type App,
+  defaultApps,
+  parseApp,
+  parseTypeEntry,
+  TYPES,
+  type TypeEntry,
+  typesOf,
+  validateApps,
+} from './apps.ts'
 import type { Asker } from './asker.ts'
 import type { AppType } from './compose.ts'
 import type { Answers } from './context.ts'
@@ -22,8 +31,6 @@ export type Flags = {
   noSocial: boolean
 }
 
-const TENANT_AWARE: AppType[] = ['api', 'web', 'mobile']
-
 function missing(flag: string): never {
   throw new CliError(
     'needs_input',
@@ -31,25 +38,34 @@ function missing(flag: string): never {
   )
 }
 
-function parseTypes(value: string): AppType[] {
-  const types = value
+// A type given twice is given once; `web` and `web:next` together are two answers to one question.
+function parseTypes(value: string): TypeEntry[] {
+  const entries = value
     .split(',')
     .map((type) => type.trim())
     .filter((type) => type !== '')
-  const unknown = types.filter((type) => !TYPES.includes(type as AppType))
+    .map((type) => parseTypeEntry(type, '--types'))
 
-  if (types.length === 0) {
+  if (entries.length === 0) {
     throw new CliError('invalid_input', `--types is empty. Choose from ${TYPES.join(', ')}.`)
   }
 
-  if (unknown.length > 0) {
-    throw new CliError(
-      'invalid_input',
-      `Unknown type: ${unknown.join(', ')}. Choose from ${TYPES.join(', ')}.`,
-    )
+  const unique: TypeEntry[] = []
+
+  for (const entry of entries) {
+    const same = unique.find((each) => each.type === entry.type)
+
+    if (same === undefined) {
+      unique.push(entry)
+    } else if (same.framework !== entry.framework) {
+      throw new CliError(
+        'invalid_input',
+        `--types names ${entry.type} twice; a second ${entry.type} app is --app <name>=${entry.type}.`,
+      )
+    }
   }
 
-  return [...new Set(types)] as AppType[]
+  return unique
 }
 
 // A warning does not stop generation: it names a consequence the developer may have chosen on purpose.
@@ -117,20 +133,20 @@ export async function resolveAnswers(
   }
 
   const named = (flags.apps ?? []).map(parseApp)
-  let types: AppType[]
+  let entries: (AppType | TypeEntry)[]
 
   if (flags.types !== undefined) {
-    types = parseTypes(flags.types)
+    entries = parseTypes(flags.types)
   } else if (named.length > 0) {
-    types = []
+    entries = []
   } else if (asker !== undefined) {
-    types = await asker.types()
+    entries = await asker.types()
   } else {
     missing('--types')
   }
 
   // The types answered take their own names; an app named on purpose comes after them.
-  let apps: App[] = [...defaultApps(types), ...named]
+  let apps: App[] = [...defaultApps(entries), ...named]
   let architecture: Answers['architecture']
 
   if (named.length > 0 && flags.alone) {
@@ -164,19 +180,26 @@ export async function resolveAnswers(
     apps = await asker.apps(apps, name)
   }
 
-  validateApps(apps, name)
-  types = typesOf(apps)
+  // A web app's framework is asked when its type was, and is Vite when a flag gave the type without one.
+  const asksFramework = flags.types === undefined && named.length === 0 && asker !== undefined
+  const framed: App[] = []
 
+  for (const app of apps) {
+    if (app.type !== 'web' || app.framework !== undefined) {
+      framed.push(app)
+    } else {
+      framed.push({ ...app, framework: asksFramework ? await asker.framework(app.name) : 'vite' })
+    }
+  }
+
+  apps = framed
+  validateApps(apps, name)
+  const types = typesOf(apps)
+
+  // Every type carries tenant-aware conventions, so the question is always asked.
   let multiTenant = false
 
-  if (!types.some((type) => TENANT_AWARE.includes(type))) {
-    if (flags.multiTenant) {
-      throw new CliError(
-        'invalid_input',
-        `--multi-tenant needs one of ${TENANT_AWARE.join(', ')} in --types.`,
-      )
-    }
-  } else if (flags.multiTenant || flags.singleTenant) {
+  if (flags.multiTenant || flags.singleTenant) {
     multiTenant = flags.multiTenant
   } else if (asker !== undefined) {
     multiTenant = await asker.multiTenant()

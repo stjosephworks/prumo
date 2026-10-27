@@ -9,7 +9,7 @@ const MAX_LENGTH = 214
 
 // In a workspace an app's package is named after its type by default, and `pnpm --filter <type>` would match the
 // root too. A name given on purpose is checked against the project's in apps.ts.
-const RESERVED = ['api', 'web', 'mobile', 'site']
+const RESERVED = ['api', 'web', 'mobile']
 
 export function validateProjectName(name: string): string | undefined {
   if (!PROJECT_NAME.test(name)) {
