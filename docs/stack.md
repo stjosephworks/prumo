@@ -28,7 +28,7 @@ These accumulate. Every one is a machine a generated project will not run on.
 | Floor | Required by |
 |---|---|
 | PostgreSQL 18 | `uuidv7()`, which shipped in September 2025 |
-| Node 22.18 | Type stripping on by default, which loads the TypeScript migrations in the API and its tests. MikroORM v7 alone would require 22.17 |
+| Node 22.23.4 | Astro 7, whose `engines` require it; raised from 22.18 on 2026-10-27 for every project, not only one with an Astro web app. 22.18 itself brought type stripping on by default, which loads the TypeScript migrations in the API and its tests |
 | pnpm 10.26 | `allowBuilds` in every generated workspace, added in pnpm 10.26.0. `prumo doctor` and `prumo new` refuse an older one |
 | TypeScript 6.0 | Every template is pinned to and proved on it. MikroORM v7 alone would require 5.8 |
 
@@ -50,9 +50,8 @@ These accumulate. Every one is a machine a generated project will not run on.
 | **MCP** | **Only when the project has an api and a web and answers yes**, a fourth axis beside Type, Architecture and Multi-tenancy. Then: an MCP server at `/api/mcp` on `@modelcontextprotocol/server` 2, stateless, 2026-07-28 protocol only; tools call the same use cases as routes. The API is its own OAuth 2.1 authorization server, in an `oauth` module: discovery (RFC 9728 and 8414), PKCE `S256`, the resource as the token's audience (RFC 8707), `iss` (RFC 9207), clients identified by their metadata document (CIMD) and nothing else, sign-in and consent on the web app, and scopes per module, `<module>:read` and `<module>:write`, refused with `insufficient_scope`. The templates ship with it, and the CLI cuts it out of a project that answered no. |
 | **Observability** | Structured logs from Fastify's built-in Pino, carrying the request id, and a health check. **No error reporting and no tracing by default**. See *Documented, not installed* below. |
 | **Testing** | Vitest, Testcontainers, Testing Library. A use case is tested against an in-memory fake of its port, an adapter against a real Postgres, a route through `inject()`. |
-| **Web** | Vite, React, TanStack Router, TanStack Query, Tailwind, shadcn/ui, react-hook-form with **Zod** as the resolver. |
+| **Web** | One type, with a framework chosen per app, Vite by default. Every web app: React, Tailwind, shadcn/ui, react-hook-form with **Zod** as the resolver, and in the browser TanStack Query, the same contract and the same sign-in. **Vite**: TanStack Router, all in the browser. **Next**: the **App Router**, never the Pages Router; public pages static by default, revalidated where content changes, dynamic only with a stated reason, their data fetched on the server; the signed-in area in the browser. **Astro**: pages built ahead of time, React islands mounted `client:only`, no adapter until a page must render per request. |
 | **Mobile** | Expo with prebuild, run in a development build through `expo-dev-client`, never Expo Go, whose native code lacks MMKV. Expo Router, NativeWind, Reanimated, MMKV, `expo-secure-store`. |
-| **Site** | Next with the **App Router**, never the Pages Router. Tailwind and shadcn/ui. Static by default, revalidated where content changes, dynamic only with a stated reason. Data is fetched on the server. |
 
 `shadcn/ui` is not a dependency, because components are copied into the project. Templates ship its
 plumbing and **only the components their own screens use**, installed by its CLI, on **Base UI**, which is shadcn's

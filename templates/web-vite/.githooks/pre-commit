@@ -1,0 +1,2 @@
+#!/bin/sh
+pnpm biome check --staged --write --no-errors-on-unmatched

@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Node 22.18 or later, pnpm 10.26 or later, and Docker Desktop running: the database and the tests both run in it.
+Node 22.23.4 or later, pnpm 10.26 or later, and Docker Desktop running: the database and the tests both run in it.
 On Windows, Docker Desktop needs its WSL2 backend and Linux containers. Keep the project in a Windows folder, or
 work entirely inside a WSL distribution; Windows tools on a project inside the WSL filesystem are not supported.
 

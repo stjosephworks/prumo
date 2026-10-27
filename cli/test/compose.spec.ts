@@ -40,7 +40,6 @@ describe('composeWorkspace', () => {
     expect(scripts.api).toBe('pnpm --filter api dev')
     expect(scripts.web).toBe('pnpm --filter web dev')
     expect(scripts.mobile).toBeUndefined()
-    expect(scripts.site).toBeUndefined()
   })
 
   it('moves the contract into a package and points every import at it', async () => {
@@ -144,7 +143,10 @@ describe('composeWorkspace with every type', () => {
     await composeWorkspace({
       templates,
       target,
-      apps: defaultApps(['api', 'web', 'mobile', 'site']),
+      apps: [
+        ...defaultApps(['api', 'web', 'mobile']),
+        { name: 'site', type: 'web', framework: 'next' },
+      ],
     })
   })
 
@@ -152,14 +154,15 @@ describe('composeWorkspace with every type', () => {
     await rm(join(target, '..'), { recursive: true, force: true })
   })
 
-  it('merges every app’s build denials and gives the site no contract it does not call', async () => {
+  it('merges every app’s build denials and shares the contract with a web app on Next', async () => {
     const workspace = await readFile(join(target, 'pnpm-workspace.yaml'), 'utf8')
-    const site = await readFile(join(target, 'apps/site/package.json'), 'utf8')
+    const site = JSON.parse(await readFile(join(target, 'apps/site/package.json'), 'utf8'))
 
     expect(workspace).toContain('ssh2: false')
     expect(workspace).toContain('sharp: false')
     expect(existsSync(join(target, 'apps/site/pnpm-workspace.yaml'))).toBe(false)
-    expect(site).not.toContain('@app/api-contract')
+    expect(existsSync(join(target, 'apps/site/src/api-contract'))).toBe(false)
+    expect(site.dependencies['@app/api-contract']).toBe('workspace:*')
   })
 })
 
@@ -178,8 +181,8 @@ describe('composeWorkspace with apps named on purpose', () => {
         { name: 'server', type: 'api' },
         { name: 'web', type: 'web' },
         { name: 'backoffice', type: 'web' },
-        { name: 'site', type: 'site' },
-        { name: 'blog', type: 'site' },
+        { name: 'site', type: 'web', framework: 'next' },
+        { name: 'blog', type: 'web', framework: 'next' },
       ],
     })
   })
@@ -203,19 +206,20 @@ describe('composeWorkspace with apps named on purpose', () => {
     )
   })
 
-  it('gives a second web and site the next port, and the api every web app to trust', async () => {
+  it('gives each further web app of a framework the next port, and the api every web app to trust', async () => {
     expect(await read('apps/web/.env.example')).toMatch(/^WEB_PORT=5173$/m)
     expect(await read('apps/backoffice/.env.example')).toMatch(/^WEB_PORT=5174$/m)
-    expect(await read('apps/blog/.env.example')).toMatch(/^SITE_PORT=3201$/m)
+    expect(await read('apps/site/.env.example')).toMatch(/^WEB_PORT=3200$/m)
+    expect(await read('apps/blog/.env.example')).toMatch(/^WEB_PORT=3201$/m)
     expect((await manifest('apps/blog/package.json')).scripts.start).toBe('next start --port 3201')
     expect((await manifest('apps/site/package.json')).scripts.start).toBe('next start --port 3200')
     expect(await read('apps/server/.env.example')).toMatch(
-      /^WEB_ORIGIN=http:\/\/localhost:5173,http:\/\/localhost:5174$/m,
+      /^WEB_ORIGIN=http:\/\/localhost:5173,http:\/\/localhost:5174,http:\/\/localhost:3200,http:\/\/localhost:3201$/m,
     )
   })
 
   it('shares the one contract with every web app', async () => {
-    for (const web of ['web', 'backoffice']) {
+    for (const web of ['web', 'backoffice', 'site', 'blog']) {
       expect(existsSync(join(target, `apps/${web}/src/api-contract`))).toBe(false)
       expect((await manifest(`apps/${web}/package.json`)).dependencies['@app/api-contract']).toBe(
         'workspace:*',
@@ -244,7 +248,7 @@ describe('copyTemplate from a published package', () => {
 
 describe('every template', () => {
   it('answers to dev, which is all the root scripts call', async () => {
-    for (const type of ['api', 'web', 'mobile', 'site']) {
+    for (const type of ['api', 'web-vite', 'web-next', 'web-astro', 'mobile']) {
       const { scripts } = JSON.parse(await readFile(join(templates, type, 'package.json'), 'utf8'))
 
       expect(scripts.dev, `${type} has no dev script`).toBeTypeOf('string')
@@ -253,14 +257,14 @@ describe('every template', () => {
 
   it('checks its port before it starts, from one script every template carries', async () => {
     const copies = await Promise.all(
-      ['api', 'web', 'mobile', 'site', 'workspace'].map((template) =>
+      ['api', 'web-vite', 'web-next', 'web-astro', 'mobile', 'workspace'].map((template) =>
         readFile(join(templates, template, 'scripts', 'ports.mjs'), 'utf8'),
       ),
     )
 
     expect(new Set(copies).size, 'the copies of ports.mjs have drifted apart').toBe(1)
 
-    for (const type of ['api', 'web', 'mobile', 'site']) {
+    for (const type of ['api', 'web-vite', 'web-next', 'web-astro', 'mobile']) {
       const { scripts } = JSON.parse(await readFile(join(templates, type, 'package.json'), 'utf8'))
 
       expect(scripts.dev, `${type} starts without checking its port`).toContain('scripts/ports.mjs')
@@ -275,7 +279,7 @@ describe('every template', () => {
       '.githooks/pre-commit',
     ]) {
       const copies = await Promise.all(
-        ['api', 'web', 'mobile', 'site', 'workspace'].map((template) =>
+        ['api', 'web-vite', 'web-next', 'web-astro', 'mobile', 'workspace'].map((template) =>
           readFile(join(templates, template, file), 'utf8'),
         ),
       )
@@ -287,8 +291,9 @@ describe('every template', () => {
   it('names its port in .env.example, which is where the check reads it', async () => {
     const ports: Record<string, string> = {
       api: 'PORT=3000',
-      web: 'WEB_PORT=5173',
-      site: 'SITE_PORT=3200',
+      'web-vite': 'WEB_PORT=5173',
+      'web-next': 'WEB_PORT=3200',
+      'web-astro': 'WEB_PORT=4321',
       mobile: 'METRO_PORT=8081',
     }
 

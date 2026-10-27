@@ -38,7 +38,7 @@ they do not.
 
 ## Applies to
 
-Every client of a multi-tenant project: `web`, `mobile` and `site` alike.
+Every client of a multi-tenant project: every web app, whatever its framework, and `mobile`.
 
 ## Examples
 

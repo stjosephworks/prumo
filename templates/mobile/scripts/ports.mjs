@@ -14,25 +14,36 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { parseArgs } from 'node:util'
 
-// Where an app of each type keeps its port, what it falls back to, and how its dev command is told about it.
-const TYPES = {
+// Where an app keeps its port, what it falls back to, and how its dev command is told about it. An app is known by
+// the template it came from: a web app's is its framework's.
+const TEMPLATES = {
   api: { key: 'PORT', fallback: 3000, flag: [] },
-  web: { key: 'WEB_PORT', fallback: 5173, flag: ['--port', '--strictPort'] },
-  site: { key: 'SITE_PORT', fallback: 3200, flag: ['--port'] },
+  'web-vite': { key: 'WEB_PORT', fallback: 5173, flag: ['--port', '--strictPort'] },
+  'web-next': { key: 'WEB_PORT', fallback: 3200, flag: ['--port'] },
+  'web-astro': { key: 'WEB_PORT', fallback: 4321, flag: ['--port'] },
   mobile: { key: 'METRO_PORT', fallback: 8081, flag: ['--port'] },
 }
 
-// A port that moves takes these with it: the key to write, in every app of which type. A list holds one URL per app,
-// so only the moving app's entry changes.
+// A port that moves takes these with it: the key to write, in every app of which template. A list holds one URL per
+// app, so only the moving app's entry changes.
+const WEB_ORIGIN = [{ template: 'api', key: 'WEB_ORIGIN', list: true }]
 const FOLLOWERS = {
   api: [
-    { type: 'api', key: 'API_URL' },
-    { type: 'web', key: 'VITE_API_URL' },
-    { type: 'mobile', key: 'EXPO_PUBLIC_API_URL' },
+    { template: 'api', key: 'API_URL' },
+    { template: 'web-vite', key: 'VITE_API_URL' },
+    { template: 'web-next', key: 'NEXT_PUBLIC_API_URL' },
+    { template: 'web-astro', key: 'PUBLIC_API_URL' },
+    { template: 'mobile', key: 'EXPO_PUBLIC_API_URL' },
   ],
-  web: [{ type: 'api', key: 'WEB_ORIGIN', list: true }],
-  site: [],
+  'web-vite': WEB_ORIGIN,
+  'web-next': WEB_ORIGIN,
+  'web-astro': WEB_ORIGIN,
   mobile: [],
+}
+
+// A config written before frameworks has web apps with none, which were Vite's.
+function templateOf(app) {
+  return app.type === 'web' ? `web-${app.framework ?? 'vite'}` : app.type
 }
 
 const PORTS_TRIED = 20
@@ -124,24 +135,35 @@ function readConfig() {
   return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {}
 }
 
-// Every app of the project, as { name, type, directory }. A workspace lists its apps in .prumo/config.json; one written
-// before apps had names holds one per type, named after it. An alone project is its one app, named after its type.
+// Every app of the project, as { name, type, template, directory }. .prumo/config.json lists the apps; one written
+// before apps had names holds one per type, named after it. An alone project is its one app.
 function projectApps() {
   const config = readConfig()
 
   if (!workspace) {
-    // A project is named by its author, so only .prumo/config.json says what it is.
-    const type = TYPES[basename(root)] !== undefined ? basename(root) : config.types?.[0]
+    // A template is run where it sits, under its own name; a project is named by its author, so only
+    // .prumo/config.json says what it is.
+    if (TEMPLATES[basename(root)] !== undefined) {
+      const template = basename(root)
+      const type = template.startsWith('web-') ? 'web' : template
 
-    return type === undefined ? [] : [{ name: type, type, directory: root }]
+      return [{ name: type, type, template, directory: root }]
+    }
+
+    const [listed] = config.apps ?? []
+    const [first] = config.types ?? []
+    const app = listed ?? (first === undefined ? undefined : { name: first, type: first })
+
+    return app === undefined ? [] : [{ ...app, template: templateOf(app), directory: root }]
   }
 
   const listed = config.apps ?? (config.types ?? []).map((type) => ({ name: type, type }))
 
   return listed
-    .map((app) => ({ ...app, directory: join(root, 'apps', app.name) }))
+    .map((app) => ({ ...app, template: templateOf(app), directory: join(root, 'apps', app.name) }))
     .filter(
-      (app) => TYPES[app.type] !== undefined && existsSync(join(app.directory, 'package.json')),
+      (app) =>
+        TEMPLATES[app.template] !== undefined && existsSync(join(app.directory, 'package.json')),
     )
 }
 
@@ -152,7 +174,7 @@ function appsToCheck() {
 }
 
 function portOf(app) {
-  const { key, fallback } = TYPES[app.type]
+  const { key, fallback } = TEMPLATES[app.template]
 
   return Number(envValue(readEnv(app.directory), key) ?? fallback)
 }
@@ -281,10 +303,10 @@ function movePort(app, from, port) {
   const before = `http://localhost:${from}`
   const after = `http://localhost:${port}`
 
-  writeEnvValue(app.directory, TYPES[app.type].key, port)
+  writeEnvValue(app.directory, TEMPLATES[app.template].key, port)
 
-  for (const follower of FOLLOWERS[app.type]) {
-    for (const other of apps.filter((each) => each.type === follower.type)) {
+  for (const follower of FOLLOWERS[app.template]) {
+    for (const other of apps.filter((each) => each.template === follower.template)) {
       const current = envValue(readEnv(other.directory), follower.key)
       const entries = (current ?? '').split(',').map((entry) => entry.trim())
       const value =
@@ -701,7 +723,7 @@ async function main() {
   // Only an app tells its command which port to use. A workspace root wraps `pnpm`, which would pass a stray
   // `--port` on to every app it runs.
   const [app] = values.all ? [] : appsToCheck()
-  const flag = app === undefined ? [] : TYPES[app.type].flag
+  const flag = app === undefined ? [] : TEMPLATES[app.template].flag
   const withPort = flag.flatMap((entry) =>
     entry === '--port' ? ['--port', String(ports[app.name])] : [entry],
   )

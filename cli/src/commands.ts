@@ -17,11 +17,15 @@ export const COMMANDS: CommandHelp[] = [
     summary:
       'Generate a project and the .prumo/ context it follows; `.` generates into this empty directory',
     options: [
-      { flag: '--types <list>', description: 'Comma-separated: api, web, mobile, site' },
+      {
+        flag: '--types <list>',
+        description:
+          'Comma-separated: api, web, mobile; web:vite or web:next chooses the web framework, Vite by default',
+      },
       {
         flag: '--app <name>=<type>',
         description:
-          'Advanced, repeatable: an app with a name of its own, as backoffice=web; only web and site may repeat',
+          'Advanced, repeatable: an app with a name of its own, as backoffice=web or blog=web:next; only web may repeat',
       },
       {
         flag: '--alone',
@@ -52,7 +56,7 @@ export const COMMANDS: CommandHelp[] = [
     name: 'add',
     usage: 'prumo add <type> [name] [options]',
     summary:
-      'Add an app to this workspace, named after its type unless a name is given; only the Prumo version that generated the project adds to it',
+      'Add an app to this workspace, named after its type unless a name is given; web:next chooses the framework. Only the Prumo version that generated the project adds to it',
     options: [{ flag: '--skip-install', description: 'Do not run pnpm install' }, JSON_OPTION],
   },
   {

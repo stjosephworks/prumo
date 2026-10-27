@@ -1,0 +1,9 @@
+---
+import { Account } from '@/features/profile/account'
+import Narrow from '@/layouts/narrow.astro'
+---
+
+<Narrow title="Your profile">
+  <h1 class="text-2xl font-semibold">Your profile</h1>
+  <Account client:only="react" />
+</Narrow>

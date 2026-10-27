@@ -17,7 +17,7 @@ const ADDING = ['dependencies', 'peerDependencies'] as const
 // Every package.json the project's name can land in starts at its template's version.
 async function templateVersions(): Promise<string[]> {
   const versions = await Promise.all(
-    ['api', 'web', 'mobile', 'site', 'workspace'].map(
+    ['api', 'web-vite', 'web-next', 'web-astro', 'mobile', 'workspace'].map(
       async (template) =>
         JSON.parse(await readFile(join(templates, template, 'package.json'), 'utf8')).version,
     ),
