@@ -37,6 +37,8 @@ const NOT_COPIED_SUFFIXES = ['.tsbuildinfo']
 // The name inside the package, and the name it is restored to. npm deletes a dotted .gitignore from a tarball.
 const PACKAGED_AS = { gitignore: '.gitignore' }
 
+const BRANCHES_SECTION = /^## Branches\n[\s\S]*?(?=^## )/m
+
 // The root's `dev` sets the API's database up first, in whichever directory the API was given.
 export function rootDevPrefix(api: string): string {
   return `node apps/${api}/scripts/database.mjs --check && `
@@ -89,10 +91,16 @@ export async function copyApp(templates: string, target: string, app: App): Prom
   // The package is the app's name, which the root's `pnpm --filter <name>` finds it by.
   await rewriteText(join(destination, 'package.json'), (text) => setJsonc(text, ['name'], app.name))
 
-  // The workspace root carries both, for every app below it.
-  for (const rootOnly of ['.githooks', '.gitattributes']) {
+  // The workspace root carries these, for every app below it, and its README says how to set the branches up.
+  for (const rootOnly of ['.githooks', '.gitattributes', '.github']) {
     await rm(join(destination, rootOnly), { recursive: true, force: true })
   }
+  await rewriteText(join(destination, 'README.md'), (text) => {
+    if (!BRANCHES_SECTION.test(text)) {
+      throw new Error(`${join(destination, 'README.md')} no longer carries a Branches section`)
+    }
+    return text.replace(BRANCHES_SECTION, '')
+  })
 
   return destination
 }

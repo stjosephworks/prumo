@@ -267,6 +267,23 @@ describe('every template', () => {
     }
   })
 
+  it('carries one branch flow, and the rulesets that make it required', async () => {
+    for (const file of [
+      '.github/workflows/flow.yml',
+      '.github/rulesets/flow.json',
+      '.github/rulesets/project.json',
+      '.githooks/pre-commit',
+    ]) {
+      const copies = await Promise.all(
+        ['api', 'web', 'mobile', 'site', 'workspace'].map((template) =>
+          readFile(join(templates, template, file), 'utf8'),
+        ),
+      )
+
+      expect(new Set(copies).size, `the copies of ${file} have drifted apart`).toBe(1)
+    }
+  })
+
   it('names its port in .env.example, which is where the check reads it', async () => {
     const ports: Record<string, string> = {
       api: 'PORT=3000',

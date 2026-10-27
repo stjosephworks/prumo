@@ -60,10 +60,27 @@ template writes it. Formatting never touches the files listed here.
 
 A path below is given as the project sees it when generated `alone`. In a workspace, each app's files sit under
 `apps/<name>/`, the name being the app's type unless it was named on purpose, and the workspace root holds its own
-`scripts/ports.mjs`, `.githooks/` and `.gitattributes`: an app inside a workspace has no `.githooks/` or
-`.gitattributes` of its own.
+`scripts/ports.mjs`, `.githooks/`, `.gitattributes` and `.github/`: an app inside a workspace has none of the last
+three of its own.
 
 ## What changed, release by release
+
+### 0.7.0
+
+| File | Types | Change |
+|---|---|---|
+| `.prumo/core/git.md` | every type | New. The branch flow: `task/`, `fix/`, `chore/`, `docs/`, `refactor/` → `dev` → `staging` → `main`, and large work through `project/` |
+| `.prumo/INDEX.md` | every type | Lists `core/git.md` |
+| `.github/workflows/flow.yml` | every type, at the root | New. Fails a pull request that skips a step of the flow |
+| `.github/rulesets/flow.json`, `.github/rulesets/project.json` | every type, at the root | New. What the README's `gh api` commands send to make the check required |
+| `README.md` | every type, at the root | A Branches section with those commands |
+| `.githooks/pre-commit` | every type, at the root | `--no-errors-on-unmatched`, so a commit of only files Biome does not check passes |
+| `.prumo/core/tooling.md` | every type | Names that flag |
+
+Why: with several people on one project, a large change merged into `dev` early decided what shipped next for
+everyone. A `project/` branch holds it, split into tasks, until it is decided to ship. A new project's repository
+also starts on `main`, whatever the machine's `init.defaultBranch` says; an existing one renames its branch with
+`git branch -m main` if it needs to.
 
 ### 0.6.1
 
