@@ -57,7 +57,7 @@ sixth, asked when there is an api, and for social a client to come back to.
 
 | Area | Holds | Ships when |
 |---|---|---|
-| `core/` | What crosses every type: TypeScript config, Biome and the pre-commit hook, Vitest, file naming, code style | **always** |
+| `core/` | What crosses every type: TypeScript config, Biome and the pre-commit hook, Vitest, file naming, code style, the branch flow | **always** |
 | `api/` | Fastify rules and the domain/infra structure: ports, use cases, DTOs, the HTTP edge | type is `api` |
 | `database/` | Database rules and performance. Separate from `api/` so a future worker or lambda can take it without being an API | type is `api` |
 | `client/` | What every client shares: calling the API, the error type, queries, forms | type is `web`, `mobile` or `site` |

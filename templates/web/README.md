@@ -43,6 +43,20 @@ log, in a line starting `[mail] to`, and **Forgot your password?** works the sam
 | `pnpm typecheck` | `tsc --noEmit`, also run before every push |
 | `pnpm build` | Production build into `dist/`; `pnpm preview` serves it |
 
+## Branches
+
+Work lands through `dev` → `staging` → `main`, and large work through a `project/` branch first;
+`.prumo/core/git.md` has the rule. `.github/workflows/flow.yml` fails a pull request that skips a step. To make it
+required and refuse direct pushes on GitHub, push the three branches and create the two rulesets once, with the
+[GitHub CLI](https://cli.github.com):
+
+```sh
+git push -u origin main
+git push origin main:dev main:staging
+gh api repos/{owner}/{repo}/rulesets --input .github/rulesets/flow.json
+gh api repos/{owner}/{repo}/rulesets --input .github/rulesets/project.json
+```
+
 ## Conventions
 
 The rules this project follows live in `.prumo/`, and `AGENTS.md` points to them. Read those before
