@@ -169,7 +169,7 @@ export async function resolveAnswers(
     missing('--alone or --monorepo')
   }
 
-  // Renaming an app, or adding another web or site, is for those who ask: offered once, after the types were asked
+  // Renaming an app, or adding another web app, is for those who ask: offered once, after the types were asked
   // rather than passed, and answered no by default. With flags, --app says it.
   if (
     architecture === 'monorepo' &&

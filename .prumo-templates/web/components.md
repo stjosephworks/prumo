@@ -46,7 +46,8 @@ the pre-commit hook, and it does not yet handle screen variants or plugin utilit
 
 ## Applies to
 
-Every component under `src/`.
+Every component under `src/` of every web app, whatever its framework: Vite, Next and Astro all build on shadcn and
+Base UI.
 
 ## Examples
 

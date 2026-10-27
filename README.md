@@ -59,7 +59,7 @@ It asks what to build, writes the project into `my-app/`, runs `git init`, and i
 committed, so the first commit is yours and the diff shows everything Prumo wrote. `prumo new .`
 writes into the current directory instead, which must be empty, and names the project after it. If
 anything fails or is interrupted, Prumo removes what it wrote, so the same command can run again.
-A project cannot be named `api`, `web`, `mobile` or `site`: those are the names its apps take inside
+A project cannot be named `api`, `web` or `mobile`: those are the names its apps take inside
 a workspace. Nor can it take the name of a package that pnpm's compatibility database extends, such as `ws`:
 pnpm applies the extension to the project's own `package.json` and installs what it adds. Prumo names
 the packages and suggests another name.
@@ -71,12 +71,13 @@ answer is an error rather than a default, so nothing important gets decided by s
 ```sh
 npx @stjoseph/prumo new my-app --types api,web --single-tenant --no-mcp --email --no-social
 npx @stjoseph/prumo new my-api --types api --alone --single-tenant --email
+npx @stjoseph/prumo new my-shop --types api,web:next --single-tenant --no-mcp --email --social google
 ```
 
 | Flag | What it answers |
 |---|---|
-| `--types api,web,mobile,site` | What the project contains. More than one type makes a workspace |
-| `--app <name>=<type>` | Advanced, repeatable: an app with a name of its own, as `--app backoffice=web`. A type left out of `--types` and given here is renamed. Only `web` and `site` repeat, and an `--app` makes a workspace |
+| `--types api,web,mobile` | What the project contains. More than one type makes a workspace. `web:vite`, `web:next` or `web:astro` chooses the web app's framework; `web` alone is Vite, and a terminal asks |
+| `--app <name>=<type>` | Advanced, repeatable: an app with a name of its own, as `--app backoffice=web` or `--app blog=web:astro`. A type left out of `--types` and given here is renamed. Only `web` repeats, on any framework, and an `--app` makes a workspace |
 | `--alone` or `--monorepo` | How a single type is laid out, so one type needs one of them. Several types always make a workspace and refuse `--alone` |
 | `--multi-tenant` or `--single-tenant` | Whether the application serves several tenants. Multi-tenant ships the `multi-tenancy` conventions; the generated code itself is not tenant-aware yet |
 | `--mcp` or `--no-mcp` | With an api and a web: whether AI assistants reach the API through MCP, signed in as the user |
@@ -89,7 +90,7 @@ npx @stjoseph/prumo new my-api --types api --alone --single-tenant --email
 | Command | What it does |
 |---|---|
 | `prumo new [name \| .]` | Generates a project |
-| `prumo add <type> [name]` | Inside a workspace: adds an app, named after its type unless a name is given, as `prumo add web backoffice`. It gets the next free port, the shared contract, the API's trust when it is a web app, and the `.prumo/` areas it needs. Only the Prumo version that generated the project adds to it |
+| `prumo add <type> [name]` | Inside a workspace: adds an app, named after its type unless a name is given, as `prumo add web backoffice` or `prumo add web:next shop`. It gets the next free port, the shared contract, the API's trust when it is a web app, and the `.prumo/` areas it needs. Only the Prumo version that generated the project adds to it |
 | `prumo db` | Inside a project with an API: creates the development database in Docker and writes its URL into `.env` |
 | `prumo clean` | Removes what the project needed only once, today the database setup, once the database exists. Only the Prumo version that generated the project cleans it |
 | `prumo doctor` | Checks Node, pnpm, git and Docker on this machine, and that Docker runs Linux containers |
@@ -105,9 +106,8 @@ is asked, and the exit code is 0 only when `ok` is true.
 | Type | What you get |
 |---|---|
 | `api` | Fastify with a domain/infra structure, tsyringe, Zod, MikroORM on PostgreSQL, its own JWT authentication, Swagger UI, Vitest with Testcontainers |
-| `web` | Vite, React, TanStack Router and Query, Tailwind, shadcn/ui, forms validated with Zod |
+| `web` | React, Tailwind, shadcn/ui, forms validated with Zod, and the same sign-in on each framework. **Vite** (the default): TanStack Router and Query, an app behind a sign-in. **Next**: the App Router, public pages rendered on the server for search engines, the signed-in area in the browser. **Astro**: pages built ahead of time with no JavaScript, React islands where something acts |
 | `mobile` | Expo with Expo Router, NativeWind, MMKV, and the tokens kept in `expo-secure-store` |
-| `site` | Next on the App Router, static by default, for pages that have to be indexed |
 
 One type produces that project on its own. Several produce a pnpm workspace: each application under
 `apps/`, named after its type unless it was named on purpose, the wire contract shared through `packages/api-contract` so a change on one side breaks the
@@ -122,13 +122,13 @@ a month apart are the same project.
 
 | File | What it is |
 |---|---|
-| `.prumo/` | The conventions, in twelve areas. Only the areas the answers call for are copied |
+| `.prumo/` | The conventions, in fourteen areas. Only the areas the answers call for are copied |
 | `.prumo/INDEX.md` | One line per document. Generated by the tool, and safe to regenerate |
 | `AGENTS.md` | The pointer into `.prumo/`, read by Codex, Cursor, Copilot, Gemini CLI and others |
 | `CLAUDE.md` | An `@AGENTS.md` import, for Claude Code |
 
-The twelve areas are `core`, `api`, `database`, `client`, `web`, `mobile`, `site`, `monorepo`,
-`multi-tenancy`, `mcp`, `email` and `social`. Only `core` ships unconditionally, because everything in it is true of every type;
+The fourteen areas are `core`, `api`, `database`, `client`, `web`, `web-vite`, `web-next`, `web-astro`, `mobile`,
+`monorepo`, `multi-tenancy`, `mcp`, `email` and `social`. Only `core` ships unconditionally, because everything in it is true of every type;
 the rest follow the answers, since advice about a platform the project does not have is worse than
 no advice at all.
 

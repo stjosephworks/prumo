@@ -20,9 +20,11 @@ This document describes **where files live and what they are called**. What goes
     api/             ← type api
     database/        ← type api
     client/          ← any client type
-    web/             ← type web
+    web/             ← type web, whatever its framework
+    web-vite/        ← a web app on Vite
+    web-next/        ← a web app on Next
+    web-astro/       ← a web app on Astro
     mobile/          ← type mobile
-    site/            ← type site
     monorepo/        ← architecture monorepo
     multi-tenancy/   ← multi-tenant projects only
     mcp/             ← projects that answered yes to MCP
@@ -50,20 +52,23 @@ it or refresh it are planned after V1.
 
 ## Areas
 
-Areas do not mirror types. Eight of the twelve are not types at all: `core/` ships always, `database/` follows a type, `client/`
-follows any of three, `monorepo/` follows the architecture, `multi-tenancy/` follows a third axis of its
-own, `mcp/` a fourth, asked only when there is an api and a web, and `email/` and `social/` a fifth and a
-sixth, asked when there is an api, and for social a client to come back to.
+Areas do not mirror types. Eleven of the fourteen are not types at all: `core/` ships always, `database/` follows a
+type, `client/` follows either client type, `web-vite/`, `web-next/` and `web-astro/` follow a web app's framework,
+`monorepo/` follows the architecture, `multi-tenancy/` follows a third axis of its own, `mcp/` a fourth, asked only
+when there is an api and a web, and `email/` and `social/` a fifth and a sixth, asked when there is an api, and for
+social a client to come back to.
 
 | Area | Holds | Ships when |
 |---|---|---|
 | `core/` | What crosses every type: TypeScript config, Biome and the pre-commit hook, Vitest, file naming, code style, the branch flow | **always** |
 | `api/` | Fastify rules and the domain/infra structure: ports, use cases, DTOs, the HTTP edge | type is `api` |
 | `database/` | Database rules and performance. Separate from `api/` so a future worker or lambda can take it without being an API | type is `api` |
-| `client/` | What every client shares: calling the API, the error type, queries, forms | type is `web`, `mobile` or `site` |
-| `web/` | Vite + React rules | type is `web` |
+| `client/` | What every client shares: calling the API, the error type, queries, forms | type is `web` or `mobile` |
+| `web/` | What every web app shares: shadcn components and their variants | type is `web` |
+| `web-vite/` | Vite + React: TanStack Router, structure | a web app on Vite |
+| `web-next/` | Next: rendering public pages on the server and the signed-in area in the browser, structure | a web app on Next |
+| `web-astro/` | Astro: pages built ahead of time, React islands, structure | a web app on Astro |
 | `mobile/` | Expo rules | type is `mobile` |
-| `site/` | Next rules, for indexed pages | type is `site` |
 | `monorepo/` | Workspace organisation | architecture is `monorepo` |
 | `multi-tenancy/` | `tenant_id` across the layers, tenant resolution, isolation | the project is multi-tenant |
 | `mcp/` | The MCP server, its tools and their scopes, and the OAuth that authorizes them | the project has an api and a web and answered yes to MCP |
@@ -75,17 +80,19 @@ per area, and not as convention-plus-exceptions.
 
 **`client/` is the only row that is not a simple equality.** It exists because `data.md` and `forms.md`
 were nearly identical between `web` and `mobile`, and those two documents carry most of the silent-failure
-rules on the client side, and two copies drifting would mean one of them quietly ceasing to be true. A `site`
-receives it and uses the wire-contract half; the document says which half is Query-specific.
+rules on the client side, and two copies drifting would mean one of them quietly ceasing to be true. A Next or Astro
+app's public pages use the wire-contract half, and its signed-in area all of it; the document says which half is
+Query-specific.
 
 **`core/` is the only unconditional area, so it is always-loaded context.** The bar for entering it
 is *crossing every type in fact*, not seeming general. If it bloats, every project pays on every
 session.
 
-**`web` and `site` are separate on purpose.** They share React and Tailwind and nothing else that
-matters: TanStack Router and TanStack Query do not exist in Next, and routing, data fetching, build
-and deploy target differ end to end. One document covering both would say *if Next do X, if Vite do
-Y* in nearly every rule.
+**One type, one area per framework.** Since 2026-10-27 `web` is one type whatever it is built with, because a
+public site is often the whole web app and needs the same sign-in. Its frameworks share React, Tailwind, shadcn and,
+in the browser, the contract and TanStack Query, which is what `web/` and `client/` hold. They share nothing else that
+matters: routing, rendering, data fetching on the server, build and deploy target differ end to end, so each has its
+area. One document covering all three would say *if Next do X, if Vite do Y* in nearly every rule.
 
 ---
 

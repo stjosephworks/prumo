@@ -30,8 +30,8 @@ the only place that holds all three. That is why this area, like Next's, keeps c
 and mobile keep thin routes pointing at features.
 
 An island is exported beside the component it wraps so a page imports one name, and the feature's component stays
-testable on its own. Everything else carries over from the web area for the reasons given there: a `shared/` folder
-has no admission criterion, so it only grows.
+testable on its own. Everything else carries over from Vite's area, `web-vite/structure.md`, for the reasons given
+there: a `shared/` folder has no admission criterion, so it only grows.
 
 kebab-case for `.astro` files too, although Astro's examples use PascalCase, because the conventions name every
 source file that way, and a case-only rename does not register on macOS or Windows.

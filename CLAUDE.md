@@ -131,7 +131,7 @@ Two answers decide everything:
 
 | Answer | Values |
 |---|---|
-| **Type**, what the artefact is | `api` (Fastify) · `web` (Vite + React) · `mobile` (Expo) · `site` (Next, for SEO) |
+| **Type**, what the artefact is | `api` (Fastify) · `web` (Vite, Next or Astro, with React) · `mobile` (Expo) |
 | **Architecture**, how they are laid out | `alone` · `monorepo` |
 
 `alone` produces one project of one type. `monorepo` produces a workspace holding the types chosen.
