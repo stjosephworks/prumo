@@ -9,8 +9,8 @@ and `test` as well, each running through `pnpm -r`.
 **Every app answers to `dev`.** When a framework names its development command differently, keep its name and
 alias it: `"dev": "pnpm start:dev"` in the API, `"dev": "pnpm start"` in mobile.
 
-**Give every app its own port.** The API holds 3000, so the site runs on 3200. A second app of a type takes the
-next port of that type: a second web 5174, a second site 3201.
+**Give every app its own port.** The API holds 3000; a web app starts from its framework's port, Vite 5173, Next
+3200, Astro 4321. A second web app on a framework takes the next: a second Vite app 5174, a second Next app 3201.
 
 Keep compiler options in `tsconfig.base.json` at the workspace root. Extend it by relative path from each
 app and package, overriding only what differs.

@@ -2,12 +2,11 @@
 import { parseArgs } from 'node:util'
 import * as prompt from '@clack/prompts'
 import { addApp } from './add.ts'
-import { TYPES } from './apps.ts'
+import { parseTypeEntry } from './apps.ts'
 import { terminalAsker } from './asker.ts'
 import { assetsFor, requireAssets } from './assets.ts'
 import { cleanText, planClean } from './clean.ts'
 import { COMMANDS, findCommand, helpText } from './commands.ts'
-import type { AppType } from './compose.ts'
 import { runDatabase } from './database.ts'
 import { doctor, doctorText, systemProbe, toolChecks } from './doctor.ts'
 import { generate } from './generate.ts'
@@ -148,12 +147,19 @@ async function runAdd(args: string[], json: boolean): Promise<Result> {
   const [type, name, ...extra] = positionals
 
   if (type === undefined || extra.length > 0) {
-    throw new CliError('usage', 'Usage: prumo add <type> [name], as in `prumo add web backoffice`.')
+    throw new CliError(
+      'usage',
+      'Usage: prumo add <type> [name], as in `prumo add web backoffice` or `prumo add web:next blog`.',
+    )
   }
 
-  if (!TYPES.includes(type as AppType)) {
-    throw new CliError('invalid_app', `Unknown type: ${type}. Choose from ${TYPES.join(', ')}.`)
-  }
+  const entry = parseTypeEntry(type, 'prumo add', 'invalid_app')
+  const interactive = !json && process.stdin.isTTY === true && process.stdout.isTTY === true
+  // Asked like `prumo new` asks it; a script that names no framework gets Vite.
+  const framework =
+    entry.type !== 'web' || entry.framework !== undefined || !interactive
+      ? entry.framework
+      : await terminalAsker(() => undefined).framework(name ?? entry.type)
 
   const install = !values['skip-install']
   const tools = toolChecks(systemProbe, install ? ['pnpm'] : [])
@@ -168,7 +174,8 @@ async function runAdd(args: string[], json: boolean): Promise<Result> {
   const added = await addApp({
     ...requireAssets(assetsFor(import.meta.dirname)),
     cwd: process.cwd(),
-    type: type as AppType,
+    type: entry.type,
+    framework,
     name,
     install,
     childOutput: json ? 'stderr' : 'inherit',

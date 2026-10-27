@@ -1,0 +1,12 @@
+---
+import Page from '@/layouts/page.astro'
+
+// Sign-in, its neighbours and the signed-in area: one column, and nothing a search result should show.
+type Props = { title: string }
+---
+
+<Page title={Astro.props.title} index={false}>
+  <main class="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center gap-6 p-6">
+    <slot />
+  </main>
+</Page>

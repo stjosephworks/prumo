@@ -91,8 +91,11 @@ jobs:
           - name: a-mobile
             types: mobile
             architecture: alone
-          - name: a-site
-            types: site
+          - name: a-next-web
+            types: web:next
+            architecture: alone
+          - name: an-astro-web
+            types: web:astro
             architecture: alone
           # One type laid out as a workspace, and the one multi-tenant project.
           - name: a-tenant-workspace
@@ -102,14 +105,15 @@ jobs:
             flags: --email
           # The one project with MCP: every other one proves the templates run with it cut out.
           - name: everything
-            types: api,web,mobile,site
+            types: api,web,mobile
             architecture: monorepo
-            flags: --mcp --email --social google,apple
-          # Apps named on purpose: a renamed api, and a second web and site, each verified, the api trusting both webs.
+            flags: --app site=web:next --app press=web:astro --mcp --email --social google,apple
+          # Apps named on purpose: a renamed api, and a second web on each framework, each verified, the api trusting
+          # every one.
           - name: named-apps
-            types: web,site
+            types: web
             architecture: monorepo
-            flags: --app server=api --app backoffice=web --app blog=site --no-mcp --email --social google
+            flags: --app server=api --app backoffice=web --app site=web:next --app blog=web:next --app press=web:astro --app guide=web:astro --no-mcp --email --social google
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -148,7 +152,7 @@ jobs:
           package_json_file: cli/package.json
       - uses: actions/setup-node@v5
         with:
-          node-version: 22.18.0
+          node-version: 22.23.4
           cache: pnpm
           cache-dependency-path: cli/pnpm-lock.yaml
       - run: pnpm install
@@ -240,8 +244,11 @@ jobs:
           - name: a-mobile
             types: mobile
             architecture: alone
-          - name: a-site
-            types: site
+          - name: a-next-web
+            types: web:next
+            architecture: alone
+          - name: an-astro-web
+            types: web:astro
             architecture: alone
           # The runner's Docker runs Windows containers only, where postgres:18-alpine cannot: verify.mjs builds the
           # api and says it skipped its tests, migration and start.
@@ -251,8 +258,9 @@ jobs:
             flags: --email
           # Every client in one workspace, which is the deepest tree `pnpm dev` starts.
           - name: clients
-            types: web,mobile,site
+            types: web,mobile
             architecture: monorepo
+            flags: --app site=web:next --app press=web:astro
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4

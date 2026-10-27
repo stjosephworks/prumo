@@ -7,7 +7,7 @@ Configure TypeScript with `module` and `moduleResolution` both `nodenext`, `targ
 
 Add `noUncheckedIndexedAccess`. Do not add `exactOptionalPropertyTypes`.
 
-Use `bundler` for `moduleResolution` in a client app (`web`, `mobile`, `site`) where a bundler resolves
+Use `bundler` for `moduleResolution` in a client app (`web`, `mobile`) where a bundler resolves
 modules.
 
 Run Biome's recommended preset, configured in `biome.jsonc`. Write a one-line reason in the configuration
