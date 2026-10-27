@@ -8,5 +8,20 @@
     "domains": { "next": "recommended", "react": "recommended" }
   },
   "javascript": { "formatter": { "quoteStyle": "single", "semicolons": "asNeeded" } },
-  "css": { "parser": { "tailwindDirectives": true } }
+  "css": { "parser": { "tailwindDirectives": true } },
+  "overrides": [
+    {
+      "includes": ["src/components/ui/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            // A shadcn primitive forwards htmlFor through props, which the rule cannot see.
+            "noLabelWithoutControl": "off",
+            // shadcn's Field uses role="group" on purpose; a fieldset would change layout and semantics.
+            "useSemanticElements": "off"
+          }
+        }
+      }
+    }
+  ]
 }
