@@ -18,14 +18,15 @@ older one and your project is what your team changed.
    | Field | Flag |
    |---|---|
    | `types` | `--types api,web` |
-   | `apps` | `--app <name>=<type>` for each app whose name is not its type, in order; those types leave `--types` |
+   | `apps` | `--app <name>=<type>` for each app whose name is not its type, in order; those types leave `--types`. A web app with a `framework` other than `vite` is `web:<framework>`, in `--types` or `--app` |
    | `architecture` | `--alone` or `--monorepo` |
    | `multiTenant` | `--multi-tenant` or `--single-tenant` |
    | `mcp` | `--mcp` or `--no-mcp` |
    | `email` | `--email` or `--no-email` |
    | `social` | `--social google,apple`, or `--no-social` when it is empty |
 
-   `apps` exists from 0.6.0, and only in a workspace.
+   `apps` exists from 0.6.0, and only in a workspace until 0.8.0, which writes it for every project with each web
+   app's `framework`. Before 0.8.0 every web app was Vite's. A `site` in `types` became `web:next` in 0.8.0: see below.
 
    `email` and `social` exist from 0.4.0. A project generated before has neither, so its reference at the old
    version leaves both flags out, and its reference at the new one passes `--no-email --no-social`.
@@ -64,6 +65,29 @@ A path below is given as the project sees it when generated `alone`. In a worksp
 three of its own.
 
 ## What changed, release by release
+
+### 0.8.0
+
+**`site` is gone; a web app names its framework.** `web` is one type built with Vite (the default), Next or Astro,
+chosen with `web:<framework>` in `--types`, `--app` and `prumo add`, and asked in a terminal. `--types site` is refused.
+
+| File | Types | Change |
+|---|---|---|
+| `.prumo/config.json` | every type | `apps` is written for every project, a web app with its `framework` |
+| `.prumo/web/` | web | Holds only `components.md`, which is every web app's. `routing.md` and `structure.md` moved to `.prumo/web-vite/` |
+| `.prumo/web-next/`, `.prumo/web-astro/` | web on Next or Astro | New areas. `web-next` replaces `.prumo/site/`, rewritten for a public side and a signed-in side |
+| `.prumo/client/data.md`, `.prumo/core/tooling.md`, `.prumo/monorepo/*.md`, `.prumo/multi-tenancy/client.md` | every type | Name the frameworks instead of `site` |
+| `scripts/ports.mjs` | every type, and the workspace root | Knows each app by the template it came from, so a web app's port starts from its framework's: Vite 5173, Next 3200, Astro 4321 |
+| `package.json`, `README.md` | every type, and the workspace root | `engines.node` rises to `>=22.23.4`, which Astro 7 requires, for every project |
+| `.env.example` | api | `WEB_ORIGIN` lists every web app, whatever its framework |
+
+**A 0.7 `site` has no reference to diff against.** Generated with `--types web:next`, the app is the old site's public
+page plus the sign-in, the signed-in area and MCP consent of a Vite web app, with the API contract: keep the site's
+pages and carry `src/features/`, `src/components/ui/`, `src/api-contract/`, `src/app/(auth)/`, `src/app/(signed-in)/`
+and the test support over from the reference, then add the app's origin to the API's `WEB_ORIGIN`. Its port moves
+from `SITE_PORT` to `WEB_PORT`, and its API address is `NEXT_PUBLIC_API_URL`.
+
+Why: a site was often the whole web app and needed search engines and a sign-in at once, which neither type gave.
 
 ### 0.7.0
 

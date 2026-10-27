@@ -20,7 +20,8 @@ export type Answers = {
 
 const CLIENTS: AppType[] = ['web', 'mobile']
 
-// A web app's area is its framework's: routing, rendering and structure differ between them end to end.
+// Every web app shares `web`, its components; its framework's area holds the rest, since routing, rendering and
+// structure differ between them end to end.
 const CLIENT_AREAS = ['web-vite', 'web-next', 'web-astro', 'mobile']
 
 export function areasFor(answers: Answers): string[] {
@@ -31,6 +32,7 @@ export function areasFor(answers: Answers): string[] {
     'core',
     ...(has('api') ? ['api', 'database'] : []),
     ...(CLIENTS.some(has) ? ['client'] : []),
+    ...(has('web') ? ['web'] : []),
     ...CLIENT_AREAS.filter((area) => templates.includes(area)),
     ...(answers.architecture === 'monorepo' ? ['monorepo'] : []),
     ...(answers.multiTenant ? ['multi-tenancy'] : []),

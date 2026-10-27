@@ -610,6 +610,7 @@ describe('generate', () => {
     expect(await readFile(join(target, '.env'), 'utf8')).toMatch(/^WEB_PORT=3200$/m)
     expect(existsSync(join(target, 'next.config.ts'))).toBe(true)
     expect(existsSync(join(target, '.prumo/web-next'))).toBe(true)
+    expect(existsSync(join(target, '.prumo/web/components.md'))).toBe(true)
     expect(existsSync(join(target, '.prumo/web-vite'))).toBe(false)
     expect(JSON.parse(await readFile(join(target, '.prumo/config.json'), 'utf8')).apps).toEqual([
       { name: 'web', type: 'web', framework: 'next' },

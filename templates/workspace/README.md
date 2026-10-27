@@ -19,7 +19,7 @@ work entirely inside a WSL distribution; Windows tools on a project inside the W
 |---|---|
 | `pnpm install` | Installs every app and package |
 | `pnpm dev` | Starts every app at once, their output prefixed by app. Mobile runs without its QR code there; use `pnpm mobile` for that |
-| `pnpm api` · `pnpm web` · `pnpm mobile` · `pnpm site` | Starts one app; the workspace has a script for each app it holds, named after it |
+| `pnpm api` · `pnpm web` · `pnpm mobile` | Starts one app; the workspace has a script for each app it holds, named after it |
 | `pnpm lint` · `pnpm typecheck` · `pnpm test` | Runs across every app and package |
 
 ## Trying it

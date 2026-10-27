@@ -4,10 +4,10 @@
 
 Put deployable things in `apps/` and shared code in `packages/`.
 
-Name an app directory after its type (`apps/api`, `apps/web`, `apps/mobile`, `apps/site`), never after
-the product. A second web or site, or an app renamed on purpose, is named for its role (`apps/backoffice`,
-`apps/blog`), still never after the product. The directory, the package and the root script share that name, and
-`.prumo/config.json` lists every app with its type. Only `web` and `site` repeat; a workspace holds one `api` and
+Name an app directory after its type (`apps/api`, `apps/web`, `apps/mobile`), never after the product. A second
+web app, or an app renamed on purpose, is named for its role (`apps/backoffice`, `apps/blog`), still never after the
+product. The directory, the package and the root script share that name, and `.prumo/config.json` lists every app
+with its type, and a web app with its framework. Only `web` repeats, on any framework; a workspace holds one `api` and
 one `mobile`.
 
 Keep one package from the start: the integration layer between the clients and the API. It holds URL
@@ -34,8 +34,8 @@ The integration package exists because the rest of the sharing was already refus
 hand-written rather than generated, validation differs on each side, and shadcn copies components rather
 than sharing them. What genuinely repeats across clients is how a URL is built, how an error body becomes
 an `ApiError`, what the contract's shapes are, and how an expired access token is refreshed. Only transport
-differs (the web sends its cookies automatically, mobile hands the auth client a store over secure storage, a
-site's server calls anonymously), so transport comes from outside.
+differs (the browser sends its cookies automatically, mobile hands the auth client a store over secure storage, a public
+page rendered by Next or Astro calls anonymously), so transport comes from outside.
 
 **This is also what recovers most of what hand-written types gave up.** That decision accepted, as its
 cost, that a renamed field leaves each client compiling against its own copy. One copy instead of three
