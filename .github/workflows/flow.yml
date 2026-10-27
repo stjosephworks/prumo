@@ -2,7 +2,7 @@ name: Flow
 
 # Rulesets can require a pull request, but none of their rules can say where that pull request may come from.
 # This check is that rule: main takes staging, staging takes dev, dev takes a project or a branch of a known kind, and
-# a project takes only its tasks.
+# a project takes its tasks, or dev to stay current.
 on:
   pull_request:
     branches: [main, staging, dev, 'project/**']
@@ -20,6 +20,7 @@ jobs:
             echo "A pull request into $BASE must come from $1, and this one comes from $HEAD."
             echo "The chain is: task/, fix/, chore/, docs/ or refactor/ -> dev -> staging -> main."
             echo "Large work goes task/<name> -> project/<name> -> dev, and reaches dev only when it is ready to ship."
+            echo "A project takes dev too, to stay current."
             exit 1
           }
 
@@ -38,8 +39,8 @@ jobs:
               ;;
             project/*)
               case "$HEAD" in
-                task/*) ;;
-                *) refuse 'task/' ;;
+                task/* | dev) ;;
+                *) refuse 'task/ or dev' ;;
               esac
               ;;
           esac

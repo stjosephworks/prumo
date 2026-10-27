@@ -222,9 +222,10 @@ that way.
   Where it disagrees with `docs/`, `docs/` is right.
 - **Commits** are English, imperative mood, one decision per commit where possible.
 - **Branches** follow one chain: a `task/`, `fix/`, `chore/`, `docs/` or `refactor/` branch → `dev` → `staging` →
-  `main`. Large work goes `task/<name>` → `project/<name>` → `dev`, and reaches `dev` only once it is decided to
-  ship. Nobody pushes to `main`, `staging`, `dev` or a `project/` branch, and a ruleset refuses it.
-  `.github/workflows/flow.yml` refuses a pull request that skips a step or comes from any other prefix.
+  `main`. Large work goes `task/<name>` → `project/<name>` → `dev`, reaches `dev` only once it is decided to
+  ship, and takes `dev` by pull request to stay current. Nobody pushes to `main`, `staging`, `dev` or a `project/`
+  branch, and a ruleset refuses it. `.github/workflows/flow.yml` refuses a pull request that skips a step or comes
+  from any other prefix.
 
 ---
 
