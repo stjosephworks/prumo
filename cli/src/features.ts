@@ -69,10 +69,12 @@ export const FEATURES: Record<Feature, Spec> = {
         'src/routes/_authenticated/consent.tsx',
         'test/features/oauth',
       ],
+      'web-next': ['src/features/oauth', 'src/app/(signed-in)/consent', 'test/features/oauth'],
     },
     dependencies: {
       api: ['@modelcontextprotocol/client', '@modelcontextprotocol/server'],
       'web-vite': [],
+      'web-next': [],
     },
   },
   // Verification and password reset: a code sent through the Mailer port, its table in a migration of its own.
@@ -113,6 +115,15 @@ export const FEATURES: Record<Feature, Spec> = {
         'src/routes/verify-email.tsx',
         'src/routes/forgot-password.tsx',
         'src/routes/reset-password.tsx',
+        'test/features/auth/email-flows.spec.tsx',
+      ],
+      'web-next': [
+        'src/features/auth/verify-email-form.tsx',
+        'src/features/auth/forgot-password-form.tsx',
+        'src/features/auth/reset-password-form.tsx',
+        'src/app/(auth)/verify-email',
+        'src/app/(auth)/forgot-password',
+        'src/app/(auth)/reset-password',
         'test/features/auth/email-flows.spec.tsx',
       ],
       mobile: [
@@ -159,6 +170,10 @@ export const FEATURES: Record<Feature, Spec> = {
         'test/support/fake-oidc-server.ts',
       ],
       'web-vite': [
+        'src/features/auth/social-buttons.tsx',
+        'test/features/auth/social-buttons.spec.tsx',
+      ],
+      'web-next': [
         'src/features/auth/social-buttons.tsx',
         'test/features/auth/social-buttons.spec.tsx',
       ],

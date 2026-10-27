@@ -6,5 +6,11 @@ export default defineConfig({
   resolve: {
     alias: { '@': `${import.meta.dirname}/src`, '@test': `${import.meta.dirname}/test` },
   },
-  test: { globals: true, include: ['test/**/*.spec.{ts,tsx}'] },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    include: ['test/**/*.spec.{ts,tsx}'],
+    setupFiles: ['./test/support/setup.ts'],
+    env: { NEXT_PUBLIC_API_URL: 'http://api.test' },
+  },
 })
