@@ -67,7 +67,7 @@ export class SignInWithCodeUseCase {
       }
 
       // Created only now, never when the code was sent: an address that never comes back leaves no account.
-      const user = new User(address)
+      const user = new User({ email: address })
 
       user.verifyEmail(now)
       await this.users.save(user)

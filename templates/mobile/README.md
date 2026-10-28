@@ -38,6 +38,11 @@ On an Android emulator `localhost` is the emulator itself; point `EXPO_PUBLIC_AP
 Enter your email, then the 6-digit code it receives: the first code creates the account. No mail is sent yet: the API
 writes it to its log, in a line starting `[mail] to`.
 <!-- prumo:end-email-code -->
+<!-- prumo:phone-code -->
+
+To sign in by phone, give a mobile number with its country code, as +1 415 555 2671: the code is written to the
+API's log, in a line starting `[sms] to`, and the first one creates the account.
+<!-- prumo:end-phone-code -->
 <!-- prumo:password -->
 
 **Sign up** creates an account with a password instead.

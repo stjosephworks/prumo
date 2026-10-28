@@ -3,6 +3,7 @@ import { FakeMailer } from '@test/support/fakes/fake-mailer' // prumo:mail
 import { FakeOneTimeCodes } from '@test/support/fakes/fake-one-time-codes' // prumo:codes
 import { FakeOpaqueTokens } from '@test/support/fakes/fake-opaque-tokens'
 import { FakePasswordHasher } from '@test/support/fakes/fake-password-hasher' // prumo:password
+import { FakeTextMessages } from '@test/support/fakes/fake-text-messages' // prumo:sms
 import { ImmediateTransactionManager } from '@test/support/fakes/immediate-transaction-manager'
 import { InMemoryOneTimeCodeRepository } from '@test/support/fakes/in-memory-one-time-code.repository' // prumo:codes
 import { InMemoryProfileRepository } from '@test/support/fakes/in-memory-profile.repository'
@@ -13,10 +14,12 @@ import { User } from '@/domain/auth/entities/user.entity'
 import { IssueCodeUseCase } from '@/domain/auth/use-cases/issue-code.use-case' // prumo:codes
 import { RefreshSessionUseCase } from '@/domain/auth/use-cases/refresh-session.use-case'
 import { RequestPasswordResetUseCase } from '@/domain/auth/use-cases/request-password-reset.use-case' // prumo:email
+import { RequestPhoneCodeUseCase } from '@/domain/auth/use-cases/request-phone-code.use-case' // prumo:phone-code
 import { RequestSignInCodeUseCase } from '@/domain/auth/use-cases/request-sign-in-code.use-case' // prumo:email-code
 import { ResetPasswordUseCase } from '@/domain/auth/use-cases/reset-password.use-case' // prumo:email
 import { SignInUseCase } from '@/domain/auth/use-cases/sign-in.use-case' // prumo:password
 import { SignInWithCodeUseCase } from '@/domain/auth/use-cases/sign-in-with-code.use-case' // prumo:email-code
+import { SignInWithPhoneCodeUseCase } from '@/domain/auth/use-cases/sign-in-with-phone-code.use-case' // prumo:phone-code
 import { SignOutUseCase } from '@/domain/auth/use-cases/sign-out.use-case'
 import { SignUpUseCase } from '@/domain/auth/use-cases/sign-up.use-case' // prumo:password
 import {
@@ -26,6 +29,7 @@ import {
 import { VerifyEmailUseCase } from '@/domain/auth/use-cases/verify-email.use-case' // prumo:email
 import { Profile } from '@/domain/users/entities/profile.entity'
 import { CreateProfileUseCase } from '@/domain/users/use-cases/create-profile.use-case'
+import { LibPhoneNumbers } from '@/infra/sms/libphonenumber-phone-numbers.adapter' // prumo:phone-code
 
 // Every auth use case wired to in-memory ports, sharing one set of them as the container would.
 export function authFakes() {
@@ -43,14 +47,27 @@ export function authFakes() {
   const oneTimeCodes = new FakeOneTimeCodes()
   // prumo:end-codes
   const mailer = new FakeMailer() // prumo:mail
-  const issueCode = new IssueCodeUseCase(codes, oneTimeCodes, mailer, transactions) // prumo:codes
+  const texts = new FakeTextMessages() // prumo:sms
+  // prumo:phone-code
+  // The real reader, which needs nothing: it is the API's own rule of what a number is.
+  const phones = new LibPhoneNumbers(['US', 'BR'])
+  // prumo:end-phone-code
+  // prumo:codes
+  const issueCode = new IssueCodeUseCase(
+    codes,
+    oneTimeCodes,
+    transactions,
+    mailer, // prumo:mail
+    texts, // prumo:sms
+  )
+  // prumo:end-codes
   // prumo:email
   const verifyEmail = new VerifyEmailUseCase(users, codes, oneTimeCodes, transactions, startSession)
   // prumo:end-email
 
   // An account that is already in and confirmed, whatever the project's way in: what a test of sessions needs.
   async function signedIn(email = 'ana@example.com'): Promise<SessionTokens> {
-    const user = new User(email)
+    const user = new User({ email })
 
     user.verifyEmail(new Date())
     await users.save(user)
@@ -105,6 +122,7 @@ export function authFakes() {
     issueCode,
     // prumo:end-codes
     mailer, // prumo:mail
+    texts, // prumo:sms
     // prumo:email
     verifyEmail,
     requestPasswordReset: new RequestPasswordResetUseCase(users, issueCode),
@@ -130,5 +148,17 @@ export function authFakes() {
       startSession,
     ),
     // prumo:end-email-code
+    // prumo:phone-code
+    requestPhoneCode: new RequestPhoneCodeUseCase(phones, issueCode),
+    signInWithPhoneCode: new SignInWithPhoneCodeUseCase(
+      users,
+      codes,
+      oneTimeCodes,
+      phones,
+      transactions,
+      createProfile,
+      startSession,
+    ),
+    // prumo:end-phone-code
   }
 }

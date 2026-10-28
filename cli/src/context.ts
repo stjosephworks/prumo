@@ -39,7 +39,9 @@ export function areasFor(answers: Answers): string[] {
     ...(answers.architecture === 'monorepo' ? ['monorepo'] : []),
     ...(answers.multiTenant ? ['multi-tenancy'] : []),
     ...(answers.mcp ? ['mcp'] : []),
+    ...(answers.email || answers.signIn.some((method) => method !== 'password') ? ['codes'] : []),
     ...(answers.email || answers.signIn.includes('email-code') ? ['email'] : []),
+    ...(answers.signIn.includes('phone-code') ? ['phone'] : []),
     ...(answers.social.length > 0 ? ['social'] : []),
   ]
 }

@@ -15,6 +15,8 @@ export class RequestPasswordResetUseCase {
     const address = User.normalizeEmail(email)
     const user = await this.users.findByEmail(address)
 
-    await this.issueCode.execute(address, 'reset-password', { deliver: user !== null })
+    await this.issueCode.execute({ channel: 'email', destination: address }, 'reset-password', {
+      deliver: user !== null,
+    })
   }
 }

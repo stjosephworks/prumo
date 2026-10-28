@@ -20,6 +20,7 @@ import { healthController } from '@/infra/http/controllers/health.controller'
 import { mcpController } from '@/infra/http/controllers/mcp.controller' // prumo:mcp
 import { oauthController } from '@/infra/http/controllers/oauth.controller' // prumo:mcp
 import { passwordController } from '@/infra/http/controllers/password.controller' // prumo:password
+import { phoneCodeController } from '@/infra/http/controllers/phone-code.controller' // prumo:phone-code
 import { socialController } from '@/infra/http/controllers/social.controller' // prumo:social
 import { usersController } from '@/infra/http/controllers/users.controller'
 import { registerErrorHandler } from '@/infra/http/errors/error-handler'
@@ -106,6 +107,7 @@ export async function buildApp(container: DependencyContainer): Promise<FastifyI
   await app.register(passwordController, { prefix: '/api/auth' }) // prumo:password
   await app.register(authEmailController, { prefix: '/api/auth' }) // prumo:email
   await app.register(emailCodeController, { prefix: '/api/auth' }) // prumo:email-code
+  await app.register(phoneCodeController, { prefix: '/api/auth' }) // prumo:phone-code
   await app.register(socialController, { prefix: '/api/auth/social' }) // prumo:social
   await app.register(healthController, { prefix: '/api/health' })
   await app.register(usersController, { prefix: '/api/v1/users' })

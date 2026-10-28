@@ -27,6 +27,7 @@ export function testEnv(): Env {
     API_URL: 'http://localhost:3000',
     WEB_ORIGIN: ['http://localhost:5173'],
     TRUST_PROXY: false,
+    SMS_COUNTRIES: ['US', 'BR'], // prumo:phone-code
     LOG_LEVEL: 'error',
   }
 }

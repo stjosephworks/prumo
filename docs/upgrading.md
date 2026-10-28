@@ -88,6 +88,13 @@ three of its own.
 | `sign-in-choice.tsx`, `code-sign-in-form.tsx`, the sign-in route or screen | web, mobile | The sign-in page holds every way in, the code leading; the mobile `SignInForm` carries its own Sign up and Forgot links |
 | `src/api-contract/auth.ts` | web, mobile | `requestSignInCode` and `signInWithCode`; `signUp` and `signIn` only with a password |
 | `.prumo/api/auth.md`, `.prumo/email/codes.md`, `.prumo/social/sign-in.md` | api | A paragraph for each way in, cut from a project without it |
+| `migrations/…_add_user_phone.ts`, `user.entity.ts`, `user.schema.ts`, `user.repository.ts` | api with phone-code | `email` may be null, `phone` and `phone_verified_at`, and a CHECK that one of `email` and `phone` is set. `new User({ email })` or `new User({ phone })` |
+| `phone-code.controller.ts`, `request-phone-code.use-case.ts`, `sign-in-with-phone-code.use-case.ts`, `phone-*.dto.ts`, `invalid-phone.error.ts`, `phone-numbers.port.ts`, `src/infra/sms/` | api with phone-code | New. `POST /api/auth/phone/code` and `phone/sign-in`; `libphonenumber-js`; `SMS_COUNTRIES` in `env.ts` and `.env.example` |
+| `text-messages.port.ts`, `log-text-messages.adapter.ts` | api with phone-code | New. The `TextMessages` port and the adapter that logs each text in a line starting `[sms] to` |
+| `issue-code.use-case.ts` | api with codes | `execute({ channel, destination }, purpose, { deliver })`, mailing or texting by channel |
+| `session-response.dto.ts`, `auth.controller.ts`, `src/api-contract/auth.ts` | api, web, mobile with phone-code | The session's user carries `phone`, and an `email` that may be null |
+| `code-sign-in-form.tsx` | web, mobile | Asks for an email or a phone number, whichever the project signs in by, with a switch when it has both; the button reads Send me a code |
+| `.prumo/codes/`, `.prumo/email/codes.md`, `.prumo/phone/` | api | The rules every code keeps move from `email/codes.md` to the new `codes/codes.md`; `phone/` is new |
 | `test/support/test-app.ts`, `test/support/fakes/auth-fakes.ts` | api | `signIn` and `signedIn` reach a session through the project's own way in; `signUpWithPassword` and `register` stay for the password's own specs |
 
 Why: behind a load balancer every client shared the balancer's address, so the rate limits put the whole world in

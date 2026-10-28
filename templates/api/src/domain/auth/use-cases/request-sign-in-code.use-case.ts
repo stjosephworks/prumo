@@ -8,6 +8,10 @@ export class RequestSignInCodeUseCase {
 
   // Every address gets its code, with an account or not: entering it signs in, or creates the account.
   async execute(email: string): Promise<void> {
-    await this.issueCode.execute(User.normalizeEmail(email), 'sign-in', { deliver: true })
+    await this.issueCode.execute(
+      { channel: 'email', destination: User.normalizeEmail(email) },
+      'sign-in',
+      { deliver: true },
+    )
   }
 }

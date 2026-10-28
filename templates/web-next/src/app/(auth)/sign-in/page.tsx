@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
-import { CodeSignIn } from '@/features/auth/code-sign-in-form' // prumo:email-code
+import { CodeSignIn } from '@/features/auth/code-sign-in-form' // prumo:code-sign-in
 import { SignInChoice } from '@/features/auth/sign-in-choice'
 import { SignIn } from '@/features/auth/sign-in-form' // prumo:password
 import { SocialSignIn } from '@/features/auth/social-buttons' // prumo:social
@@ -17,7 +17,7 @@ export default function Page() {
         <SocialSignIn />
         {/* prumo:end-social */}
         <SignInChoice
-          code={<CodeSignIn />} // prumo:email-code
+          code={<CodeSignIn />} // prumo:code-sign-in
           password={<SignIn />} // prumo:password
         />
       </Suspense>

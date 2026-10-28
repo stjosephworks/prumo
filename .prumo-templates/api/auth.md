@@ -24,8 +24,15 @@ verify the password against a decoy hash, and answer exactly as for a wrong pass
 Serve `POST /api/auth/email/code` and `email/sign-in` from `email-code.controller.ts`. Send a code to any address
 that asks, and create nothing when it is sent. When it comes back, sign in the account the address belongs to, or
 create it then: confirmed, with its profile named after the address. A code that comes back for an account nobody
-had confirmed takes it, as a provider's proof does (`User.proveEmail`). The codes themselves are `email/codes.md`.
+had confirmed takes it, as a provider's proof does (`User.proveEmail`). The codes themselves are `codes/codes.md`
+and `email/codes.md`.
 <!-- prumo:end-email-code -->
+
+<!-- prumo:phone-code -->
+Serve `POST /api/auth/phone/code` and `phone/sign-in` from `phone-code.controller.ts`, the same way: a code to any
+mobile number the API texts, and the account created when it comes back, reached by the phone and without an
+email. `phone/codes.md` holds what a number is and where texts go.
+<!-- prumo:end-phone-code -->
 
 Give the web its tokens in `httpOnly`, `SameSite=Lax` cookies: the access cookie on `/`, the refresh cookie only
 on `/api/auth/refresh`, both `Secure` when `API_URL` is https. Give a native client its tokens in the body, and

@@ -8,7 +8,7 @@ export async function createUser(
   em: EntityManager,
   overrides: UserOverrides = {},
 ): Promise<string> {
-  const user = new User(overrides.email ?? `${crypto.randomUUID()}@example.com`)
+  const user = new User({ email: overrides.email ?? `${crypto.randomUUID()}@example.com` })
 
   await em.persist(user).flush()
 

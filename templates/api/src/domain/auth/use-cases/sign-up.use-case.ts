@@ -35,14 +35,15 @@ export class SignUpUseCase {
     timezone,
   }: SignUpDto): Promise<SessionTokens | null> {
     const passwordHash = await this.hasher.hash(password)
+    const address = User.normalizeEmail(email)
 
     // The account and its profile exist together or not at all.
     const user = await this.transactions.run(async () => {
-      if ((await this.users.findByEmail(User.normalizeEmail(email))) !== null) {
+      if ((await this.users.findByEmail(address)) !== null) {
         throw new EmailTakenError()
       }
 
-      const user = new User(email)
+      const user = new User({ email: address })
 
       user.changePassword(passwordHash)
 
@@ -55,7 +56,9 @@ export class SignUpUseCase {
     // prumo:email
     // Until the address is confirmed the account cannot sign in, so it opens no session either.
     if (user.emailVerifiedAt === null) {
-      await this.issueCode.execute(user.email, 'verify-email', { deliver: true })
+      await this.issueCode.execute({ channel: 'email', destination: address }, 'verify-email', {
+        deliver: true,
+      })
       return null
     }
 

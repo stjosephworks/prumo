@@ -108,11 +108,11 @@ jobs:
             types: api,web,mobile
             architecture: monorepo
             flags: --app site=web:next --app press=web:astro --mcp --sign-in password,email-code --email --social google,apple
-          # No password at all: a code by email is the only way in beside the providers, on every client.
+          # No password at all: a code by email or by text is the only way in beside the providers, on every client.
           - name: by-code
             types: api,web,mobile
             architecture: monorepo
-            flags: --app site=web:next --app press=web:astro --no-mcp --sign-in email-code --social google,apple
+            flags: --app site=web:next --app press=web:astro --no-mcp --sign-in email-code,phone-code --social google,apple
           # Apps named on purpose: a renamed api, and a second web on each framework, each verified, the api trusting
           # every one.
           - name: named-apps

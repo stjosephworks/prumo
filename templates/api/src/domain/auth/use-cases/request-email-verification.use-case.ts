@@ -15,7 +15,7 @@ export class RequestEmailVerificationUseCase {
     const address = User.normalizeEmail(email)
     const user = await this.users.findByEmail(address)
 
-    await this.issueCode.execute(address, 'verify-email', {
+    await this.issueCode.execute({ channel: 'email', destination: address }, 'verify-email', {
       deliver: user !== null && user.emailVerifiedAt === null,
     })
   }

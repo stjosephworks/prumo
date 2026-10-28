@@ -1,8 +1,10 @@
 import { FakeMailer } from '@test/support/fakes/fake-mailer' // prumo:mail
+import { FakeTextMessages } from '@test/support/fakes/fake-text-messages' // prumo:sms
 import { testEnv, testOrm } from '@test/support/setup'
 import type { LightMyRequestResponse } from 'fastify'
 import type { DependencyContainer } from 'tsyringe'
 import { MAILER } from '@/domain/auth/ports/mailer.port' // prumo:mail
+import { TEXT_MESSAGES } from '@/domain/auth/ports/text-messages.port' // prumo:sms
 import type { Env } from '@/infra/config/env'
 import { createContainer } from '@/infra/di'
 import { buildApp } from '@/infra/http/app'
@@ -12,7 +14,8 @@ export const PASSWORD = 'correct-horse-battery' // prumo:password
 
 type SignInOptions = { bearer?: boolean; email?: string }
 
-type SignedIn = { response: LightMyRequestResponse; email: string }
+// The response that delivered the session, and the email or phone it was opened for.
+type SignedIn = { response: LightMyRequestResponse; address: string }
 
 async function noWayIn(): Promise<SignedIn> {
   throw new Error('This project has no way to sign in')
@@ -33,6 +36,11 @@ export async function testApp({
 
   container.register(MAILER, { useValue: mailer })
   // prumo:end-mail
+  // prumo:sms
+  const texts = new FakeTextMessages()
+
+  container.register(TEXT_MESSAGES, { useValue: texts })
+  // prumo:end-sms
   configure?.(container)
 
   const app = await buildApp(container)
@@ -56,9 +64,29 @@ export async function testApp({
       payload: { email, code: mailer.lastCode(email) },
     })
 
-    return { response, email }
+    return { response, address: email }
   }
   // prumo:end-email-code
+
+  // prumo:phone-code
+  // Asks for a code by text and enters it; a number nobody signed in with gets its own account. Each test's number
+  // is new, in a range the API texts.
+  async function signInByPhone({ bearer = false }: SignInOptions = {}): Promise<SignedIn> {
+    const headers = headersFor(bearer)
+    const phone = `+1415555${String(Math.floor(Math.random() * 10_000)).padStart(4, '0')}`
+
+    await app.inject({ method: 'POST', url: '/api/auth/phone/code', headers, payload: { phone } })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/auth/phone/sign-in',
+      headers,
+      payload: { phone, code: texts.lastCode(phone) },
+    })
+
+    return { response, address: phone }
+  }
+  // prumo:end-phone-code
 
   // prumo:password
   // Signs up through the real routes and, where the email must be confirmed first, confirms it.
@@ -85,7 +113,7 @@ export async function testApp({
     }
 
     // prumo:end-email
-    return { response, email }
+    return { response, address: email }
   }
   // prumo:end-password
 
@@ -93,6 +121,7 @@ export async function testApp({
   // for the web and the tokens in its body for a bearer client.
   const [signIn = noWayIn] = [
     signInByCode, // prumo:email-code
+    signInByPhone, // prumo:phone-code
     signUpWithPassword, // prumo:password
   ]
 
@@ -101,6 +130,7 @@ export async function testApp({
     signIn,
     signUpWithPassword, // prumo:password
     mailer, // prumo:mail
+    texts, // prumo:sms
   }
 }
 

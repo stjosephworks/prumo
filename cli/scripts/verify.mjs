@@ -233,18 +233,25 @@ async function verifyMcpDiscovery() {
   }
 }
 
-async function codeMailedTo(email) {
-  const pattern = new RegExp(
-    `\\[mail\\] to ${email.replace(/[.+]/g, '\\$&')}:[^\\n]*\\n[^\\n]*?(\\d{6})`,
-  )
-
+async function codeIn(pattern, what) {
   for (let i = 0; i < 50; i += 1) {
     const code = pattern.exec(serverLog)?.[1]
     if (code !== undefined) return code
     await new Promise((resolve) => setTimeout(resolve, 200))
   }
-  throw new Error(`no code was mailed to ${email}`)
+  throw new Error(`no code was ${what}`)
 }
+
+const escaped = (text) => text.replace(/[.+]/g, '\\$&')
+
+const codeMailedTo = (email) =>
+  codeIn(
+    new RegExp(`\\[mail\\] to ${escaped(email)}:[^\\n]*\\n[^\\n]*?(\\d{6})`),
+    `mailed to ${email}`,
+  )
+
+const codeTextedTo = (phone) =>
+  codeIn(new RegExp(`\\[sms\\] to ${escaped(phone)}: (\\d{6})`), `texted to ${phone}`)
 
 // The API allows ten password attempts a minute, and a workspace with many web apps opens more sessions than that. A
 // refused attempt is retried once the API says it may be, as a client that respects the limit would.
@@ -271,7 +278,23 @@ async function webSession(origin = 'http://localhost:5173') {
   const email = `contract-${Date.now()}@example.com`
   let response
 
-  if (signIn.includes('email-code')) {
+  if (!signIn.includes('email-code') && signIn.includes('phone-code')) {
+    // A number in a country the template texts by default, new for every session.
+    const phone = `+1415555${String(Date.now() % 10_000).padStart(4, '0')}`
+    const sent = await attempt(`${API}/api/auth/phone/code`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ phone }),
+    })
+    if (sent.status !== 204) throw new Error(`asking for a phone code answered ${sent.status}`)
+
+    response = await attempt(`${API}/api/auth/phone/sign-in`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ phone, code: await codeTextedTo(phone) }),
+    })
+    if (!response.ok) throw new Error(`signing in with the texted code answered ${response.status}`)
+  } else if (signIn.includes('email-code')) {
     const sent = await attempt(`${API}/api/auth/email/code`, {
       method: 'POST',
       headers,

@@ -17,7 +17,7 @@ afterEach(async () => {
 
 describe('password routes, refusing', () => {
   it('answers a wrong password with 401 and a taken email with 409, as problem+json', async () => {
-    const { email } = await signUp({ bearer: true })
+    const { address: email } = await signUp({ bearer: true })
 
     const wrong = await app.inject({
       method: 'POST',

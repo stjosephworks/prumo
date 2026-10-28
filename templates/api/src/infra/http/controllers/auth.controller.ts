@@ -65,7 +65,13 @@ export async function authController(fastify: FastifyInstance): Promise<void> {
     async (request) => {
       const user = await app.container.resolve(FindUserUseCase).execute(currentUser(request).id)
 
-      return { user: { id: user.id, email: user.email } }
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          phone: user.phone, // prumo:phone-code
+        },
+      }
     },
   )
 }

@@ -8,6 +8,7 @@ const RAW = {
   JWT_SECRET: 'test-secret-that-is-at-least-32-characters',
   API_URL: 'http://localhost:3000',
   LOG_LEVEL: 'error',
+  SMS_COUNTRIES: 'US', // prumo:phone-code
 }
 
 describe('WEB_ORIGIN', () => {
@@ -47,3 +48,20 @@ describe('TRUST_PROXY', () => {
     expect(() => validate({ ...env, TRUST_PROXY: 'load-balancer' })).toThrow('TRUST_PROXY')
   })
 })
+
+// prumo:phone-code
+describe('SMS_COUNTRIES', () => {
+  const env = { ...RAW, WEB_ORIGIN: 'http://localhost:5173' }
+
+  it('holds the countries a text may go to, as ISO 3166 codes', () => {
+    expect(validate({ ...env, SMS_COUNTRIES: 'br, US' }).SMS_COUNTRIES).toEqual(['BR', 'US'])
+  })
+
+  it('is required, and refuses what is no country code', () => {
+    const { SMS_COUNTRIES: _, ...without } = env
+
+    expect(() => validate(without)).toThrow('SMS_COUNTRIES')
+    expect(() => validate({ ...env, SMS_COUNTRIES: 'Brazil' })).toThrow('SMS_COUNTRIES')
+  })
+})
+// prumo:end-phone-code

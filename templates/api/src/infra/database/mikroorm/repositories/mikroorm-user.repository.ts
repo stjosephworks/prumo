@@ -16,11 +16,17 @@ export class MikroOrmUserRepository implements UserRepository {
     return this.em.findOne(User, { email })
   }
 
+  // prumo:phone-code
+  findByPhone(phone: string): Promise<User | null> {
+    return this.em.findOne(User, { phone })
+  }
+  // prumo:end-phone-code
+
   async save(user: User): Promise<void> {
     try {
       await this.em.persist(user).flush()
     } catch (error) {
-      // Two sign-ups with one email can both pass the check; the unique index settles which one exists.
+      // Two sign-ups with one address can both pass the check; the unique index settles which one exists.
       if (error instanceof UniqueConstraintViolationException) {
         throw new EmailTakenError()
       }

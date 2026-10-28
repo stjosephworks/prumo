@@ -1,6 +1,6 @@
 import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { CodeSignInPart } from '@/features/auth/code-sign-in-form' // prumo:email-code
+import { CodeSignInPart } from '@/features/auth/code-sign-in-form' // prumo:code-sign-in
 import { SignInPart } from '@/features/auth/sign-in-form' // prumo:password
 import { island } from '@/features/clients/island'
 
@@ -34,7 +34,7 @@ function SignInChoice({ code, password }: { code?: ReactNode; password?: ReactNo
 function SignInWaysPart() {
   return (
     <SignInChoice
-      code={<CodeSignInPart />} // prumo:email-code
+      code={<CodeSignInPart />} // prumo:code-sign-in
       password={<SignInPart />} // prumo:password
     />
   )

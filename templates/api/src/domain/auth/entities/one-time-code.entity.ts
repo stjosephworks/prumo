@@ -12,10 +12,11 @@ const DAY_MS = 24 * HOUR_MS
 
 export type CodeChannel = 'email' | 'phone'
 
+// biome-ignore format: one member a line, so cutting a feature cuts its own
 export type CodePurpose =
   | 'verify-email' // prumo:email
   | 'reset-password' // prumo:email
-  | 'sign-in' // prumo:email-code
+  | 'sign-in' // prumo:code-sign-in
 
 export type CodeOutcome = 'valid' | 'wrong' | 'expired'
 

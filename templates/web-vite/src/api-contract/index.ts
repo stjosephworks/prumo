@@ -3,6 +3,7 @@ export {
   type AuthClient,
   type CodeSignInRequest, // prumo:email-code
   createAuthClient,
+  type PhoneSignInRequest, // prumo:phone-code
   type ResetPasswordRequest, // prumo:email
   type Session,
   type SignInRequest, // prumo:password

@@ -1,22 +1,28 @@
 import { screen } from '@testing-library/react'
 import type userEvent from '@testing-library/user-event'
 
-// Signs in through the form the page leads with: the code when the project has one, else the password. The fake
-// API answers `POST /api/auth/email/sign-in` and `POST /api/auth/sign-in` alike.
+// Signs in through the form the page leads with: a code when the project has one, by email or else by phone, and
+// otherwise the password. The fake API answers every sign-in route alike.
 export async function signInThroughPage(
   user: ReturnType<typeof userEvent.setup>,
   email: string,
 ): Promise<void> {
   await screen.findByRole('heading', { name: 'Sign in' })
-  await user.type(screen.getByLabelText('Email'), email)
 
-  const sendCode = screen.queryByRole('button', { name: 'Email me a code' })
+  const sendCode = screen.queryByRole('button', { name: 'Send me a code' })
 
-  if (sendCode !== null) {
+  if (sendCode === null) {
+    await user.type(screen.getByLabelText('Email'), email)
+    await user.type(screen.getByLabelText('Password'), 'correct-horse-battery')
+  } else {
+    const byEmail = screen.queryByLabelText('Email')
+
+    await user.type(
+      byEmail ?? screen.getByLabelText('Phone number'),
+      byEmail ? email : '+14155552671',
+    )
     await user.click(sendCode)
     await user.type(await screen.findByLabelText('Code'), '123456')
-  } else {
-    await user.type(screen.getByLabelText('Password'), 'correct-horse-battery')
   }
 
   await user.click(screen.getByRole('button', { name: 'Sign in' }))

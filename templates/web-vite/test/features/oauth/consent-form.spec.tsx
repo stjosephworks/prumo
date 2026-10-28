@@ -98,6 +98,11 @@ describe('the consent route', () => {
           signedIn = true
           return new Response(null, { status: 204 })
         },
+        'POST /api/auth/phone/code': () => new Response(null, { status: 204 }),
+        'POST /api/auth/phone/sign-in': () => {
+          signedIn = true
+          return new Response(null, { status: 204 })
+        },
         'POST /api/auth/sign-in': () => {
           signedIn = true
           return new Response(null, { status: 204 })

@@ -30,6 +30,14 @@ const envSchema = z.object({
     .pipe(
       z.union([z.boolean(), z.array(z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()])).min(1)]),
     ),
+  // prumo:phone-code
+  // The countries a sign-in text may go to, as ISO 3166 codes, comma-separated. Required: a paid text to anywhere is a
+  // bill an attacker runs up by asking for codes to numbers they pay for.
+  SMS_COUNTRIES: z
+    .string()
+    .transform((value) => value.split(',').map((code) => code.trim().toUpperCase()))
+    .pipe(z.array(z.string().regex(/^[A-Z]{2}$/)).min(1)),
+  // prumo:end-phone-code
   // prumo:social
   // Where a mobile app is sent back after signing in with a provider: its own scheme, as in app.json.
   MOBILE_APP_SCHEME: z

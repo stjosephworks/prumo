@@ -52,6 +52,11 @@ describe('App', () => {
           signedIn = true
           return empty(204)
         },
+        'POST /api/auth/phone/code': () => empty(204),
+        'POST /api/auth/phone/sign-in': () => {
+          signedIn = true
+          return empty(204)
+        },
         'POST /api/auth/sign-in': () => {
           signedIn = true
           return empty(204)
@@ -118,6 +123,11 @@ describe('App', () => {
         },
         'POST /api/auth/email/code': () => empty(204),
         'POST /api/auth/email/sign-in': () => {
+          current = 'bruno'
+          return empty(204)
+        },
+        'POST /api/auth/phone/code': () => empty(204),
+        'POST /api/auth/phone/sign-in': () => {
           current = 'bruno'
           return empty(204)
         },

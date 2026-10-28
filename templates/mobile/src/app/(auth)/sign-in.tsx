@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import { Text } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { CodeSignInForm } from '@/features/auth/code-sign-in-form' // prumo:email-code
+import { CodeSignInForm } from '@/features/auth/code-sign-in-form' // prumo:code-sign-in
 import { takeIntendedRoute } from '@/features/auth/intended-route'
 import { SignInChoice } from '@/features/auth/sign-in-choice'
 import { SignInForm } from '@/features/auth/sign-in-form' // prumo:password
@@ -20,7 +20,7 @@ export default function SignInScreen() {
       <SocialButtons auth={auth} onSignedIn={signedIn} />
       {/* prumo:end-social */}
       <SignInChoice
-        code={<CodeSignInForm auth={auth} onSignedIn={signedIn} />} // prumo:email-code
+        code={<CodeSignInForm auth={auth} onSignedIn={signedIn} />} // prumo:code-sign-in
         password={<SignInForm auth={auth} onSignedIn={signedIn} />} // prumo:password
       />
     </SafeAreaView>

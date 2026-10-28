@@ -21,6 +21,9 @@ const [signIn] = [
   // prumo:email-code
   (auth: AuthClient) => auth.signInWithCode({ email: 'ana@example.com', code: '123456' }),
   // prumo:end-email-code
+  // prumo:phone-code
+  (auth: AuthClient) => auth.signInWithPhoneCode({ phone: '+14155552671', code: '123456' }),
+  // prumo:end-phone-code
   // prumo:password
   (auth: AuthClient) =>
     auth.signIn({ email: 'ana@example.com', password: 'correct-horse-battery' }),
@@ -49,6 +52,29 @@ describe('createAuthClient on the web', () => {
     })
   })
   // prumo:end-email-code
+
+  // prumo:phone-code
+  it("sends the device's language and timezone with a texted code, for the account it may create", async () => {
+    let body: unknown
+    const auth = createAuthClient({
+      baseUrl: API_URL,
+      fetch: fakeTransport({
+        'POST /api/auth/phone/sign-in': async (request) => {
+          body = await request.json()
+          return new Response(null, { status: 204 })
+        },
+      }),
+    })
+
+    await auth.signInWithPhoneCode({ phone: '+14155552671', code: '123456' })
+
+    expect(body).toMatchObject({
+      phone: '+14155552671',
+      locale: Intl.DateTimeFormat().resolvedOptions().locale,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })
+  })
+  // prumo:end-phone-code
 
   // prumo:password
   it("sends the device's language and timezone with a sign-up, for the new profile", async () => {
@@ -159,6 +185,8 @@ describe('createAuthClient for a native app', () => {
         'POST /api/auth/sign-in': (request) =>
           request.headers.get('x-auth-transport') === 'bearer' ? json(200, TOKENS) : json(400, {}),
         'POST /api/auth/email/sign-in': (request) =>
+          request.headers.get('x-auth-transport') === 'bearer' ? json(200, TOKENS) : json(400, {}),
+        'POST /api/auth/phone/sign-in': (request) =>
           request.headers.get('x-auth-transport') === 'bearer' ? json(200, TOKENS) : json(400, {}),
         'GET /api/auth/session': (request) => {
           authorization = request.headers.get('authorization')

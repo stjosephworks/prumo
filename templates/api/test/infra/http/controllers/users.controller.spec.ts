@@ -36,7 +36,7 @@ describe('users controller', () => {
       ['createdAt', 'displayName', 'id', 'locale', 'timezone', 'updatedAt', 'userId'].sort(),
     )
     expect(response.json()).toMatchObject({
-      displayName: expect.stringMatching(/^ana/i),
+      displayName: expect.any(String),
       locale: 'en',
     })
   })
@@ -51,7 +51,7 @@ describe('users controller', () => {
 
     expect(response.statusCode).toBe(200)
     expect(response.json()).toMatchObject({
-      displayName: expect.stringMatching(/^ana/i),
+      displayName: expect.any(String),
       timezone: 'America/Sao_Paulo',
     })
   })

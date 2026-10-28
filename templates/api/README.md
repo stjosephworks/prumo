@@ -44,6 +44,13 @@ Anyone signs in by a 6-digit code: `/api/auth/email/code` sends it, and `/api/au
 creating the account the first time. No mail is sent yet: `LogMailer` writes each mail to this API's log, in a line
 starting `[mail] to`, so read the code there.
 <!-- prumo:end-email-code -->
+<!-- prumo:phone-code -->
+
+Anyone signs in by a code texted to a mobile number: `/api/auth/phone/code` sends it, and `/api/auth/phone/sign-in`
+checks it, creating the account the first time. No text is sent yet: `LogTextMessages` writes each one to this API's
+log, in a line starting `[sms] to`, and only numbers in the countries of `SMS_COUNTRIES` are texted. Set both before
+going live; see `.prumo/phone/`.
+<!-- prumo:end-phone-code -->
 <!-- prumo:email -->
 
 An account must confirm its email before it can sign in. `/api/auth/email/verification` and `/api/auth/email/verify`

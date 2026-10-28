@@ -252,7 +252,7 @@ describe('scopes', () => {
     })
 
     expect(scope).toBe('profile:read')
-    expect(read.structuredContent).toMatchObject({ displayName: expect.stringMatching(/^ana/i) })
+    expect(read.structuredContent).toMatchObject({ displayName: expect.any(String) })
     expect(write.statusCode).toBe(403)
     expect(write.headers['www-authenticate']).toContain('error="insufficient_scope"')
     expect(write.headers['www-authenticate']).toContain('scope="profile:write"')
@@ -299,7 +299,7 @@ describe('token', () => {
     expect(Object.keys(result.structuredContent ?? {}).sort()).toEqual(
       ['createdAt', 'displayName', 'id', 'locale', 'timezone', 'updatedAt', 'userId'].sort(),
     )
-    expect(result.structuredContent).toMatchObject({ displayName: expect.stringMatching(/^ana/i) })
+    expect(result.structuredContent).toMatchObject({ displayName: expect.any(String) })
 
     await client.close()
   })

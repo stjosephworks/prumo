@@ -11,8 +11,11 @@ export const FEATURE_NAMES = [
   'mcp',
   'password',
   'email-code',
+  'phone-code',
+  'code-sign-in',
   'codes',
   'mail',
+  'sms',
   'email',
   'social',
   'google',
@@ -28,7 +31,7 @@ export const SOCIAL_PROVIDERS = ['google', 'apple'] as const
 export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number]
 
 // How a person signs in: any of them, at least one.
-export const SIGN_IN_METHODS = ['password', 'email-code'] as const
+export const SIGN_IN_METHODS = ['password', 'email-code', 'phone-code'] as const
 
 export type SignInMethod = (typeof SIGN_IN_METHODS)[number]
 
@@ -43,14 +46,18 @@ export function enabledFor(answers: {
   social: SocialProvider[]
 }): Enabled {
   const emailCode = answers.signIn.includes('email-code')
+  const phoneCode = answers.signIn.includes('phone-code')
 
   return {
     mcp: answers.mcp,
     password: answers.signIn.includes('password'),
     'email-code': emailCode,
+    'phone-code': phoneCode,
     // What more than one feature shares is enabled by any of them.
-    codes: answers.email || emailCode,
+    'code-sign-in': emailCode || phoneCode,
+    codes: answers.email || emailCode || phoneCode,
     mail: answers.email || emailCode,
+    sms: phoneCode,
     email: answers.email,
     social: answers.social.length > 0,
     google: answers.social.includes('google'),
@@ -249,10 +256,47 @@ export const FEATURES: Record<Feature, Spec> = {
         'test/domain/auth/use-cases/email-code.use-case.spec.ts',
         'test/infra/http/controllers/email-code.controller.spec.ts',
       ],
+    },
+    dependencies: {},
+  },
+  // Sign-in by a code texted to a mobile number, read as E.164 and sent only to the countries in SMS_COUNTRIES.
+  'phone-code': {
+    files: {
+      api: [
+        'src/domain/auth/dto/phone-request.dto.ts',
+        'src/domain/auth/dto/phone-sign-in.dto.ts',
+        'src/domain/auth/errors/invalid-phone.error.ts',
+        'src/domain/auth/ports/phone-numbers.port.ts',
+        'src/domain/auth/use-cases/request-phone-code.use-case.ts',
+        'src/domain/auth/use-cases/sign-in-with-phone-code.use-case.ts',
+        'src/infra/sms/libphonenumber-phone-numbers.adapter.ts',
+        'src/infra/http/controllers/phone-code.controller.ts',
+        'migrations/Migration20261005111548_add_user_phone.ts',
+        'test/domain/auth/use-cases/phone-code.use-case.spec.ts',
+        'test/infra/http/controllers/phone-code.controller.spec.ts',
+        'test/infra/sms/libphonenumber-phone-numbers.adapter.spec.ts',
+      ],
+    },
+    dependencies: { api: ['libphonenumber-js'] },
+  },
+  // The screens that sign in by a code, whichever channels it goes by.
+  'code-sign-in': {
+    files: {
       'web-vite': ['src/features/auth/code-sign-in-form.tsx', 'test/features/auth/code.spec.tsx'],
       'web-next': ['src/features/auth/code-sign-in-form.tsx', 'test/features/auth/code.spec.tsx'],
       'web-astro': ['src/features/auth/code-sign-in-form.tsx', 'test/features/auth/code.spec.tsx'],
       mobile: ['src/features/auth/code-sign-in-form.tsx', 'test/features/auth/code.spec.tsx'],
+    },
+    dependencies: {},
+  },
+  // Text messages: the TextMessages port and the adapter that logs it.
+  sms: {
+    files: {
+      api: [
+        'src/domain/auth/ports/text-messages.port.ts',
+        'src/infra/sms/log-text-messages.adapter.ts',
+        'test/support/fakes/fake-text-messages.ts',
+      ],
     },
     dependencies: {},
   },
@@ -351,11 +395,16 @@ export function cutFeature(text: string, feature: Feature, keep: boolean, file =
   return kept.join('\n')
 }
 
+// A union whose members a feature cuts keeps one member a line in the template, which only this comment holds
+// against the formatter. A project has its features settled, so the comment goes and the formatter has its way.
+const KEEP_MEMBERS =
+  /^[ \t]*\/\/ biome-ignore format: one member a line, so cutting a feature cuts its own\n/gm
+
 export function cutFeatures(text: string, enabled: Enabled, file = 'a file'): string {
   return FEATURE_NAMES.reduce(
     (current, feature) => cutFeature(current, feature, enabled[feature], file),
     text,
-  )
+  ).replace(KEEP_MEMBERS, '')
 }
 
 async function sourceFiles(directory: string): Promise<string[]> {

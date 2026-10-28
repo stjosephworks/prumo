@@ -2,7 +2,16 @@ import { queryOptions } from '@tanstack/react-query'
 import { ApiError } from './api-error'
 import type { Transport } from './client'
 
-export type Session = { user: { id: string; email: string } }
+export type Session = {
+  user: {
+    id: string
+    // biome-ignore format: one member a line, so cutting a feature cuts its own
+    email:
+      | string
+      | null // prumo:phone-code
+    phone: string | null // prumo:phone-code
+  }
+}
 
 export type Tokens = { accessToken: string; refreshToken: string; expiresIn: number }
 
@@ -16,6 +25,10 @@ export type SignInRequest = { email: string; password: string }
 export type CodeSignInRequest = { email: string; code: string }
 
 // prumo:end-email-code
+// prumo:phone-code
+export type PhoneSignInRequest = { phone: string; code: string }
+
+// prumo:end-phone-code
 
 // prumo:email
 export type VerifyEmailRequest = { email: string; code: string }
@@ -185,6 +198,14 @@ export function createAuthClient({
       await begin('/email/sign-in', { ...request, ...devicePreferences() })
     },
     // prumo:end-email-code
+    // prumo:phone-code
+    // Texted to any mobile number the API serves, as typed with its country code; the API reads it as E.164.
+    requestPhoneCode: (phone: string) => ask('/phone/code', { phone }),
+
+    signInWithPhoneCode: async (request: PhoneSignInRequest): Promise<void> => {
+      await begin('/phone/sign-in', { ...request, ...devicePreferences() })
+    },
+    // prumo:end-phone-code
 
     // prumo:email
     // Each answers alike for an unknown email, so a form can say "if the account exists, a code is on its way".

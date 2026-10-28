@@ -312,6 +312,13 @@ export async function resolveAnswers(
     )
   }
 
+  if (signIn.includes('phone-code')) {
+    warnings.push(
+      'Sign-in by phone texts its codes to the log until the TextMessages port gets a provider, and only to the ' +
+        'countries in SMS_COUNTRIES, US until you change it. Set both before going live: .prumo/phone/.',
+    )
+  }
+
   if (social.length > 0 && signIn.includes('password') && !email) {
     warnings.push(
       'Without --email no password account is ever confirmed, so the first sign-in with a provider for an existing ' +

@@ -40,7 +40,21 @@ function app(routes: Parameters<typeof fakeTransport>[0]) {
   }
 }
 
-describe('signing in with an email code on the web', () => {
+// prumo:phone-code
+// With email beside it, the phone waits behind a switch; alone, it is already there.
+async function byPhone(user: ReturnType<typeof userEvent.setup>) {
+  await screen.findByRole('button', { name: 'Send me a code' })
+
+  const toPhone = screen.queryByRole('button', { name: 'Use a phone number instead' })
+
+  if (toPhone !== null) {
+    await user.click(toPhone)
+  }
+}
+
+// prumo:end-phone-code
+describe('signing in with a code on the web', () => {
+  // prumo:email-code
   it('sends a code to the address and signs in with it, into the app', async () => {
     const visitor = userEvent.setup()
     const { state, transport } = app({
@@ -54,7 +68,7 @@ describe('signing in with an email code on the web', () => {
     renderApp('/sign-in', transport)
 
     await visitor.type(await screen.findByLabelText('Email'), user.email)
-    await visitor.click(screen.getByRole('button', { name: 'Email me a code' }))
+    await visitor.click(screen.getByRole('button', { name: 'Send me a code' }))
     expect(await screen.findByText(/We sent a 6-digit code to/)).toBeInTheDocument()
     await visitor.type(screen.getByLabelText('Code'), '123456')
     await visitor.click(screen.getByRole('button', { name: 'Sign in' }))
@@ -72,7 +86,7 @@ describe('signing in with an email code on the web', () => {
     renderApp('/sign-in', transport)
 
     await visitor.type(await screen.findByLabelText('Email'), user.email)
-    await visitor.click(screen.getByRole('button', { name: 'Email me a code' }))
+    await visitor.click(screen.getByRole('button', { name: 'Send me a code' }))
 
     expect(await screen.findByLabelText('Code')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Send a new code in 42s' })).toBeDisabled()
@@ -89,10 +103,53 @@ describe('signing in with an email code on the web', () => {
     renderApp('/sign-in', transport)
 
     await visitor.type(await screen.findByLabelText('Email'), user.email)
-    await visitor.click(screen.getByRole('button', { name: 'Email me a code' }))
+    await visitor.click(screen.getByRole('button', { name: 'Send me a code' }))
     await visitor.type(await screen.findByLabelText('Code'), '000000')
     await visitor.click(screen.getByRole('button', { name: 'Sign in' }))
 
     expect(await screen.findByText(/The code is wrong or has expired/)).toBeInTheDocument()
   })
+  // prumo:end-email-code
+
+  // prumo:phone-code
+  it('texts a code to the number and signs in with it, into the app', async () => {
+    const visitor = userEvent.setup()
+    const { state, transport } = app({
+      'POST /api/auth/phone/code': () => empty(204),
+      'POST /api/auth/phone/sign-in': () => {
+        state.signedIn = true
+        return empty(204)
+      },
+    })
+
+    renderApp('/sign-in', transport)
+
+    await byPhone(visitor)
+    await visitor.type(screen.getByLabelText('Phone number'), '+1 415 555 2671')
+    await visitor.click(screen.getByRole('button', { name: 'Send me a code' }))
+    await visitor.type(await screen.findByLabelText('Code'), '123456')
+    await visitor.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(await screen.findByRole('heading', { name: 'Your profile' })).toBeInTheDocument()
+  })
+
+  it('says a number the API cannot text is refused, on the number', async () => {
+    const visitor = userEvent.setup()
+    const { transport } = app({
+      'POST /api/auth/phone/code': () =>
+        problem(422, {
+          code: 'phone_not_served',
+          detail: 'Texts are not sent to numbers in that country',
+        }),
+    })
+
+    renderApp('/sign-in', transport)
+
+    await byPhone(visitor)
+    await visitor.type(screen.getByLabelText('Phone number'), '+44 7911 123456')
+    await visitor.click(screen.getByRole('button', { name: 'Send me a code' }))
+
+    expect(await screen.findByText(/not sent to numbers in that country/)).toBeInTheDocument()
+  })
+  // prumo:end-phone-code
 })

@@ -355,7 +355,7 @@ describe('generate by how people sign in', () => {
     await rm(root, { recursive: true, force: true })
   })
 
-  async function workspace(signIn: ('password' | 'email-code')[], email = false) {
+  async function workspace(signIn: ('password' | 'email-code' | 'phone-code')[], email = false) {
     root = await mkdtemp(join(tmpdir(), 'prumo-sign-in-'))
     const target = join(root, 'acme')
 
@@ -440,6 +440,27 @@ describe('generate by how people sign in', () => {
     expect(page).toContain('password={<SignInForm')
     expect(await readFile(join(target, '.prumo/email/codes.md'), 'utf8')).toMatch(
       /reset-password[\s\S]*`sign-in`/,
+    )
+  })
+
+  it('signs in by phone alone: no mail, no email area, the codes and the phone kept', async () => {
+    const target = await workspace(['phone-code'])
+    const text = await sources(target)
+
+    expect(
+      existsSync(join(target, 'apps/api/src/infra/http/controllers/phone-code.controller.ts')),
+    ).toBe(true)
+    expect(existsSync(join(target, 'apps/api/src/domain/auth/ports/mailer.port.ts'))).toBe(false)
+    expect(existsSync(join(target, 'apps/web/src/features/auth/code-sign-in-form.tsx'))).toBe(true)
+    expect(await migrations(target)).toContainEqual(expect.stringContaining('add_user_phone'))
+    expect(existsSync(join(target, '.prumo/codes/codes.md'))).toBe(true)
+    expect(existsSync(join(target, '.prumo/phone/text-messages.md'))).toBe(true)
+    expect(existsSync(join(target, '.prumo/email'))).toBe(false)
+    expect(text).not.toContain('prumo:')
+    expect(text).not.toContain('biome-ignore format: one member a line')
+    expect(text).not.toContain('requestSignInCode')
+    expect(await readFile(join(target, 'apps/api/.env.example'), 'utf8')).toContain(
+      'SMS_COUNTRIES=US',
     )
   })
 })

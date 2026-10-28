@@ -36,6 +36,10 @@ export const SIGN_IN_HINTS: Record<SignInMethod, { label: string; hint: string }
     label: 'Email code',
     hint: 'a 6-digit code sent by email; the first one creates the account',
   },
+  'phone-code': {
+    label: 'Phone code',
+    hint: 'a 6-digit code sent by SMS; needs a paid SMS provider in production',
+  },
 }
 
 // One line each, so the choice is made on what the app is for rather than on the framework's name.

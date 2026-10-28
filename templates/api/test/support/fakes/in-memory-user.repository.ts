@@ -12,6 +12,12 @@ export class InMemoryUserRepository implements UserRepository {
     return [...this.rows.values()].find((user) => user.email === email) ?? null
   }
 
+  // prumo:phone-code
+  async findByPhone(phone: string): Promise<User | null> {
+    return [...this.rows.values()].find((user) => user.phone === phone) ?? null
+  }
+  // prumo:end-phone-code
+
   async save(user: User): Promise<void> {
     // The database assigns the id; here the first save does.
     user.id ??= crypto.randomUUID()

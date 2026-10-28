@@ -30,6 +30,13 @@ export class Profile {
     return (email.split('@')[0] || email).slice(0, DISPLAY_NAME_MAX)
   }
 
+  // prumo:phone-code
+  // What an account created by a phone is called until its owner says otherwise: the number's last digits.
+  static nameForPhone(phone: string): string {
+    return `•••• ${phone.slice(-4)}`
+  }
+
+  // prumo:end-phone-code
   // A device names its language as it likes (`pt`, `en-US`): the same tag when supported, else the first supported
   // one in the same language, else English.
   static localeFor(requested: string | undefined): Locale {

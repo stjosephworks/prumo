@@ -58,7 +58,7 @@ export class LinkIdentityUseCase {
         return existing.id
       }
 
-      const user = new User(profile.email)
+      const user = new User({ email: profile.email })
 
       user.verifyEmail(now)
       await this.users.save(user)

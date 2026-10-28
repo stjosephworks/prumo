@@ -300,6 +300,15 @@ describe('resolveAnswers for how people sign in', () => {
     await expect(resolveAnswers(flags(api), undefined)).rejects.toThrow('Missing --sign-in')
   })
 
+  it('warns that texts go to the log and to US only, until both are set', async () => {
+    const answers = await resolveAnswers(
+      flags({ types: 'api', alone: true, signIn: 'phone-code', ...rest }),
+      undefined,
+    )
+
+    expect(answers.warnings).toEqual([expect.stringContaining('SMS_COUNTRIES')])
+  })
+
   it('keeps a project without an api on the password screens it has always had', async () => {
     const answers = await resolveAnswers(flags({ types: 'web', alone: true, ...rest }), undefined)
 

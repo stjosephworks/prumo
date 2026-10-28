@@ -8,7 +8,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
 // Whichever purpose the project has: the repository treats them all alike.
 const [PURPOSE] = [
   'reset-password', // prumo:email
-  'sign-in', // prumo:email-code
+  'sign-in', // prumo:code-sign-in
 ] as const
 
 function repository() {
