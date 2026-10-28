@@ -33,6 +33,15 @@ Ctrl+C stops everything `pnpm dev` started, not only what the terminal signals: 
 it spawned, stops them, and frees the port. Anything it did not start is named and left alone.
 
 On an Android emulator `localhost` is the emulator itself; point `EXPO_PUBLIC_API_URL` at your machine's address.
+<!-- prumo:email-code -->
+
+Enter your email, then the 6-digit code it receives: the first code creates the account. No mail is sent yet: the API
+writes it to its log, in a line starting `[mail] to`.
+<!-- prumo:end-email-code -->
+<!-- prumo:password -->
+
+**Sign up** creates an account with a password instead.
+<!-- prumo:end-password -->
 <!-- prumo:email -->
 
 Signing up first asks for the 6-digit code that confirms the email. No mail is sent yet: the API writes it to its

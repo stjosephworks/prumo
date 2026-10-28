@@ -1,5 +1,6 @@
 import { fakeTransport, json } from '@test/support/fake-transport'
 import { renderApp } from '@test/support/render-app'
+import { withPassword } from '@test/support/with-password'
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
@@ -91,6 +92,7 @@ describe('email verification on the web', () => {
 
     renderApp('/sign-in', transport)
 
+    await withPassword(visitor)
     await visitor.type(await screen.findByLabelText('Email'), user.email)
     await visitor.type(screen.getByLabelText('Password'), 'correct-horse-battery')
     await visitor.click(screen.getByRole('button', { name: 'Sign in' }))
@@ -127,6 +129,7 @@ describe('password reset on the web', () => {
 
     renderApp('/sign-in', transport)
 
+    await withPassword(visitor)
     await visitor.click(await screen.findByRole('link', { name: 'Forgot your password?' }))
     await screen.findByRole('heading', { name: 'Reset your password' })
     await visitor.type(screen.getByLabelText('Email'), user.email)

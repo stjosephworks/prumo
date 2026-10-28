@@ -7,7 +7,7 @@ import { MikroOrmUserRepository } from '@/infra/database/mikroorm/repositories/m
 describe('MikroOrmUserRepository', () => {
   it('finds a user by its normalized email', async () => {
     const repository = new MikroOrmUserRepository(testOrm().em.fork())
-    const user = new User('Ana@Example.com', 'hash')
+    const user = new User('Ana@Example.com')
 
     await repository.save(user)
 
@@ -19,10 +19,10 @@ describe('MikroOrmUserRepository', () => {
   })
 
   it('turns the unique index into EmailTakenError when two sign-ups race', async () => {
-    await new MikroOrmUserRepository(testOrm().em.fork()).save(new User('ana@example.com', 'hash'))
+    await new MikroOrmUserRepository(testOrm().em.fork()).save(new User('ana@example.com'))
 
     await expect(
-      new MikroOrmUserRepository(testOrm().em.fork()).save(new User('ana@example.com', 'hash')),
+      new MikroOrmUserRepository(testOrm().em.fork()).save(new User('ana@example.com')),
     ).rejects.toBeInstanceOf(EmailTakenError)
   })
 })

@@ -1,5 +1,6 @@
 import { fakeTransport, json } from '@test/support/fake-transport'
 import { renderApp } from '@test/support/render-app'
+import { withPassword } from '@test/support/with-password'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
@@ -20,6 +21,7 @@ describe('SignInForm', () => {
       }),
     )
 
+    await withPassword(user)
     await user.type(await screen.findByLabelText('Email'), 'ana@example.com')
     await user.type(screen.getByLabelText('Password'), 'wrong-password')
     await user.click(screen.getByRole('button', { name: 'Sign in' }))

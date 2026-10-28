@@ -25,9 +25,18 @@ new port to `.env`, along with every URL that pointed at the old one. Without a 
 Ctrl+C stops everything `pnpm dev` started, not only what the terminal signals: the script remembers the processes
 it spawned, stops them, and frees the port. Anything it did not start is named and left alone.
 
-Open it and you are sent to sign in, because everything but the sign-in and sign-up pages needs a session. Follow
-**Sign up** to create an account; you land on your profile, which you can edit. The API must be running and
-migrated first, or the session check has nothing to answer it.
+Open it and you are sent to sign in, because everything but the pages that sign you in needs a session. Once in, you
+land on your profile, which you can edit. The API must be running and migrated first, or the session check has
+nothing to answer it.
+<!-- prumo:email-code -->
+
+Enter your email, then the 6-digit code it receives: the first code creates the account. No mail is sent yet: the API
+writes it to its log, in a line starting `[mail] to`.
+<!-- prumo:end-email-code -->
+<!-- prumo:password -->
+
+Follow **Sign up** to create an account with a password instead.
+<!-- prumo:end-password -->
 <!-- prumo:email -->
 
 Signing up first asks for the 6-digit code that confirms the email. No mail is sent yet: the API writes it to its

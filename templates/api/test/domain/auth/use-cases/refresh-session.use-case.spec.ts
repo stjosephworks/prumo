@@ -4,16 +4,14 @@ import { ROTATION_GRACE_MS } from '@/domain/auth/entities/session.entity'
 import { InvalidSessionError } from '@/domain/auth/errors/invalid-session.error'
 import { SupersededTokenError } from '@/domain/auth/errors/superseded-token.error'
 
-const ANA = { name: 'Ana', email: 'ana@example.com', password: 'correct-horse-battery' }
-
 afterEach(() => {
   vi.useRealTimers()
 })
 
 describe('RefreshSessionUseCase', () => {
   it('rotates the refresh token on every use', async () => {
-    const { register, refresh } = authFakes()
-    const first = await register(ANA)
+    const { signedIn, refresh } = authFakes()
+    const first = await signedIn()
 
     const second = await refresh.execute(first.refreshToken)
     const third = await refresh.execute(second.refreshToken)
@@ -22,8 +20,8 @@ describe('RefreshSessionUseCase', () => {
   })
 
   it('asks a client that lost a race to retry, and revokes nothing', async () => {
-    const { register, refresh, sessions } = authFakes()
-    const first = await register(ANA)
+    const { signedIn, refresh, sessions } = authFakes()
+    const first = await signedIn()
 
     const second = await refresh.execute(first.refreshToken)
 
@@ -34,8 +32,8 @@ describe('RefreshSessionUseCase', () => {
 
   it('ends the session when a token comes back after the grace period', async () => {
     vi.useFakeTimers()
-    const { register, refresh, sessions } = authFakes()
-    const first = await register(ANA)
+    const { signedIn, refresh, sessions } = authFakes()
+    const first = await signedIn()
     const second = await refresh.execute(first.refreshToken)
 
     vi.advanceTimersByTime(ROTATION_GRACE_MS)
@@ -55,8 +53,8 @@ describe('RefreshSessionUseCase', () => {
   })
 
   it('refuses every token of a session signed out of', async () => {
-    const { register, signOut, refresh, sessions } = authFakes()
-    const tokens = await register(ANA)
+    const { signedIn, signOut, refresh, sessions } = authFakes()
+    const tokens = await signedIn()
     const session = [...sessions.rows.values()][0]
 
     await signOut.execute(session?.userId ?? '', session?.id ?? '')

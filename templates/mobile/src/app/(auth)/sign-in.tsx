@@ -1,33 +1,28 @@
-import { Link, useRouter } from 'expo-router'
-import { Text, View } from 'react-native'
+import { useRouter } from 'expo-router'
+import { Text } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { CodeSignInForm } from '@/features/auth/code-sign-in-form' // prumo:email-code
 import { takeIntendedRoute } from '@/features/auth/intended-route'
-import { SignInForm } from '@/features/auth/sign-in-form'
+import { SignInChoice } from '@/features/auth/sign-in-choice'
+import { SignInForm } from '@/features/auth/sign-in-form' // prumo:password
 import { SocialButtons } from '@/features/auth/social-buttons' // prumo:social
 import { useClients } from '@/features/clients/clients-context'
 
 export default function SignInScreen() {
   const { auth } = useClients()
   const router = useRouter()
+  const signedIn = () => router.replace(takeIntendedRoute() ?? '/')
 
   return (
     <SafeAreaView className="flex-1 justify-center gap-6 p-6">
       <Text className="text-2xl font-semibold text-neutral-900">Sign in</Text>
       {/* prumo:social */}
-      <SocialButtons auth={auth} onSignedIn={() => router.replace(takeIntendedRoute() ?? '/')} />
+      <SocialButtons auth={auth} onSignedIn={signedIn} />
       {/* prumo:end-social */}
-      <SignInForm auth={auth} onSignedIn={() => router.replace(takeIntendedRoute() ?? '/')} />
-      <View className="flex-row gap-1">
-        <Text className="text-sm text-neutral-500">No account?</Text>
-        <Link href="/sign-up" className="text-sm text-neutral-900">
-          Sign up
-        </Link>
-      </View>
-      {/* prumo:email */}
-      <Link href="/forgot-password" className="text-sm text-neutral-900">
-        Forgot your password?
-      </Link>
-      {/* prumo:end-email */}
+      <SignInChoice
+        code={<CodeSignInForm auth={auth} onSignedIn={signedIn} />} // prumo:email-code
+        password={<SignInForm auth={auth} onSignedIn={signedIn} />} // prumo:password
+      />
     </SafeAreaView>
   )
 }

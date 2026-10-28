@@ -28,7 +28,7 @@ This document describes **where files live and what they are called**. What goes
     monorepo/        ← architecture monorepo
     multi-tenancy/   ← multi-tenant projects only
     mcp/             ← projects that answered yes to MCP
-    email/           ← projects that answered yes to email verification
+    email/           ← projects that send codes by email: verification, or sign-in by code
     social/          ← projects that chose a sign-in provider
 ```
 
@@ -58,6 +58,11 @@ type, `client/` follows either client type, `web-vite/`, `web-next/` and `web-as
 when there is an api and a web, and `email/` and `social/` a fifth and a sixth, asked when there is an api, and for
 social a client to come back to.
 
+A document in an area may mark what it says about one feature with `<!-- prumo:<feature> -->` and
+`<!-- prumo:end-<feature> -->`: a project without that feature receives the document without it, as it receives a
+README. `api/auth.md` holds a paragraph for each way in, and `email/codes.md` one for verification and one for
+sign-in by code, so no project reads about a flow it does not have.
+
 | Area | Holds | Ships when |
 |---|---|---|
 | `core/` | What crosses every type: TypeScript config, Biome and the pre-commit hook, Vitest, file naming, code style, the branch flow | **always** |
@@ -72,7 +77,7 @@ social a client to come back to.
 | `monorepo/` | Workspace organisation | architecture is `monorepo` |
 | `multi-tenancy/` | `tenant_id` across the layers, tenant resolution, isolation | the project is multi-tenant |
 | `mcp/` | The MCP server, its tools and their scopes, and the OAuth that authorizes them | the project has an api and a web and answered yes to MCP |
-| `email/` | The `Mailer` port, and the codes that verify an email and reset a password | the project has an api and answered yes to email |
+| `email/` | The `Mailer` port, and the codes sent by email: to verify an email and reset a password, or to sign in | the project has an api and answered yes to email, or signs in by `email-code` |
 | `social/` | Sign-in with a provider: the trip there and back, and how an account is linked | the project has an api, a web or mobile app, and chose a provider |
 
 This table is the inclusion rule, and it lives in the CLI as one explicit table, not as a manifest

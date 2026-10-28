@@ -2,6 +2,8 @@ export const LOCALES = ['en', 'pt-BR'] as const
 
 export type Locale = (typeof LOCALES)[number]
 
+export const DISPLAY_NAME_MAX = 80
+
 export type ProfileChanges = Partial<Pick<Profile, 'displayName' | 'locale' | 'timezone'>>
 
 // What a device says about its user when an account is created there, in the device's own words.
@@ -21,6 +23,11 @@ export class Profile {
     this.displayName = displayName
     this.locale = Profile.localeFor(preferences.locale)
     this.timezone = preferences.timezone ?? 'UTC'
+  }
+
+  // What an account created without a name is called until its owner says otherwise: the email's local part.
+  static nameFor(email: string): string {
+    return (email.split('@')[0] || email).slice(0, DISPLAY_NAME_MAX)
   }
 
   // A device names its language as it likes (`pt`, `en-US`): the same tag when supported, else the first supported

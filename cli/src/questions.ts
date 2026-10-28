@@ -11,7 +11,12 @@ import {
 import type { Asker } from './asker.ts'
 import type { AppType } from './compose.ts'
 import type { Answers } from './context.ts'
-import { SOCIAL_PROVIDERS, type SocialProvider } from './features.ts'
+import {
+  SIGN_IN_METHODS,
+  type SignInMethod,
+  SOCIAL_PROVIDERS,
+  type SocialProvider,
+} from './features.ts'
 import { projectAt, targetProblem, validateProjectName } from './names.ts'
 import { CliError } from './output.ts'
 
@@ -25,6 +30,7 @@ export type Flags = {
   singleTenant: boolean
   mcp: boolean
   noMcp: boolean
+  signIn: string | undefined
   email: boolean
   noEmail: boolean
   social: string | undefined
@@ -88,6 +94,25 @@ function parseProviders(value: string): SocialProvider[] {
   }
 
   return [...new Set(providers)] as SocialProvider[]
+}
+
+// At least one: a project signed into only through a provider has no way back in for someone whose provider account
+// is gone.
+function parseSignIn(value: string): SignInMethod[] {
+  const methods = value
+    .split(',')
+    .map((method) => method.trim())
+    .filter((method) => method !== '')
+  const unknown = methods.filter((method) => !SIGN_IN_METHODS.includes(method as SignInMethod))
+
+  if (methods.length === 0 || unknown.length > 0) {
+    throw new CliError(
+      'invalid_input',
+      `Unknown sign-in method: ${unknown.join(', ') || '(none)'}. Choose one or more of ${SIGN_IN_METHODS.join(', ')}.`,
+    )
+  }
+
+  return [...new Set(methods)] as SignInMethod[]
 }
 
 export async function resolveAnswers(
@@ -223,12 +248,34 @@ export async function resolveAnswers(
     missing('--mcp or --no-mcp')
   }
 
-  // Verification and password reset are the API's; every client of it then shows their screens.
+  // How a person signs in is the API's to offer; a project without one keeps the clients' password screens.
+  let signIn: SignInMethod[] = ['password']
+
+  if (!types.includes('api')) {
+    if (flags.signIn !== undefined) {
+      throw new CliError('invalid_input', '--sign-in needs api in --types.')
+    }
+  } else if (flags.signIn !== undefined) {
+    signIn = parseSignIn(flags.signIn)
+  } else if (asker !== undefined) {
+    signIn = await asker.signIn()
+  } else {
+    missing('--sign-in <methods>')
+  }
+
+  // Verification and password reset are the API's, and only a password account has them.
   let email = false
 
   if (!types.includes('api')) {
     if (flags.email) {
       throw new CliError('invalid_input', '--email needs api in --types.')
+    }
+  } else if (!signIn.includes('password')) {
+    if (flags.email) {
+      throw new CliError(
+        'invalid_input',
+        '--email confirms addresses and resets passwords; it needs password in --sign-in.',
+      )
     }
   } else if (flags.email || flags.noEmail) {
     email = flags.email
@@ -265,12 +312,24 @@ export async function resolveAnswers(
     )
   }
 
-  if (social.length > 0 && !email) {
+  if (social.length > 0 && signIn.includes('password') && !email) {
     warnings.push(
       'Without --email no password account is ever confirmed, so the first sign-in with a provider for an existing ' +
         "account's email removes its password: the owner keeps the account through the provider. --email avoids it.",
     )
   }
 
-  return { name, types, apps, architecture, multiTenant, mcp, email, social, target, warnings }
+  return {
+    name,
+    types,
+    apps,
+    architecture,
+    multiTenant,
+    mcp,
+    signIn,
+    email,
+    social,
+    target,
+    warnings,
+  }
 }

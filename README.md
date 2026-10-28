@@ -69,9 +69,9 @@ terminal every question that applies needs its flag, the layout of a single type
 answer is an error rather than a default, so nothing important gets decided by silence:
 
 ```sh
-npx @stjoseph/prumo new my-app --types api,web --single-tenant --no-mcp --email --no-social
-npx @stjoseph/prumo new my-api --types api --alone --single-tenant --email
-npx @stjoseph/prumo new my-shop --types api,web:next --single-tenant --no-mcp --email --social google
+npx @stjoseph/prumo new my-app --types api,web --single-tenant --no-mcp --sign-in password --email --no-social
+npx @stjoseph/prumo new my-api --types api --alone --single-tenant --sign-in email-code
+npx @stjoseph/prumo new my-shop --types api,web:next --single-tenant --no-mcp --sign-in email-code --social google
 ```
 
 | Flag | What it answers |
@@ -81,7 +81,8 @@ npx @stjoseph/prumo new my-shop --types api,web:next --single-tenant --no-mcp --
 | `--alone` or `--monorepo` | How a single type is laid out, so one type needs one of them. Several types always make a workspace and refuse `--alone` |
 | `--multi-tenant` or `--single-tenant` | Whether the application serves several tenants. Multi-tenant ships the `multi-tenancy` conventions; the generated code itself is not tenant-aware yet |
 | `--mcp` or `--no-mcp` | With an api and a web: whether AI assistants reach the API through MCP, signed in as the user |
-| `--email` or `--no-email` | With an api: email verification and password reset, by a 6-digit code sent through the `Mailer` port, which writes to the log until you give it a provider |
+| `--sign-in password,email-code` | With an api: how people sign in, one or more. `password` is an email and a password; `email-code` is a 6-digit code sent by email, the first of which creates the account. Social sign-in comes on top of them, never alone |
+| `--email` or `--no-email` | With an api and `password`: email verification and password reset, by a 6-digit code sent through the `Mailer` port, which writes to the log until you give it a provider |
 | `--social google,apple` or `--no-social` | With an api and a web or mobile: sign-in with Google, Apple, or both |
 | `--skip-install` | Stops after writing the files |
 

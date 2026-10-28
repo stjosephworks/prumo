@@ -1,5 +1,7 @@
 import { fakeTransport, json } from '@test/support/fake-transport'
 import { renderApp } from '@test/support/render-app'
+import { signInThroughPage } from '@test/support/sign-in-through-page'
+import { withPassword } from '@test/support/with-password' // prumo:password
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
@@ -45,6 +47,11 @@ describe('App', () => {
       fakeTransport({
         ...signedOut,
         'GET /api/auth/session': () => (signedIn ? json(200, session) : json(401, {})),
+        'POST /api/auth/email/code': () => empty(204),
+        'POST /api/auth/email/sign-in': () => {
+          signedIn = true
+          return empty(204)
+        },
         'POST /api/auth/sign-in': () => {
           signedIn = true
           return empty(204)
@@ -53,13 +60,12 @@ describe('App', () => {
       }),
     )
 
-    await visitor.type(await screen.findByLabelText('Email'), user.email)
-    await visitor.type(screen.getByLabelText('Password'), 'correct-horse-battery')
-    await visitor.click(screen.getByRole('button', { name: 'Sign in' }))
+    await signInThroughPage(visitor, user.email)
 
     expect(await screen.findByRole('heading', { name: 'Your profile' })).toBeInTheDocument()
   })
 
+  // prumo:password
   // Starting from sign-up would hide the defect: only a protected route caches the null session first.
   it('takes a visitor turned away to sign in, who then creates an account, into the app', async () => {
     const visitor = userEvent.setup()
@@ -78,6 +84,7 @@ describe('App', () => {
       }),
     )
 
+    await withPassword(visitor)
     await visitor.click(await screen.findByRole('link', { name: 'Sign up' }))
     await visitor.type(await screen.findByLabelText('Name'), 'Ana')
     await visitor.type(screen.getByLabelText('Email'), user.email)
@@ -86,6 +93,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Your profile' })).toBeInTheDocument()
   })
+  // prumo:end-password
 
   it('shows the next person on the tab their own profile, not the previous one', async () => {
     const visitor = userEvent.setup()
@@ -108,6 +116,11 @@ describe('App', () => {
           current = null
           return empty(204)
         },
+        'POST /api/auth/email/code': () => empty(204),
+        'POST /api/auth/email/sign-in': () => {
+          current = 'bruno'
+          return empty(204)
+        },
         'POST /api/auth/sign-in': () => {
           current = 'bruno'
           return empty(204)
@@ -119,9 +132,7 @@ describe('App', () => {
     expect(await screen.findByLabelText('Display name')).toHaveValue('Ana')
 
     await visitor.click(screen.getByRole('button', { name: 'Sign out' }))
-    await visitor.type(await screen.findByLabelText('Email'), people.bruno.user.email)
-    await visitor.type(screen.getByLabelText('Password'), 'correct-horse-battery')
-    await visitor.click(screen.getByRole('button', { name: 'Sign in' }))
+    await signInThroughPage(visitor, people.bruno.user.email)
 
     await screen.findByRole('heading', { name: 'Your profile' })
     expect(screen.getByLabelText('Display name')).toHaveValue('Bruno')

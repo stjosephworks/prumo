@@ -16,6 +16,7 @@ import {
 const SWEEP_LIMIT = 100
 
 const MAILS: Record<CodePurpose, (to: string, code: string) => Mail> = {
+  // prumo:email
   'verify-email': (to, code) => ({
     to,
     subject: `${code} is your verification code`,
@@ -26,6 +27,14 @@ const MAILS: Record<CodePurpose, (to: string, code: string) => Mail> = {
     subject: `${code} is your password reset code`,
     text: `Enter ${code} to choose a new password. The code expires in 15 minutes. If you did not ask for it, ignore this email: your password stays as it is.`,
   }),
+  // prumo:end-email
+  // prumo:email-code
+  'sign-in': (to, code) => ({
+    to,
+    subject: `${code} is your sign-in code`,
+    text: `Enter ${code} to sign in. The code expires in 15 minutes. If you did not ask for it, ignore this email: nobody can sign in without it.`,
+  }),
+  // prumo:end-email-code
 }
 
 @injectable()

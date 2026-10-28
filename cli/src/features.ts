@@ -7,7 +7,17 @@ import { setJsonc } from './jsonc.ts'
 // What a project may leave out. The templates ship with every one of them; a project that answered no receives the
 // template without it: these files deleted, these dependencies removed, and every line or block marked
 // `// prumo:<feature>` cut, READMEs included. A feature a template does not list has nothing to cut there.
-export const FEATURE_NAMES = ['mcp', 'email', 'social', 'google', 'apple'] as const
+export const FEATURE_NAMES = [
+  'mcp',
+  'password',
+  'email-code',
+  'codes',
+  'mail',
+  'email',
+  'social',
+  'google',
+  'apple',
+] as const
 
 export type Feature = (typeof FEATURE_NAMES)[number]
 
@@ -17,21 +27,30 @@ export const SOCIAL_PROVIDERS = ['google', 'apple'] as const
 
 export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number]
 
-export const NONE: Enabled = {
-  mcp: false,
-  email: false,
-  social: false,
-  google: false,
-  apple: false,
-}
+// How a person signs in: any of them, at least one.
+export const SIGN_IN_METHODS = ['password', 'email-code'] as const
+
+export type SignInMethod = (typeof SIGN_IN_METHODS)[number]
+
+export const NONE: Enabled = Object.fromEntries(
+  FEATURE_NAMES.map((feature) => [feature, false]),
+) as Enabled
 
 export function enabledFor(answers: {
   mcp: boolean
+  signIn: SignInMethod[]
   email: boolean
   social: SocialProvider[]
 }): Enabled {
+  const emailCode = answers.signIn.includes('email-code')
+
   return {
     mcp: answers.mcp,
+    password: answers.signIn.includes('password'),
+    'email-code': emailCode,
+    // What more than one feature shares is enabled by any of them.
+    codes: answers.email || emailCode,
+    mail: answers.email || emailCode,
     email: answers.email,
     social: answers.social.length > 0,
     google: answers.social.includes('google'),
@@ -79,38 +98,106 @@ export const FEATURES: Record<Feature, Spec> = {
       'web-astro': [],
     },
   },
-  // Verification and password reset: a code sent through the Mailer port, its table in a migration of its own.
-  email: {
+  // A password: the account created with one and signed into with it, its column in a migration of its own.
+  password: {
+    files: {
+      api: [
+        'src/domain/auth/dto/sign-in.dto.ts',
+        'src/domain/auth/dto/sign-up.dto.ts',
+        'src/domain/auth/errors/invalid-credentials.error.ts',
+        'src/domain/auth/ports/password-hasher.port.ts',
+        'src/domain/auth/use-cases/sign-in.use-case.ts',
+        'src/domain/auth/use-cases/sign-up.use-case.ts',
+        'src/infra/auth/argon2-password-hasher.adapter.ts',
+        'src/infra/http/controllers/password.controller.ts',
+        'migrations/Migration20261005111546_add_user_password.ts',
+        'test/domain/auth/use-cases/sign-in.use-case.spec.ts',
+        'test/domain/auth/use-cases/sign-up.use-case.spec.ts',
+        'test/infra/auth/argon2-password-hasher.adapter.spec.ts',
+        'test/infra/http/controllers/password.controller.spec.ts',
+        'test/support/fakes/fake-password-hasher.ts',
+      ],
+      'web-vite': [
+        'src/features/auth/sign-in-form.tsx',
+        'src/features/auth/sign-up-form.tsx',
+        'src/routes/sign-up.tsx',
+        'test/features/auth/password.spec.tsx',
+        'test/support/with-password.ts',
+      ],
+      'web-next': [
+        'src/features/auth/sign-in-form.tsx',
+        'src/features/auth/sign-up-form.tsx',
+        'src/app/(auth)/sign-up',
+        'test/features/auth/password.spec.tsx',
+      ],
+      'web-astro': [
+        'src/features/auth/sign-in-form.tsx',
+        'src/features/auth/sign-up-form.tsx',
+        'src/pages/sign-up.astro',
+        'test/features/auth/password.spec.tsx',
+      ],
+      mobile: [
+        'src/features/auth/sign-in-form.tsx',
+        'src/features/auth/sign-up-form.tsx',
+        'src/app/(auth)/sign-up.tsx',
+        'test/features/auth/password.spec.tsx',
+      ],
+    },
+    dependencies: { api: ['@node-rs/argon2'] },
+  },
+  // One-time codes, whatever they are for: the table, its limits, and the keyed digest, in a migration of their own.
+  codes: {
     files: {
       api: [
         'src/domain/auth/entities/one-time-code.entity.ts',
-        'src/domain/auth/ports/mailer.port.ts',
         'src/domain/auth/ports/one-time-codes.port.ts',
         'src/domain/auth/repositories/one-time-code.repository.ts',
-        'src/domain/auth/errors/email-not-verified.error.ts',
         'src/domain/auth/errors/invalid-code.error.ts',
         'src/domain/auth/errors/too-many-codes.error.ts',
+        'src/domain/auth/use-cases/issue-code.use-case.ts',
+        'src/infra/codes',
+        'src/infra/di/codes.di.ts',
+        'src/infra/database/mikroorm/entities/one-time-code.schema.ts',
+        'src/infra/database/mikroorm/repositories/mikroorm-one-time-code.repository.ts',
+        'migrations/Migration20261005111549_create_one_time_code.ts',
+        'test/infra/codes',
+        'test/infra/database/mikroorm/repositories/mikroorm-one-time-code.repository.spec.ts',
+        'test/support/fakes/fake-one-time-codes.ts',
+        'test/support/fakes/in-memory-one-time-code.repository.ts',
+      ],
+      'web-vite': ['src/features/forms/use-cooldown.ts'],
+      'web-next': ['src/features/forms/use-cooldown.ts'],
+      'web-astro': ['src/features/forms/use-cooldown.ts'],
+      mobile: ['src/features/forms/use-cooldown.ts'],
+    },
+    dependencies: {},
+  },
+  // Mail: the Mailer port and the adapter that logs it, for whatever sends a code by email.
+  mail: {
+    files: {
+      api: [
+        'src/domain/auth/ports/mailer.port.ts',
         'src/domain/auth/dto/email-request.dto.ts',
+        'src/infra/email',
+        'test/support/fakes/fake-mailer.ts',
+      ],
+    },
+    dependencies: {},
+  },
+  // Verification and password reset of a password account, by a code sent through the Mailer port.
+  email: {
+    files: {
+      api: [
+        'src/domain/auth/errors/email-not-verified.error.ts',
         'src/domain/auth/dto/verify-email.dto.ts',
         'src/domain/auth/dto/reset-password.dto.ts',
-        'src/domain/auth/use-cases/issue-code.use-case.ts',
         'src/domain/auth/use-cases/request-email-verification.use-case.ts',
         'src/domain/auth/use-cases/verify-email.use-case.ts',
         'src/domain/auth/use-cases/request-password-reset.use-case.ts',
         'src/domain/auth/use-cases/reset-password.use-case.ts',
-        'src/infra/email',
-        'src/infra/di/email.di.ts',
         'src/infra/http/controllers/auth-email.controller.ts',
-        'src/infra/database/mikroorm/entities/one-time-code.schema.ts',
-        'src/infra/database/mikroorm/repositories/mikroorm-one-time-code.repository.ts',
-        'migrations/Migration20261005111549_create_one_time_code.ts',
         'test/domain/auth/use-cases/email.use-case.spec.ts',
-        'test/infra/email',
-        'test/infra/database/mikroorm/repositories/mikroorm-one-time-code.repository.spec.ts',
         'test/infra/http/controllers/auth-email.controller.spec.ts',
-        'test/support/fakes/fake-mailer.ts',
-        'test/support/fakes/fake-one-time-codes.ts',
-        'test/support/fakes/in-memory-one-time-code.repository.ts',
       ],
       'web-vite': [
         'src/features/auth/verify-email-form.tsx',
@@ -148,6 +235,24 @@ export const FEATURES: Record<Feature, Spec> = {
         'src/app/(auth)/reset-password.tsx',
         'test/features/auth/email-flows.spec.tsx',
       ],
+    },
+    dependencies: {},
+  },
+  // Sign-in by a code sent to an email address, which creates the account the first time.
+  'email-code': {
+    files: {
+      api: [
+        'src/domain/auth/dto/email-sign-in.dto.ts',
+        'src/domain/auth/use-cases/request-sign-in-code.use-case.ts',
+        'src/domain/auth/use-cases/sign-in-with-code.use-case.ts',
+        'src/infra/http/controllers/email-code.controller.ts',
+        'test/domain/auth/use-cases/email-code.use-case.spec.ts',
+        'test/infra/http/controllers/email-code.controller.spec.ts',
+      ],
+      'web-vite': ['src/features/auth/code-sign-in-form.tsx', 'test/features/auth/code.spec.tsx'],
+      'web-next': ['src/features/auth/code-sign-in-form.tsx', 'test/features/auth/code.spec.tsx'],
+      'web-astro': ['src/features/auth/code-sign-in-form.tsx', 'test/features/auth/code.spec.tsx'],
+      mobile: ['src/features/auth/code-sign-in-form.tsx', 'test/features/auth/code.spec.tsx'],
     },
     dependencies: {},
   },

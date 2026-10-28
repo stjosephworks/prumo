@@ -42,7 +42,9 @@ export class SignUpUseCase {
         throw new EmailTakenError()
       }
 
-      const user = new User(email, passwordHash)
+      const user = new User(email)
+
+      user.changePassword(passwordHash)
 
       await this.users.save(user)
       await this.createProfile.execute(user.id, name, { locale, timezone })

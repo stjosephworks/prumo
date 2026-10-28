@@ -17,7 +17,7 @@ const REDIRECT = 'https://client.example.com/callback'
 
 let app: FastifyInstance
 let env: ReturnType<typeof testEnv>
-let register: Awaited<ReturnType<typeof testApp>>['signUp']
+let register: Awaited<ReturnType<typeof testApp>>['signIn']
 
 function freePort(): Promise<number> {
   return new Promise((resolve) => {
@@ -43,7 +43,7 @@ const clients = {
 beforeEach(async () => {
   const port = await freePort()
   env = { ...testEnv(), API_URL: `http://127.0.0.1:${port}` }
-  ;({ app, signUp: register } = await testApp({
+  ;({ app, signIn: register } = await testApp({
     env,
     configure: (container) => container.register(CLIENT_METADATA, { useValue: clients }),
   }))
@@ -252,7 +252,7 @@ describe('scopes', () => {
     })
 
     expect(scope).toBe('profile:read')
-    expect(read.structuredContent).toMatchObject({ displayName: 'Ana' })
+    expect(read.structuredContent).toMatchObject({ displayName: expect.stringMatching(/^ana/i) })
     expect(write.statusCode).toBe(403)
     expect(write.headers['www-authenticate']).toContain('error="insufficient_scope"')
     expect(write.headers['www-authenticate']).toContain('scope="profile:write"')
@@ -299,7 +299,7 @@ describe('token', () => {
     expect(Object.keys(result.structuredContent ?? {}).sort()).toEqual(
       ['createdAt', 'displayName', 'id', 'locale', 'timezone', 'updatedAt', 'userId'].sort(),
     )
-    expect(result.structuredContent).toMatchObject({ displayName: 'Ana' })
+    expect(result.structuredContent).toMatchObject({ displayName: expect.stringMatching(/^ana/i) })
 
     await client.close()
   })

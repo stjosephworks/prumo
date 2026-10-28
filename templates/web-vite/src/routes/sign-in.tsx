@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
-import { SignInForm } from '@/features/auth/sign-in-form'
+import { CodeSignInForm } from '@/features/auth/code-sign-in-form' // prumo:email-code
+import { SignInChoice } from '@/features/auth/sign-in-choice'
+import { SignInForm } from '@/features/auth/sign-in-form' // prumo:password
 import { SocialButtons } from '@/features/auth/social-buttons' // prumo:social
 
 export const Route = createFileRoute('/sign-in')({
@@ -21,7 +23,10 @@ function SignInPage() {
       {/* prumo:social */}
       <SocialButtons auth={auth} returnTo={search.redirect} error={search.error} />
       {/* prumo:end-social */}
-      <SignInForm auth={auth} redirect={search.redirect} />
+      <SignInChoice
+        code={<CodeSignInForm auth={auth} redirect={search.redirect} />} // prumo:email-code
+        password={<SignInForm auth={auth} redirect={search.redirect} />} // prumo:password
+      />
     </>
   )
 }

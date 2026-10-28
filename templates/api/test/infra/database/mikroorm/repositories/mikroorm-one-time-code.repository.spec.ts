@@ -5,33 +5,39 @@ import { MikroOrmOneTimeCodeRepository } from '@/infra/database/mikroorm/reposit
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
+// Whichever purpose the project has: the repository treats them all alike.
+const [PURPOSE] = [
+  'reset-password', // prumo:email
+  'sign-in', // prumo:email-code
+] as const
+
 function repository() {
   return new MikroOrmOneTimeCodeRepository(testOrm().em.fork())
 }
 
 async function sent(destination: string, at: Date): Promise<void> {
-  await repository().save(new OneTimeCode('email', destination, 'reset-password', 'hash', at))
+  await repository().save(new OneTimeCode('email', destination, PURPOSE, 'hash', at))
 }
 
 describe('MikroOrmOneTimeCodeRepository', () => {
-  it('finds a code by its channel, destination and purpose', async () => {
+  it('finds a code by its channel, destination and purpose, and no other', async () => {
     await sent('ana@example.com', new Date())
 
     // The lock holds until the transaction ends, so it needs one.
-    const [found, otherPurpose] = await testOrm()
+    const [found, other] = await testOrm()
       .em.fork()
       .transactional(async (em) => {
         const codes = new MikroOrmOneTimeCodeRepository(em)
 
         return Promise.all([
-          codes.lockFor('email', 'ana@example.com', 'reset-password'),
-          codes.lockFor('email', 'ana@example.com', 'verify-email'),
+          codes.lockFor('email', 'ana@example.com', PURPOSE),
+          codes.lockFor('email', 'bruno@example.com', PURPOSE),
         ])
       })
 
     expect(found).toBeInstanceOf(OneTimeCode)
     expect(found).toMatchObject({ codeHash: 'hash', sentThisHour: 1, sentToday: 1 })
-    expect(otherPurpose).toBeNull()
+    expect(other).toBeNull()
   })
 
   it('sweeps codes that are dead and past their day, and keeps the rest', async () => {

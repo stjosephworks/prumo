@@ -10,7 +10,7 @@ export const OneTimeCodeSchema = new EntitySchema({
     { name: 'one_time_code_channel_check', expression: `"channel" in ('email', 'phone')` },
     {
       name: 'one_time_code_purpose_check',
-      expression: `"purpose" in ('verify-email', 'reset-password')`,
+      expression: `"purpose" in ('verify-email', 'reset-password', 'sign-in')`,
     },
   ],
   properties: {

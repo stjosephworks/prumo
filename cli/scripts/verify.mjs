@@ -259,27 +259,49 @@ async function attempt(url, init) {
   }
 }
 
-// A session as the web holds one. With email verification on, sign-up opens none: the code the API wrote to its log
-// is entered first, as a person would from their inbox.
+// How the project signs in; a config written before 0.9.0 says nothing, and signed in with a password.
+const signIn = config.signIn ?? ['password']
+
+// A session as the web holds one, through the project's own way in: by a code when it has one, which is what a
+// person who has never signed up meets; else by signing up with a password. With email verification on, that
+// sign-up opens none: the code the API wrote to its log is entered first, as a person would from their inbox.
 async function webSession(origin = 'http://localhost:5173') {
   const API = `http://localhost:${appPort}`
   const headers = { 'content-type': 'application/json', origin }
   const email = `contract-${Date.now()}@example.com`
-  let response = await attempt(`${API}/api/auth/sign-up`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ name: 'Contract', email, password: 'correct-horse-battery' }),
-  })
+  let response
 
-  if (response.status !== 201) throw new Error(`sign-up answered ${response.status}`)
+  if (signIn.includes('email-code')) {
+    const sent = await attempt(`${API}/api/auth/email/code`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ email }),
+    })
+    if (sent.status !== 204) throw new Error(`asking for a sign-in code answered ${sent.status}`)
 
-  if ((await response.text()).includes('verificationRequired')) {
-    response = await attempt(`${API}/api/auth/email/verify`, {
+    response = await attempt(`${API}/api/auth/email/sign-in`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ email, code: await codeMailedTo(email) }),
     })
-    if (!response.ok) throw new Error(`email verification answered ${response.status}`)
+    if (!response.ok) throw new Error(`signing in with the code answered ${response.status}`)
+  } else {
+    response = await attempt(`${API}/api/auth/sign-up`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ name: 'Contract', email, password: 'correct-horse-battery' }),
+    })
+
+    if (response.status !== 201) throw new Error(`sign-up answered ${response.status}`)
+
+    if ((await response.text()).includes('verificationRequired')) {
+      response = await attempt(`${API}/api/auth/email/verify`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ email, code: await codeMailedTo(email) }),
+      })
+      if (!response.ok) throw new Error(`email verification answered ${response.status}`)
+    }
   }
 
   return response.headers

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HmacOneTimeCodes } from '@/infra/email/hmac-one-time-codes.adapter'
+import { HmacOneTimeCodes } from '@/infra/codes/hmac-one-time-codes.adapter'
 
 describe('HmacOneTimeCodes', () => {
   it('makes six digits, and a digest that depends on the secret', () => {

@@ -1,26 +1,30 @@
 import { FakeAccessTokens } from '@test/support/fakes/fake-access-tokens'
-import { FakeMailer } from '@test/support/fakes/fake-mailer' // prumo:email
-import { FakeOneTimeCodes } from '@test/support/fakes/fake-one-time-codes' // prumo:email
+import { FakeMailer } from '@test/support/fakes/fake-mailer' // prumo:mail
+import { FakeOneTimeCodes } from '@test/support/fakes/fake-one-time-codes' // prumo:codes
 import { FakeOpaqueTokens } from '@test/support/fakes/fake-opaque-tokens'
-import { FakePasswordHasher } from '@test/support/fakes/fake-password-hasher'
+import { FakePasswordHasher } from '@test/support/fakes/fake-password-hasher' // prumo:password
 import { ImmediateTransactionManager } from '@test/support/fakes/immediate-transaction-manager'
-import { InMemoryOneTimeCodeRepository } from '@test/support/fakes/in-memory-one-time-code.repository' // prumo:email
+import { InMemoryOneTimeCodeRepository } from '@test/support/fakes/in-memory-one-time-code.repository' // prumo:codes
 import { InMemoryProfileRepository } from '@test/support/fakes/in-memory-profile.repository'
 import { InMemorySessionRepository } from '@test/support/fakes/in-memory-session.repository'
 import { InMemoryUserRepository } from '@test/support/fakes/in-memory-user.repository'
-import type { SignUpDto } from '@/domain/auth/dto/sign-up.dto'
-import { IssueCodeUseCase } from '@/domain/auth/use-cases/issue-code.use-case' // prumo:email
+import type { SignUpDto } from '@/domain/auth/dto/sign-up.dto' // prumo:password
+import { User } from '@/domain/auth/entities/user.entity'
+import { IssueCodeUseCase } from '@/domain/auth/use-cases/issue-code.use-case' // prumo:codes
 import { RefreshSessionUseCase } from '@/domain/auth/use-cases/refresh-session.use-case'
 import { RequestPasswordResetUseCase } from '@/domain/auth/use-cases/request-password-reset.use-case' // prumo:email
+import { RequestSignInCodeUseCase } from '@/domain/auth/use-cases/request-sign-in-code.use-case' // prumo:email-code
 import { ResetPasswordUseCase } from '@/domain/auth/use-cases/reset-password.use-case' // prumo:email
-import { SignInUseCase } from '@/domain/auth/use-cases/sign-in.use-case'
+import { SignInUseCase } from '@/domain/auth/use-cases/sign-in.use-case' // prumo:password
+import { SignInWithCodeUseCase } from '@/domain/auth/use-cases/sign-in-with-code.use-case' // prumo:email-code
 import { SignOutUseCase } from '@/domain/auth/use-cases/sign-out.use-case'
-import { SignUpUseCase } from '@/domain/auth/use-cases/sign-up.use-case'
+import { SignUpUseCase } from '@/domain/auth/use-cases/sign-up.use-case' // prumo:password
 import {
   type SessionTokens,
   StartSessionUseCase,
 } from '@/domain/auth/use-cases/start-session.use-case'
 import { VerifyEmailUseCase } from '@/domain/auth/use-cases/verify-email.use-case' // prumo:email
+import { Profile } from '@/domain/users/entities/profile.entity'
 import { CreateProfileUseCase } from '@/domain/users/use-cases/create-profile.use-case'
 
 // Every auth use case wired to in-memory ports, sharing one set of them as the container would.
@@ -28,23 +32,39 @@ export function authFakes() {
   const users = new InMemoryUserRepository()
   const sessions = new InMemorySessionRepository()
   const profiles = new InMemoryProfileRepository()
-  const hasher = new FakePasswordHasher()
   const tokens = new FakeAccessTokens()
   const opaque = new FakeOpaqueTokens()
   const transactions = new ImmediateTransactionManager()
   const startSession = new StartSessionUseCase(sessions, tokens, opaque)
-  // prumo:email
-  const mailer = new FakeMailer()
+  const createProfile = new CreateProfileUseCase(profiles)
+  const hasher = new FakePasswordHasher() // prumo:password
+  // prumo:codes
   const codes = new InMemoryOneTimeCodeRepository()
   const oneTimeCodes = new FakeOneTimeCodes()
-  const issueCode = new IssueCodeUseCase(codes, oneTimeCodes, mailer, transactions)
+  // prumo:end-codes
+  const mailer = new FakeMailer() // prumo:mail
+  const issueCode = new IssueCodeUseCase(codes, oneTimeCodes, mailer, transactions) // prumo:codes
+  // prumo:email
   const verifyEmail = new VerifyEmailUseCase(users, codes, oneTimeCodes, transactions, startSession)
   // prumo:end-email
+
+  // An account that is already in and confirmed, whatever the project's way in: what a test of sessions needs.
+  async function signedIn(email = 'ana@example.com'): Promise<SessionTokens> {
+    const user = new User(email)
+
+    user.verifyEmail(new Date())
+    await users.save(user)
+    await profiles.save(new Profile(user.id, Profile.nameFor(email)))
+
+    return startSession.execute(user.id)
+  }
+
+  // prumo:password
   const signUp = new SignUpUseCase(
     users,
     hasher,
     transactions,
-    new CreateProfileUseCase(profiles),
+    createProfile,
     startSession,
     issueCode, // prumo:email
   )
@@ -65,21 +85,28 @@ export function authFakes() {
 
     return started
   }
+  // prumo:end-password
 
   return {
     users,
     sessions,
     profiles,
+    signedIn,
+    refresh: new RefreshSessionUseCase(sessions, tokens, opaque, transactions),
+    signOut: new SignOutUseCase(sessions),
+    // prumo:password
     hasher,
     signUp,
     register,
     signIn: new SignInUseCase(users, hasher, startSession),
-    refresh: new RefreshSessionUseCase(sessions, tokens, opaque, transactions),
-    signOut: new SignOutUseCase(sessions),
-    // prumo:email
-    mailer,
-    verifyEmail,
+    // prumo:end-password
+    // prumo:codes
     codes,
+    issueCode,
+    // prumo:end-codes
+    mailer, // prumo:mail
+    // prumo:email
+    verifyEmail,
     requestPasswordReset: new RequestPasswordResetUseCase(users, issueCode),
     resetPassword: new ResetPasswordUseCase(
       users,
@@ -91,5 +118,17 @@ export function authFakes() {
       startSession,
     ),
     // prumo:end-email
+    // prumo:email-code
+    requestSignInCode: new RequestSignInCodeUseCase(issueCode),
+    signInWithCode: new SignInWithCodeUseCase(
+      users,
+      sessions,
+      codes,
+      oneTimeCodes,
+      transactions,
+      createProfile,
+      startSession,
+    ),
+    // prumo:end-email-code
   }
 }

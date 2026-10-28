@@ -12,7 +12,10 @@ const DAY_MS = 24 * HOUR_MS
 
 export type CodeChannel = 'email' | 'phone'
 
-export type CodePurpose = 'verify-email' | 'reset-password'
+export type CodePurpose =
+  | 'verify-email' // prumo:email
+  | 'reset-password' // prumo:email
+  | 'sign-in' // prumo:email-code
 
 export type CodeOutcome = 'valid' | 'wrong' | 'expired'
 

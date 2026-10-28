@@ -4,7 +4,7 @@ import { ProviderEmailUnverifiedError } from '@/domain/auth/errors/provider-emai
 import { ProviderNotConfiguredError } from '@/domain/auth/errors/provider-not-configured.error'
 import { SocialSignInFailedError } from '@/domain/auth/errors/social-sign-in-failed.error'
 
-const ANA = { name: 'Ana', email: 'ana@example.com', password: 'correct-horse-battery' }
+const ANA = { name: 'Ana', email: 'ana@example.com', password: 'correct-horse-battery' } // prumo:password
 const GOOGLE = {
   subject: 'google-sub-1',
   email: 'Ana@Example.com',
@@ -19,7 +19,8 @@ describe('LinkIdentityUseCase', () => {
     const userId = await linkIdentity.execute('google', GOOGLE)
     const user = users.rows.get(userId)
 
-    expect(user).toMatchObject({ email: 'ana@example.com', passwordHash: null })
+    expect(user).toMatchObject({ email: 'ana@example.com' })
+    expect(user?.passwordHash).toBeNull() // prumo:password
     expect(user?.emailVerifiedAt).not.toBeNull()
     expect(profiles.rows.get(userId)).toMatchObject({ displayName: 'Ana G' })
     expect(identities.rows).toEqual([expect.objectContaining({ provider: 'google', userId })])
@@ -34,6 +35,7 @@ describe('LinkIdentityUseCase', () => {
     expect(again).toBe(first)
   })
 
+  // prumo:password
   it('links to a confirmed account and leaves its password alone', async () => {
     const { register, linkIdentity, users, signIn } = socialFakes()
     await register(ANA)
@@ -60,6 +62,7 @@ describe('LinkIdentityUseCase', () => {
     expect(users.rows.get(userId)?.passwordHash).toBeNull()
     expect([...sessions.rows.values()].every((session) => session.revokedAt !== null)).toBe(true)
   })
+  // prumo:end-password
 
   it('refuses an email the provider has not verified', async () => {
     const { linkIdentity } = socialFakes()

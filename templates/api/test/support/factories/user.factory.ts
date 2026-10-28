@@ -1,17 +1,14 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
 import { User } from '@/domain/auth/entities/user.entity'
 
-type UserOverrides = Partial<{ email: string; passwordHash: string }>
+type UserOverrides = Partial<{ email: string }>
 
-// The hash is not a real one: a test that signs in goes through the sign-up route instead.
+// A user with no way to sign in: a test that signs in goes through the routes instead.
 export async function createUser(
   em: EntityManager,
   overrides: UserOverrides = {},
 ): Promise<string> {
-  const user = new User(
-    overrides.email ?? `${crypto.randomUUID()}@example.com`,
-    overrides.passwordHash ?? 'not-a-real-hash',
-  )
+  const user = new User(overrides.email ?? `${crypto.randomUUID()}@example.com`)
 
   await em.persist(user).flush()
 

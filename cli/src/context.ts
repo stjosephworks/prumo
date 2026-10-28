@@ -3,7 +3,7 @@ import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { type App, appsOf, templateOf } from './apps.ts'
 import type { AppType } from './compose.ts'
-import type { SocialProvider } from './features.ts'
+import { cutFeatures, enabledFor, type SignInMethod, type SocialProvider } from './features.ts'
 import { cliVersion } from './version.ts'
 
 export type Answers = {
@@ -14,6 +14,8 @@ export type Answers = {
   architecture: 'alone' | 'monorepo'
   multiTenant: boolean
   mcp: boolean
+  // How a person signs in; from 0.9.0. Before it, a password and only that.
+  signIn: SignInMethod[]
   email: boolean
   social: SocialProvider[]
 }
@@ -37,9 +39,26 @@ export function areasFor(answers: Answers): string[] {
     ...(answers.architecture === 'monorepo' ? ['monorepo'] : []),
     ...(answers.multiTenant ? ['multi-tenancy'] : []),
     ...(answers.mcp ? ['mcp'] : []),
-    ...(answers.email ? ['email'] : []),
+    ...(answers.email || answers.signIn.includes('email-code') ? ['email'] : []),
     ...(answers.social.length > 0 ? ['social'] : []),
   ]
+}
+
+// An area is copied whole, then what it says about a feature the project left out is cut, as in a README.
+async function copyArea(knowledge: string, prumo: string, area: string, answers: Answers) {
+  const enabled = enabledFor(answers)
+
+  await cp(join(knowledge, area), join(prumo, area), { recursive: true })
+
+  for (const file of (await readdir(join(prumo, area))).filter((f) => f.endsWith('.md'))) {
+    const path = join(prumo, area, file)
+    const text = await readFile(path, 'utf8')
+    const cut = cutFeatures(text, enabled, path)
+
+    if (cut !== text) {
+      await writeFile(path, cut)
+    }
+  }
 }
 
 async function titleOf(path: string): Promise<string> {
@@ -71,6 +90,7 @@ async function writeConfig(prumo: string, answers: Answers): Promise<void> {
     architecture: answers.architecture,
     multiTenant: answers.multiTenant,
     mcp: answers.mcp,
+    signIn: answers.signIn,
     email: answers.email,
     social: answers.social,
   }
@@ -89,7 +109,7 @@ export async function writeContext(
   await mkdir(prumo, { recursive: true })
 
   for (const area of areas) {
-    await cp(join(knowledge, area), join(prumo, area), { recursive: true })
+    await copyArea(knowledge, prumo, area, answers)
   }
 
   await writeIndex(prumo, areas)
@@ -114,7 +134,7 @@ export async function growContext(
   const arrived = areas.filter((area) => !existsSync(join(prumo, area)))
 
   for (const area of arrived) {
-    await cp(join(knowledge, area), join(prumo, area), { recursive: true })
+    await copyArea(knowledge, prumo, area, answers)
   }
 
   await writeIndex(prumo, areas)

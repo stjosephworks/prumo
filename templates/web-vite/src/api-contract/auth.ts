@@ -6,9 +6,16 @@ export type Session = { user: { id: string; email: string } }
 
 export type Tokens = { accessToken: string; refreshToken: string; expiresIn: number }
 
+// prumo:password
 export type SignUpRequest = { name: string; email: string; password: string }
 
 export type SignInRequest = { email: string; password: string }
+
+// prumo:end-password
+// prumo:email-code
+export type CodeSignInRequest = { email: string; code: string }
+
+// prumo:end-email-code
 
 // prumo:email
 export type VerifyEmailRequest = { email: string; code: string }
@@ -87,7 +94,7 @@ export function createAuthClient({
     return { verificationRequired: false }
   }
 
-  // prumo:email
+  // prumo:codes
   async function ask(path: string, body: unknown): Promise<void> {
     const response = await send(path, body)
 
@@ -96,7 +103,7 @@ export function createAuthClient({
     }
   }
 
-  // prumo:end-email
+  // prumo:end-codes
 
   let refreshing: Promise<boolean> | undefined
 
@@ -163,11 +170,21 @@ export function createAuthClient({
     fetch: authorized,
     refresh,
 
+    // prumo:password
     signUp: (request: SignUpRequest) => begin('/sign-up', { ...request, ...devicePreferences() }),
 
     signIn: async (request: SignInRequest): Promise<void> => {
       await begin('/sign-in', request)
     },
+    // prumo:end-password
+    // prumo:email-code
+    // Sent to any address, with an account or not: the first code an address enters creates its account.
+    requestSignInCode: (email: string) => ask('/email/code', { email }),
+
+    signInWithCode: async (request: CodeSignInRequest): Promise<void> => {
+      await begin('/email/sign-in', { ...request, ...devicePreferences() })
+    },
+    // prumo:end-email-code
 
     // prumo:email
     // Each answers alike for an unknown email, so a form can say "if the account exists, a code is on its way".

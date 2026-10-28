@@ -79,9 +79,23 @@ three of its own.
 | `.prumo/email/codes.md`, `.prumo/email/mailer.md` | api with email | The limits, the sweep, and a failed send answering like a sent one |
 | `src/domain/users/entities/profile.entity.ts`, `create-profile.use-case.ts`, `sign-up.dto.ts`, `sign-up.use-case.ts` | api | A new profile starts in the device's `locale` and `timezone` when sign-up sends them; `Profile.localeFor` maps a tag to a supported locale |
 | `src/api-contract/auth.ts` | web, mobile | `signUp` sends the device's `locale` and `timezone` |
+| `.prumo/config.json` | every type | `signIn`, the ways in. A config without it was generated with `["password"]`, its `--sign-in` |
+| `migrations/…_create_user_profile_session.ts`, `migrations/…_add_user_password.ts` | api | `password_hash` moves to a migration of its own, cut without `password`. An existing project's database already has the column and needs nothing |
+| `src/domain/auth/entities/user.entity.ts`, `link-identity.use-case.ts` | api | `new User(email)`, then `changePassword`; `User.proveEmail` takes an unconfirmed account for whoever proved the inbox, for a provider and a code alike |
+| `src/infra/http/controllers/password.controller.ts`, `auth.controller.ts` | api with password | `sign-up` and `sign-in` move out of `auth.controller.ts` |
+| `src/infra/di/codes.di.ts`, `src/infra/codes/` | api with codes | `email.di.ts` becomes `codes.di.ts`; the HMAC adapter moves to `src/infra/codes/` |
+| `email-code.controller.ts`, `request-sign-in-code.use-case.ts`, `sign-in-with-code.use-case.ts`, `email-sign-in.dto.ts` | api with email-code | New. `POST /api/auth/email/code` and `email/sign-in`; the purpose `sign-in` joins the `one_time_code` CHECK |
+| `sign-in-choice.tsx`, `code-sign-in-form.tsx`, the sign-in route or screen | web, mobile | The sign-in page holds every way in, the code leading; the mobile `SignInForm` carries its own Sign up and Forgot links |
+| `src/api-contract/auth.ts` | web, mobile | `requestSignInCode` and `signInWithCode`; `signUp` and `signIn` only with a password |
+| `.prumo/api/auth.md`, `.prumo/email/codes.md`, `.prumo/social/sign-in.md` | api | A paragraph for each way in, cut from a project without it |
+| `test/support/test-app.ts`, `test/support/fakes/auth-fakes.ts` | api | `signIn` and `signedIn` reach a session through the project's own way in; `signUpWithPassword` and `register` stay for the password's own specs |
 
 Why: behind a load balancer every client shared the balancer's address, so the rate limits put the whole world in
 one bucket of ten sign-ins a minute.
+
+Why, for the ways in: a project could not be generated without passwords, and a code that creates the account on
+first use is what many products want instead. A project that wants to add sign-in by code generates a reference with
+`--sign-in password,email-code` and carries the email-code files over.
 
 Why, for the codes: the per-IP limits let one address be sent a code every few seconds from many IPs, filling a
 mailbox; with a phone, every text costs money. And a code was keyed by its user, so none could exist before the

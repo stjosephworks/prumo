@@ -21,9 +21,11 @@ Recognise a returning user by the provider's subject, kept in `identity`. For a 
 only when the provider says `email_verified`:
 
 - an account whose email was confirmed is the same person: link it;
+<!-- prumo:password -->
 - an account whose email was never confirmed loses its password and every session, then is linked: the
-  provider's proof wins over whoever chose that password;
-- no account: create one, confirmed and without a password, with its profile.
+  provider's proof wins over whoever chose that password (`User.proveEmail`);
+<!-- prumo:end-password -->
+- no account: create one, confirmed, with its profile.
 
 Refuse a provider email that is not verified.
 
@@ -43,19 +45,24 @@ account and get a victim to open the callback, signing the victim into the attac
 records whatever the victim does. The mobile code exists so that tokens never travel in a URL, where logs and
 history keep them.
 
+<!-- prumo:password -->
 The linking rules close a known attack: register a password account with somebody's email before they arrive,
 then wait for them to sign in with a provider. A library this project once used shipped exactly that hole. An
 account nobody confirmed belongs to whoever proves the inbox, and that proof is what the provider gives.
+<!-- prumo:end-password -->
 
 The App Store asks an app offering a third-party login for its primary account to offer an equivalent
 privacy-preserving login too (App Review Guideline 4.8); Sign in with Apple is one.
 
 **What this costs:** the trip leaves the app for the system browser and comes back, rather than a native sheet.
+And a provider without its variables in `.env` answers that it is not configured, until someone registers the
+application with it.
+
+<!-- prumo:password -->
 In a project that does not verify emails, no password account is ever confirmed, so the first time its owner
 signs in with a provider for that email, the password goes: the owner keeps the account through the provider,
 and cannot tell them apart from whoever registered the email first.
-And a provider without its variables in `.env` answers that it is not configured, until someone registers the
-application with it.
+<!-- prumo:end-password -->
 
 ## Applies to
 
@@ -68,7 +75,7 @@ the web and mobile.
 ✅  a href={auth.socialSignInUrl('google', 'web', redirect)}
 ❌  window.location = 'https://accounts.google.com/o/oauth2/v2/auth?client_id=…'   // the client talks to Google
 
-✅  link only when email_verified, and void an unconfirmed account's password
+✅  link only when email_verified, and end an unconfirmed account's sessions
 ❌  link whenever the emails match
 ```
 
