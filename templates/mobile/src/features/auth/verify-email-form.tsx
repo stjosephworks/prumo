@@ -4,11 +4,12 @@ import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { Text, View } from 'react-native'
 import { z } from 'zod'
-import { type AuthClient, sessionQuery } from '@/api-contract'
+import { ApiError, type AuthClient, sessionQuery } from '@/api-contract'
 import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { useCooldown } from '@/features/forms/use-cooldown'
 
 const schema = z.object({ code: z.string().regex(/^\d{6}$/, 'Enter the 6 digits from the email') })
 
@@ -25,6 +26,7 @@ export function VerifyEmailForm({
 }) {
   const queryClient = useQueryClient()
   const [resent, setResent] = useState(false)
+  const [wait, startWait] = useCooldown()
   const form = useForm<VerifyEmailValues>({
     resolver: zodResolver(schema),
     mode: 'onTouched',
@@ -45,7 +47,19 @@ export function VerifyEmailForm({
   }
 
   async function resend() {
-    await auth.requestEmailVerification(email)
+    try {
+      await auth.requestEmailVerification(email)
+    } catch (error) {
+      // A code went to this address moments ago; the API says when the next may.
+      if (error instanceof ApiError && error.retryAfter !== undefined) {
+        setResent(false)
+        startWait(error.retryAfter)
+        return
+      }
+
+      throw error
+    }
+
     setResent(true)
   }
 
@@ -70,7 +84,12 @@ export function VerifyEmailForm({
         )}
       />
       <Button label="Confirm email" disabled={isSubmitting} onPress={form.handleSubmit(onSubmit)} />
-      <Button label="Send a new code" variant="outline" onPress={resend} />
+      <Button
+        label={wait > 0 ? `Send a new code in ${wait}s` : 'Send a new code'}
+        variant="outline"
+        disabled={wait > 0}
+        onPress={resend}
+      />
       {resent ? (
         <Text accessibilityRole="text" className="text-sm text-neutral-500">
           A new code is on its way. The previous one no longer works.

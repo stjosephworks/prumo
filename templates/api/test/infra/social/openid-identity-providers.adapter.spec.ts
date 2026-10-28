@@ -3,7 +3,7 @@ import { testEnv } from '@test/support/setup'
 // One line, so its marker takes all of it.
 import * as jose from 'jose' // prumo:apple
 import { afterEach, describe, expect, it } from 'vitest'
-import { SocialSignInFailedError } from '@/domain/auth/errors/social-sign-in-failed.error' // prumo:google
+import { SocialSignInFailedError } from '@/domain/auth/errors/social-sign-in-failed.error'
 import { OpenIdIdentityProviders } from '@/infra/social/openid-identity-providers.adapter'
 
 let server: Awaited<ReturnType<typeof fakeOidcServer>>
@@ -99,6 +99,38 @@ describe('OpenIdIdentityProviders with Google', () => {
   })
 })
 
+describe('OpenIdIdentityProviders with Google’s own sheet', () => {
+  it('takes a token issued to the web client, under either way Google writes its issuer, and no other', async () => {
+    server = await fakeOidcServer({ pkce: true })
+    const providers = new OpenIdIdentityProviders(
+      { ...testEnv(), GOOGLE_CLIENT_ID: 'google-client' },
+      { issuers: { google: server.issuer }, insecure: true },
+    )
+    const claims = { sub: 'g-1', email: 'ana@example.com', email_verified: true, name: 'Ana' }
+    const verify = async (audience: string, issuer?: string) =>
+      providers.verify('google', {
+        idToken: await server.mint(claims, audience, issuer),
+        nonce: null,
+        name: null,
+      })
+
+    expect(providers.isNativeConfigured('google')).toBe(true)
+    await expect(verify('google-client')).resolves.toEqual({
+      subject: 'g-1',
+      email: 'ana@example.com',
+      emailVerified: true,
+      name: 'Ana',
+    })
+    await expect(verify('google-client', 'accounts.google.com')).resolves.toMatchObject({
+      subject: 'g-1',
+    })
+    await expect(verify('another-app')).rejects.toBeInstanceOf(SocialSignInFailedError)
+    await expect(verify('google-client', 'https://evil.example')).rejects.toBeInstanceOf(
+      SocialSignInFailedError,
+    )
+  })
+})
+
 // prumo:end-google
 // prumo:apple
 describe('OpenIdIdentityProviders with Apple', () => {
@@ -149,6 +181,101 @@ describe('OpenIdIdentityProviders with Apple', () => {
     expect(profile).toMatchObject({ subject: 'a-1', emailVerified: true, name: 'Ana Apple' })
     expect(jose.decodeProtectedHeader(secret)).toMatchObject({ alg: 'ES256', kid: 'KEY1234567' })
     expect(payload.exp).toBeGreaterThan(Date.now() / 1000)
+    expect(server.revocations).toEqual([])
+  })
+
+  it('revokes the refresh token a fresh code yields, for a deletion', async () => {
+    server = await fakeOidcServer({ pkce: false })
+    const { privateKey } = await jose.generateKeyPair('ES256', { extractable: true })
+    const providers = new OpenIdIdentityProviders(
+      {
+        ...testEnv(),
+        APPLE_CLIENT_ID: 'com.example.web',
+        APPLE_TEAM_ID: 'TEAM123456',
+        APPLE_KEY_ID: 'KEY1234567',
+        APPLE_PRIVATE_KEY: (await jose.exportPKCS8(privateKey)).replaceAll('\n', '\\n'),
+      },
+      { issuers: { apple: server.issuer }, insecure: true },
+    )
+    const redirect = await providers.redirect('apple', 'state-1')
+    const code = server.authorize(redirect.url, {
+      sub: 'a-1',
+      email: 'ana@privaterelay.appleid.com',
+      email_verified: 'true',
+    })
+
+    const profile = await providers.revoke('apple', {
+      callbackUrl: callback('apple', code, 'state-1'),
+      state: 'state-1',
+      codeVerifier: null,
+      nonce: redirect.nonce,
+      name: null,
+    })
+
+    expect(profile.subject).toBe('a-1')
+    expect(server.revocations).toHaveLength(1)
+    expect(server.revocations[0]?.get('token')).toBe('refresh')
+    expect(server.revocations[0]?.get('token_type_hint')).toBe('refresh_token')
+    expect(server.revocations[0]?.get('client_id')).toBe('com.example.web')
+  })
+})
+
+describe('OpenIdIdentityProviders with Apple’s own sheet', () => {
+  const claims = { sub: 'a-1', email: 'ana@privaterelay.appleid.com', email_verified: 'true' }
+
+  async function apple() {
+    server = await fakeOidcServer({ pkce: false })
+    const { privateKey } = await jose.generateKeyPair('ES256', { extractable: true })
+
+    return new OpenIdIdentityProviders(
+      {
+        ...testEnv(),
+        APPLE_BUNDLE_ID: 'com.example.app',
+        APPLE_TEAM_ID: 'TEAM123456',
+        APPLE_KEY_ID: 'KEY1234567',
+        APPLE_PRIVATE_KEY: (await jose.exportPKCS8(privateKey)).replaceAll('\n', '\\n'),
+      },
+      { issuers: { apple: server.issuer }, insecure: true },
+    )
+  }
+
+  it('takes a token issued to the bundle ID with the nonce of its trip, and no other', async () => {
+    const providers = await apple()
+    const verify = async (nonce: string, sent: string | null, audience = 'com.example.app') =>
+      providers.verify('apple', {
+        idToken: await server.mint({ ...claims, nonce }, audience),
+        nonce: sent,
+        name: 'Ana',
+      })
+
+    expect(providers.isNativeConfigured('apple')).toBe(true)
+    expect(providers.isConfigured('apple')).toBe(false)
+    await expect(verify('n-1', 'n-1')).resolves.toEqual({
+      subject: 'a-1',
+      email: 'ana@privaterelay.appleid.com',
+      emailVerified: true,
+      name: 'Ana',
+    })
+    await expect(verify('n-1', 'n-2')).rejects.toBeInstanceOf(SocialSignInFailedError)
+    await expect(verify('n-1', null)).rejects.toBeInstanceOf(SocialSignInFailedError)
+    await expect(verify('n-1', 'n-1', 'com.example.web')).rejects.toBeInstanceOf(
+      SocialSignInFailedError,
+    )
+  })
+
+  it('trades the sheet’s code under the bundle ID and revokes what it yields, for a deletion', async () => {
+    const providers = await apple()
+
+    await providers.revokeNative('apple', server.code(claims))
+
+    expect(server.tokenRequests[0]?.get('client_id')).toBe('com.example.app')
+    expect(server.tokenRequests[0]?.has('redirect_uri')).toBe(false)
+    expect(server.revocations).toHaveLength(1)
+    expect(server.revocations[0]?.get('token')).toBe('refresh')
+    expect(server.revocations[0]?.get('client_id')).toBe('com.example.app')
+    await expect(providers.revokeNative('apple', 'forged')).rejects.toBeInstanceOf(
+      SocialSignInFailedError,
+    )
   })
 })
 // prumo:end-apple

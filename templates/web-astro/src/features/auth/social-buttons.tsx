@@ -14,13 +14,22 @@ export function SocialButtons({
   auth,
   returnTo,
   error,
+  deleted = false, // prumo:apple
 }: {
   auth: Pick<AuthClient, 'socialSignInUrl'>
   returnTo: string | undefined
   error: string | undefined
+  deleted?: boolean // prumo:apple
 }) {
   return (
     <div className="flex flex-col gap-3">
+      {/* prumo:apple */}
+      {deleted && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Your account was deleted.
+        </p>
+      )}
+      {/* prumo:end-apple */}
       {error !== undefined && (
         <p role="alert" className="text-sm text-destructive">
           {FAILURES[error] ?? 'The sign-in did not complete. Try again.'}
@@ -56,6 +65,7 @@ function SocialSignInPart() {
       auth={auth}
       returnTo={search.get('redirect') ?? undefined}
       error={search.get('error') ?? undefined}
+      deleted={search.has('deleted')} // prumo:apple
     />
   )
 }

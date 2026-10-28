@@ -2,6 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
 import { createTestQueryClient } from '@test/support/query-client'
 import { renderApp } from '@test/support/render-app'
+import { signInThroughPage } from '@test/support/sign-in-through-page'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -92,6 +93,16 @@ describe('the consent route', () => {
             ? json(200, { user: { id: 'user-1', email: 'ana@example.com' } })
             : json(401, {}),
         'POST /api/auth/refresh': () => json(401, {}),
+        'POST /api/auth/email/code': () => new Response(null, { status: 204 }),
+        'POST /api/auth/email/sign-in': () => {
+          signedIn = true
+          return new Response(null, { status: 204 })
+        },
+        'POST /api/auth/phone/code': () => new Response(null, { status: 204 }),
+        'POST /api/auth/phone/sign-in': () => {
+          signedIn = true
+          return new Response(null, { status: 204 })
+        },
         'POST /api/auth/sign-in': () => {
           signedIn = true
           return new Response(null, { status: 204 })
@@ -100,9 +111,7 @@ describe('the consent route', () => {
       }),
     )
 
-    await visitor.type(await screen.findByLabelText('Email'), 'ana@example.com')
-    await visitor.type(screen.getByLabelText('Password'), 'correct-horse-battery')
-    await visitor.click(screen.getByRole('button', { name: 'Sign in' }))
+    await signInThroughPage(visitor, 'ana@example.com')
 
     expect(await screen.findByRole('heading', { name: 'Allow access' })).toBeInTheDocument()
     expect(await screen.findByText('Claude')).toBeInTheDocument()

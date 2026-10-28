@@ -9,7 +9,12 @@ import {
 } from './apps.ts'
 import type { AppType } from './compose.ts'
 import type { Answers } from './context.ts'
-import { SOCIAL_PROVIDERS, type SocialProvider } from './features.ts'
+import {
+  SIGN_IN_METHODS,
+  type SignInMethod,
+  SOCIAL_PROVIDERS,
+  type SocialProvider,
+} from './features.ts'
 
 export type Asker = {
   name: () => Promise<string>
@@ -19,8 +24,22 @@ export type Asker = {
   framework: (app: string) => Promise<WebFramework>
   multiTenant: () => Promise<boolean>
   mcp: () => Promise<boolean>
+  signIn: () => Promise<SignInMethod[]>
   email: () => Promise<boolean>
   social: () => Promise<SocialProvider[]>
+}
+
+// What each way in costs the person signing in, so the choice is made on that.
+export const SIGN_IN_HINTS: Record<SignInMethod, { label: string; hint: string }> = {
+  password: { label: 'Password', hint: 'an email and a password, chosen at sign-up' },
+  'email-code': {
+    label: 'Email code',
+    hint: 'a 6-digit code sent by email; the first one creates the account',
+  },
+  'phone-code': {
+    label: 'Phone code',
+    hint: 'a 6-digit code sent by SMS; needs a paid SMS provider in production',
+  },
 }
 
 // One line each, so the choice is made on what the app is for rather than on the framework's name.
@@ -138,6 +157,15 @@ export function terminalAsker(validateName: (name: string) => string | undefined
         await prompt.confirm({
           message: 'Let AI assistants use the API through MCP, signed in as the user?',
           initialValue: false,
+        }),
+      ),
+    signIn: async () =>
+      answered(
+        await prompt.multiselect<SignInMethod>({
+          message: 'How do people sign in? Choose one or more',
+          options: SIGN_IN_METHODS.map((method) => ({ value: method, ...SIGN_IN_HINTS[method] })),
+          initialValues: ['password'],
+          required: true,
         }),
       ),
     email: async () =>

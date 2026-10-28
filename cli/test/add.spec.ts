@@ -34,6 +34,7 @@ describe('prumo add', () => {
         architecture: 'monorepo',
         multiTenant: false,
         mcp: false,
+        signIn: ['password'],
         email: false,
         social: [],
         ...answers,

@@ -33,4 +33,12 @@ describe('SocialButtons', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('not verified with the provider')
   })
+
+  // prumo:apple
+  it('says the account was deleted, when Apple brought the person back from deleting it', async () => {
+    renderApp('/sign-in?deleted=1', signedOut)
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Your account was deleted.')
+  })
+  // prumo:end-apple
 })

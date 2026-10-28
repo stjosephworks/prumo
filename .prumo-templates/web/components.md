@@ -68,8 +68,8 @@ Extraction:
 Rendering a link as a button:
 
 ```
-✅  <Button render={<Link to="/sign-up" />} nativeButton={false}>Sign up</Button>
-❌  <Button asChild><Link to="/sign-up">Sign up</Link></Button>     // Radix's idiom
+✅  <Button render={<Link to="/sign-in" />} nativeButton={false}>Sign in</Button>
+❌  <Button asChild><Link to="/sign-in">Sign in</Link></Button>     // Radix's idiom
 ```
 
 Variants:

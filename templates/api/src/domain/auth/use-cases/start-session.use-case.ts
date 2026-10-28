@@ -1,5 +1,5 @@
 import { inject, injectable } from 'tsyringe'
-import { type Grant, Session } from '@/domain/auth/entities/session.entity'
+import { type Grant, SESSION_LIFETIME, Session } from '@/domain/auth/entities/session.entity'
 import {
   ACCESS_TOKEN_LIFETIME_MS,
   ACCESS_TOKENS,
@@ -27,12 +27,13 @@ export class StartSessionUseCase {
     @inject(SESSION_REPOSITORY) private readonly sessions: SessionRepository,
     @inject(ACCESS_TOKENS) private readonly tokens: AccessTokens,
     @inject(OPAQUE_TOKENS) private readonly opaque: OpaqueTokens,
+    @inject(SESSION_LIFETIME) private readonly lifetimeMs: number,
   ) {}
 
   async execute(userId: string, grant?: Grant): Promise<SessionTokens> {
     const now = new Date()
     const secret = this.opaque.create()
-    const session = new Session(userId, this.opaque.digest(secret), now, grant)
+    const session = new Session(userId, this.opaque.digest(secret), now, this.lifetimeMs, grant)
 
     await this.sessions.save(session)
 

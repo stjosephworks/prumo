@@ -28,7 +28,9 @@ This document describes **where files live and what they are called**. What goes
     monorepo/        ← architecture monorepo
     multi-tenancy/   ← multi-tenant projects only
     mcp/             ← projects that answered yes to MCP
-    email/           ← projects that answered yes to email verification
+    codes/           ← projects that send codes at all: their table, limits and answers
+    email/           ← projects that send codes by email: verification, or sign-in by code
+    phone/           ← projects that sign in by a code texted to a phone
     social/          ← projects that chose a sign-in provider
 ```
 
@@ -52,11 +54,16 @@ it or refresh it are planned after V1.
 
 ## Areas
 
-Areas do not mirror types. Eleven of the fourteen are not types at all: `core/` ships always, `database/` follows a
+Areas do not mirror types. Thirteen of the sixteen are not types at all: `core/` ships always, `database/` follows a
 type, `client/` follows either client type, `web-vite/`, `web-next/` and `web-astro/` follow a web app's framework,
 `monorepo/` follows the architecture, `multi-tenancy/` follows a third axis of its own, `mcp/` a fourth, asked only
-when there is an api and a web, and `email/` and `social/` a fifth and a sixth, asked when there is an api, and for
-social a client to come back to.
+when there is an api and a web, `codes/`, `email/` and `phone/` follow how people sign in and whether emails are
+verified, and `social/` follows the providers, asked when there is an api and a client to come back to.
+
+A document in an area may mark what it says about one feature with `<!-- prumo:<feature> -->` and
+`<!-- prumo:end-<feature> -->`: a project without that feature receives the document without it, as it receives a
+README. `api/auth.md` holds a paragraph for each way in, and `email/codes.md` one for verification and one for
+sign-in by code, so no project reads about a flow it does not have.
 
 | Area | Holds | Ships when |
 |---|---|---|
@@ -72,7 +79,9 @@ social a client to come back to.
 | `monorepo/` | Workspace organisation | architecture is `monorepo` |
 | `multi-tenancy/` | `tenant_id` across the layers, tenant resolution, isolation | the project is multi-tenant |
 | `mcp/` | The MCP server, its tools and their scopes, and the OAuth that authorizes them | the project has an api and a web and answered yes to MCP |
-| `email/` | The `Mailer` port, and the codes that verify an email and reset a password | the project has an api and answered yes to email |
+| `codes/` | One-time codes whatever their channel: the table, the limits, the sweep, and answers that say nothing about accounts | the project has an api and sends any code |
+| `email/` | The `Mailer` port, and the codes sent by email: to verify an email and reset a password, or to sign in | the project has an api and answered yes to email, or signs in by `email-code` |
+| `phone/` | The `TextMessages` and `PhoneNumbers` ports, `SMS_COUNTRIES`, and sign-in by a texted code | the project has an api and signs in by `phone-code` |
 | `social/` | Sign-in with a provider: the trip there and back, and how an account is linked | the project has an api, a web or mobile app, and chose a provider |
 
 This table is the inclusion rule, and it lives in the CLI as one explicit table, not as a manifest

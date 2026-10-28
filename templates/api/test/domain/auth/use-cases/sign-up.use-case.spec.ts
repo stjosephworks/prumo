@@ -18,6 +18,27 @@ describe('SignUpUseCase', () => {
     expect(profiles.rows.get(user?.id ?? '')).toMatchObject({ displayName: 'Ana' })
   })
 
+  it("starts the profile in the device's language and timezone", async () => {
+    const { signUp, users, profiles } = authFakes()
+
+    await signUp.execute({ ...ANA, locale: 'pt', timezone: 'America/Sao_Paulo' })
+    const [user] = [...users.rows.values()]
+
+    expect(profiles.rows.get(user?.id ?? '')).toMatchObject({
+      locale: 'pt-BR',
+      timezone: 'America/Sao_Paulo',
+    })
+  })
+
+  it('starts in English and UTC when the device says nothing it supports', async () => {
+    const { signUp, users, profiles } = authFakes()
+
+    await signUp.execute({ ...ANA, locale: 'ja-JP' })
+    const [user] = [...users.rows.values()]
+
+    expect(profiles.rows.get(user?.id ?? '')).toMatchObject({ locale: 'en', timezone: 'UTC' })
+  })
+
   it('refuses an email already taken, whatever its case', async () => {
     const { signUp, profiles } = authFakes()
 

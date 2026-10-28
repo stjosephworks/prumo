@@ -4,7 +4,7 @@ import { User } from '@/domain/auth/entities/user.entity'
 import { EmailTakenError } from '@/domain/auth/errors/email-taken.error'
 import { PASSWORD_HASHER, type PasswordHasher } from '@/domain/auth/ports/password-hasher.port'
 import { USER_REPOSITORY, type UserRepository } from '@/domain/auth/repositories/user.repository'
-import { IssueEmailCodeUseCase } from '@/domain/auth/use-cases/issue-email-code.use-case' // prumo:email
+import { IssueCodeUseCase } from '@/domain/auth/use-cases/issue-code.use-case' // prumo:email
 import {
   type SessionTokens,
   StartSessionUseCase,
@@ -23,23 +23,32 @@ export class SignUpUseCase {
     @inject(TRANSACTION_MANAGER) private readonly transactions: TransactionManager,
     private readonly createProfile: CreateProfileUseCase,
     private readonly startSession: StartSessionUseCase,
-    private readonly issueEmailCode: IssueEmailCodeUseCase, // prumo:email
+    private readonly issueCode: IssueCodeUseCase, // prumo:email
   ) {}
 
   // Null when the account must confirm its email before it may sign in.
-  async execute({ name, email, password }: SignUpDto): Promise<SessionTokens | null> {
+  async execute({
+    name,
+    email,
+    password,
+    locale,
+    timezone,
+  }: SignUpDto): Promise<SessionTokens | null> {
     const passwordHash = await this.hasher.hash(password)
+    const address = User.normalizeEmail(email)
 
     // The account and its profile exist together or not at all.
     const user = await this.transactions.run(async () => {
-      if ((await this.users.findByEmail(User.normalizeEmail(email))) !== null) {
+      if ((await this.users.findByEmail(address)) !== null) {
         throw new EmailTakenError()
       }
 
-      const user = new User(email, passwordHash)
+      const user = new User({ email: address })
+
+      user.changePassword(passwordHash)
 
       await this.users.save(user)
-      await this.createProfile.execute(user.id, name)
+      await this.createProfile.execute(user.id, name, { locale, timezone })
 
       return user
     })
@@ -47,7 +56,9 @@ export class SignUpUseCase {
     // prumo:email
     // Until the address is confirmed the account cannot sign in, so it opens no session either.
     if (user.emailVerifiedAt === null) {
-      await this.issueEmailCode.execute(user, 'verify-email')
+      await this.issueCode.execute({ channel: 'email', destination: address }, 'verify-email', {
+        deliver: true,
+      })
       return null
     }
 

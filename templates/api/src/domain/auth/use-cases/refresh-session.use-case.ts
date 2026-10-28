@@ -1,5 +1,5 @@
 import { inject, injectable } from 'tsyringe'
-import { Session } from '@/domain/auth/entities/session.entity'
+import { SESSION_LIFETIME, Session } from '@/domain/auth/entities/session.entity'
 import { InvalidSessionError } from '@/domain/auth/errors/invalid-session.error'
 import { SupersededTokenError } from '@/domain/auth/errors/superseded-token.error'
 import {
@@ -25,6 +25,7 @@ export class RefreshSessionUseCase {
     @inject(ACCESS_TOKENS) private readonly tokens: AccessTokens,
     @inject(OPAQUE_TOKENS) private readonly opaque: OpaqueTokens,
     @inject(TRANSACTION_MANAGER) private readonly transactions: TransactionManager,
+    @inject(SESSION_LIFETIME) private readonly lifetimeMs: number,
   ) {}
 
   // A first-party refresh passes no client; an OAuth client passes its own id, and neither can use the other's token.
@@ -52,13 +53,18 @@ export class RefreshSessionUseCase {
         await this.sessions.save(session)
       }
 
-      if (outcome !== 'valid') {
+      if (outcome !== 'valid' && outcome !== 'previous') {
         return outcome
       }
 
       const next = this.opaque.create()
 
-      session.rotate(this.opaque.digest(next), now)
+      if (outcome === 'previous') {
+        session.rotateFromPrevious(this.opaque.digest(next), now, this.lifetimeMs)
+      } else {
+        session.rotate(this.opaque.digest(next), now, this.lifetimeMs)
+      }
+
       await this.sessions.save(session)
 
       return { session, next }

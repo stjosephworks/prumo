@@ -33,7 +33,6 @@ describe('email verification over HTTP', () => {
     expect(refused.statusCode).toBe(403)
     expect(refused.json()).toMatchObject({ code: 'email_not_verified' })
 
-    await post('/api/auth/email/verification', { email })
     const verified = await post('/api/auth/email/verify', { email, code: mailer.lastCode(email) })
 
     expect(verified.statusCode).toBe(200)
@@ -67,6 +66,22 @@ describe('email verification over HTTP', () => {
     expect(wrong.json()).toMatchObject({ code: 'invalid_code' })
     expect(unknown.statusCode).toBe(204)
     expect(mailer.sent.map((mail) => mail.to)).not.toContain('nobody@example.com')
+  })
+})
+
+describe('sending limits over HTTP', () => {
+  it('answers a code asked for too soon with 429 and when to ask again, account or not', async () => {
+    await post('/api/auth/sign-up', { name: 'Ana', email: 'ana@example.com', password: PASSWORD })
+    await post('/api/auth/password/forgot', { email: 'nobody@example.com' })
+
+    const known = await post('/api/auth/email/verification', { email: 'ana@example.com' })
+    const unknown = await post('/api/auth/password/forgot', { email: 'nobody@example.com' })
+
+    for (const response of [known, unknown]) {
+      expect(response.statusCode).toBe(429)
+      expect(response.json()).toMatchObject({ code: 'too_many_codes' })
+      expect(Number(response.headers['retry-after'])).toBeGreaterThan(0)
+    }
   })
 })
 

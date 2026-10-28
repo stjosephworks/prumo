@@ -4,12 +4,13 @@ import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { type AuthClient, sessionQuery } from '@/api-contract'
+import { ApiError, type AuthClient, sessionQuery } from '@/api-contract'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { useCooldown } from '@/features/forms/use-cooldown'
 
 const schema = z.object({ code: z.string().regex(/^\d{6}$/, 'Enter the 6 digits from the email') })
 
@@ -25,6 +26,7 @@ export function VerifyEmailForm({
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [resent, setResent] = useState(false)
+  const [wait, startWait] = useCooldown()
   const form = useForm<VerifyEmailValues>({
     resolver: zodResolver(schema),
     mode: 'onTouched',
@@ -46,7 +48,19 @@ export function VerifyEmailForm({
   }
 
   async function resend() {
-    await auth.requestEmailVerification(email)
+    try {
+      await auth.requestEmailVerification(email)
+    } catch (error) {
+      // A code went to this address moments ago; the API says when the next may.
+      if (error instanceof ApiError && error.retryAfter !== undefined) {
+        setResent(false)
+        startWait(error.retryAfter)
+        return
+      }
+
+      throw error
+    }
+
     setResent(true)
   }
 
@@ -71,8 +85,8 @@ export function VerifyEmailForm({
       <Button type="submit" disabled={isSubmitting}>
         Confirm email
       </Button>
-      <Button type="button" variant="outline" onClick={resend}>
-        Send a new code
+      <Button type="button" variant="outline" onClick={resend} disabled={wait > 0}>
+        {wait > 0 ? `Send a new code in ${wait}s` : 'Send a new code'}
       </Button>
       {resent && (
         <p role="status" className="text-sm text-muted-foreground">

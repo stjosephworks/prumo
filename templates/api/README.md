@@ -32,8 +32,25 @@ new port to `.env`, along with every URL that pointed at the old one. Without a 
 Ctrl+C stops everything `pnpm dev` started, not only what the terminal signals: the script remembers the processes
 it spawned, stops them, and frees the port. Anything it did not start is named and left alone.
 
-Authentication is the API's own: `/api/auth/sign-up`, `sign-in`, `refresh`, `sign-out` and `session`. The web
-receives httpOnly cookies; a native client sends `X-Auth-Transport: bearer` and receives the tokens in the body.
+Authentication is the API's own: `/api/auth/refresh`, `sign-out` and `session`, and the routes of each way in. The
+web receives httpOnly cookies; a native client sends `X-Auth-Transport: bearer` and receives the tokens in the body.
+<!-- prumo:password -->
+
+A password account signs up at `/api/auth/sign-up` and signs in at `/api/auth/sign-in`.
+<!-- prumo:end-password -->
+<!-- prumo:email-code -->
+
+Anyone signs in by a 6-digit code: `/api/auth/email/code` sends it, and `/api/auth/email/sign-in` checks it,
+creating the account the first time. No mail is sent yet: `LogMailer` writes each mail to this API's log, in a line
+starting `[mail] to`, so read the code there.
+<!-- prumo:end-email-code -->
+<!-- prumo:phone-code -->
+
+Anyone signs in by a code texted to a mobile number: `/api/auth/phone/code` sends it, and `/api/auth/phone/sign-in`
+checks it, creating the account the first time. No text is sent yet: `LogTextMessages` writes each one to this API's
+log, in a line starting `[sms] to`, and only numbers in the countries of `SMS_COUNTRIES` are texted. Set both before
+going live; see `.prumo/phone/`.
+<!-- prumo:end-phone-code -->
 <!-- prumo:email -->
 
 An account must confirm its email before it can sign in. `/api/auth/email/verification` and `/api/auth/email/verify`
