@@ -31,6 +31,13 @@ export type TokenStore = {
 
 export type AuthClient = ReturnType<typeof createAuthClient>
 
+// The device's language and timezone, sent when an account is created so its profile starts in them.
+function devicePreferences(): { locale: string; timezone: string } {
+  const { locale, timeZone } = Intl.DateTimeFormat().resolvedOptions()
+
+  return { locale, timezone: timeZone }
+}
+
 export function createAuthClient({
   baseUrl,
   fetch,
@@ -156,7 +163,7 @@ export function createAuthClient({
     fetch: authorized,
     refresh,
 
-    signUp: (request: SignUpRequest) => begin('/sign-up', request),
+    signUp: (request: SignUpRequest) => begin('/sign-up', { ...request, ...devicePreferences() }),
 
     signIn: async (request: SignInRequest): Promise<void> => {
       await begin('/sign-in', request)

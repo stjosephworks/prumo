@@ -27,7 +27,13 @@ export class SignUpUseCase {
   ) {}
 
   // Null when the account must confirm its email before it may sign in.
-  async execute({ name, email, password }: SignUpDto): Promise<SessionTokens | null> {
+  async execute({
+    name,
+    email,
+    password,
+    locale,
+    timezone,
+  }: SignUpDto): Promise<SessionTokens | null> {
     const passwordHash = await this.hasher.hash(password)
 
     // The account and its profile exist together or not at all.
@@ -39,7 +45,7 @@ export class SignUpUseCase {
       const user = new User(email, passwordHash)
 
       await this.users.save(user)
-      await this.createProfile.execute(user.id, name)
+      await this.createProfile.execute(user.id, name, { locale, timezone })
 
       return user
     })

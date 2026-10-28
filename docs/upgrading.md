@@ -77,6 +77,8 @@ three of its own.
 | `src/domain/shared/errors/domain-error.ts`, `src/infra/http/errors/error-handler.ts` | api | A `throttled` kind answers 429, with `Retry-After` when the error carries `retryAfter` |
 | `src/api-contract/api-error.ts`, `src/features/forms/server-errors.ts`, `src/features/forms/use-cooldown.ts`, `verify-email-form.tsx` | web, mobile | `ApiError.retryAfter`; a 429 says when to try again; the new-code button counts down |
 | `.prumo/email/codes.md`, `.prumo/email/mailer.md` | api with email | The limits, the sweep, and a failed send answering like a sent one |
+| `src/domain/users/entities/profile.entity.ts`, `create-profile.use-case.ts`, `sign-up.dto.ts`, `sign-up.use-case.ts` | api | A new profile starts in the device's `locale` and `timezone` when sign-up sends them; `Profile.localeFor` maps a tag to a supported locale |
+| `src/api-contract/auth.ts` | web, mobile | `signUp` sends the device's `locale` and `timezone` |
 
 Why: behind a load balancer every client shared the balancer's address, so the rate limits put the whole world in
 one bucket of ten sign-ins a minute.

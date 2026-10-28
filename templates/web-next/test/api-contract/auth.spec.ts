@@ -17,6 +17,26 @@ function memoryStore(initial: Tokens | null = null): TokenStore & { current: Tok
 }
 
 describe('createAuthClient on the web', () => {
+  it("sends the device's language and timezone with a sign-up, for the new profile", async () => {
+    let body: unknown
+    const auth = createAuthClient({
+      baseUrl: API_URL,
+      fetch: fakeTransport({
+        'POST /api/auth/sign-up': async (request) => {
+          body = await request.json()
+          return json(201, { verificationRequired: false })
+        },
+      }),
+    })
+
+    await auth.signUp({ name: 'Ana', email: 'ana@example.com', password: 'correct-horse-battery' })
+
+    expect(body).toMatchObject({
+      locale: Intl.DateTimeFormat().resolvedOptions().locale,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })
+  })
+
   it('refreshes once on a 401, repeats the request, and asks nothing of the body', async () => {
     const calls: string[] = []
     let valid = false

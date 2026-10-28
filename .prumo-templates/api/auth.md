@@ -31,7 +31,9 @@ user in the handler with `currentUser(request)` and pass its id to the use case 
 never reads the request.
 
 Create a user and the application's own row for it in one use case, inside one transaction: `SignUpUseCase`
-creates the `User` and calls `CreateProfileUseCase`.
+creates the `User` and calls `CreateProfileUseCase`. Take the device's `locale` and `timezone`, both optional, with
+the request that creates the account, and use them for the new profile only: a locale the profile does not support
+becomes the first one in its language, else English. The clients' contract sends them on its own.
 
 Limit the routes that take a password with `@fastify/rate-limit`, through the route's own
 `config.rateLimit`. The plugin is registered with `global: false`. It counts by `request.ip`, which is the
