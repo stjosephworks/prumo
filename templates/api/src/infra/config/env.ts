@@ -38,6 +38,8 @@ const envSchema = z.object({
     .transform((value) => value.split(',').map((code) => code.trim().toUpperCase()))
     .pipe(z.array(z.string().regex(/^[A-Z]{2}$/)).min(1)),
   // prumo:end-phone-code
+  // How long a session lives past its last refresh, in days. A product decision: a bank wants hours, a social app months.
+  SESSION_LIFETIME_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   // prumo:code-sign-in
   // For store review only: `destination:code` pairs, comma-separated, each address signing in with its fixed code
   // after asking for one, within the usual attempts. Unset, nobody can.

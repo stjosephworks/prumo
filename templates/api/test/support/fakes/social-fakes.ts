@@ -1,4 +1,4 @@
-import { authFakes } from '@test/support/fakes/auth-fakes'
+import { authFakes, LIFETIME_MS } from '@test/support/fakes/auth-fakes'
 import { FakeOpaqueTokens } from '@test/support/fakes/fake-opaque-tokens'
 import { ImmediateTransactionManager } from '@test/support/fakes/immediate-transaction-manager'
 import type { Identity } from '@/domain/auth/entities/identity.entity'
@@ -83,7 +83,12 @@ export function socialFakes() {
   const providers = new FakeIdentityProviders()
   const opaque = new FakeOpaqueTokens()
   const transactions = new ImmediateTransactionManager()
-  const startSession = new StartSessionUseCase(auth.sessions, new FakeAccessTokens(), opaque)
+  const startSession = new StartSessionUseCase(
+    auth.sessions,
+    new FakeAccessTokens(),
+    opaque,
+    LIFETIME_MS,
+  )
   const linkIdentity = new LinkIdentityUseCase(
     auth.users,
     identities,

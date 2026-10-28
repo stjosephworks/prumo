@@ -32,6 +32,9 @@ import { CreateProfileUseCase } from '@/domain/users/use-cases/create-profile.us
 import { EnvReviewSignIns } from '@/infra/review/env-review-sign-ins.adapter' // prumo:code-sign-in
 import { LibPhoneNumbers } from '@/infra/sms/libphonenumber-phone-numbers.adapter' // prumo:phone-code
 
+// The template's default, thirty days.
+export const LIFETIME_MS = 30 * 24 * 60 * 60 * 1000
+
 // Every auth use case wired to in-memory ports, sharing one set of them as the container would.
 export function authFakes() {
   const users = new InMemoryUserRepository()
@@ -40,7 +43,7 @@ export function authFakes() {
   const tokens = new FakeAccessTokens()
   const opaque = new FakeOpaqueTokens()
   const transactions = new ImmediateTransactionManager()
-  const startSession = new StartSessionUseCase(sessions, tokens, opaque)
+  const startSession = new StartSessionUseCase(sessions, tokens, opaque, LIFETIME_MS)
   const createProfile = new CreateProfileUseCase(profiles)
   const hasher = new FakePasswordHasher() // prumo:password
   // prumo:codes
@@ -121,7 +124,7 @@ export function authFakes() {
     sessions,
     profiles,
     signedIn,
-    refresh: new RefreshSessionUseCase(sessions, tokens, opaque, transactions),
+    refresh: new RefreshSessionUseCase(sessions, tokens, opaque, transactions, LIFETIME_MS),
     signOut: new SignOutUseCase(sessions),
     // prumo:password
     hasher,

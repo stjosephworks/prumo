@@ -100,6 +100,7 @@ three of its own.
 | `email-change.controller.ts`, `request-email-change.use-case.ts`, `change-email.use-case.ts` (and the `phone` ones) | api with email or phone codes | New. `POST /api/v1/users/me/email/code` and `/me/email` (and `/me/phone…`): a code to the new address if free, 204 either way, a notice to the old one |
 | `src/api-contract/client.ts`, `src/api-contract/contact.ts`, `src/features/profile/contact-form.tsx` | web, mobile | `ApiClient.post`, and a 204 read as nothing; the profile shows each address with a way to change it |
 | `review-sign-ins.port.ts`, `src/infra/review/`, `REVIEW_SIGN_IN` in `env.ts` and `.env.example` | api with a code sign-in | New. An agreed code a store reviewer enters at a named address, after asking for one there; `OneTimeCode.check` takes it as the sent one |
+| `session.entity.ts`, `refresh-session.use-case.ts`, `start-session.use-case.ts`, `auth.di.ts`, `env.ts`, `.env.example` | api | The previous refresh token, after the ten-second grace, rotates the session again instead of revoking it (`rotateFromPrevious`); `SESSION_LIFETIME_DAYS`, thirty by default, replaces `SESSION_LIFETIME_MS`, injected as `SESSION_LIFETIME` |
 | `test/support/test-app.ts`, `test/support/fakes/auth-fakes.ts` | api | `signIn` and `signedIn` reach a session through the project's own way in; `signUpWithPassword` and `register` stay for the password's own specs |
 
 Why: behind a load balancer every client shared the balancer's address, so the rate limits put the whole world in

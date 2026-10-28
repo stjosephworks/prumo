@@ -1,5 +1,6 @@
-// A refresh token is long-lived, so it rotates on every use and is kept only as a hash.
-export const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000
+// How long a session lives past its last refresh, in milliseconds: the product's to choose, from
+// SESSION_LIFETIME_DAYS. A refresh token is long-lived, so it rotates on every use and is kept only as a hash.
+export const SESSION_LIFETIME = Symbol('SessionLifetime')
 
 // Two tabs refreshing at once both present the same token. The second, arriving within this window, is told to
 // retry instead of being treated as a stolen token.
@@ -9,7 +10,7 @@ export const ROTATION_GRACE_MS = 10 * 1000
 // for, short enough that a session taken later cannot.
 export const RECENT_SIGN_IN_MS = 10 * 60 * 1000
 
-export type RefreshOutcome = 'valid' | 'superseded' | 'reused' | 'expired'
+export type RefreshOutcome = 'valid' | 'previous' | 'superseded' | 'reused' | 'expired'
 
 // A session the user started in this application has none of these. One an OAuth client obtained names the client,
 // the resource its access tokens are for, and the scopes the user granted it, space-separated as OAuth writes them.
@@ -31,13 +32,13 @@ export class Session {
   createdAt: Date
   updatedAt: Date
 
-  constructor(userId: string, tokenHash: string, now: Date, grant?: Grant) {
+  constructor(userId: string, tokenHash: string, now: Date, lifetimeMs: number, grant?: Grant) {
     this.userId = userId
     this.tokenHash = tokenHash
     this.clientId = grant?.clientId ?? null
     this.resource = grant?.resource ?? null
     this.scope = grant?.scope ?? null
-    this.expiresAt = new Date(now.getTime() + SESSION_LIFETIME_MS)
+    this.expiresAt = new Date(now.getTime() + lifetimeMs)
   }
 
   // Signed into in this application moments ago. A session an OAuth client obtained never is: it acts for the
@@ -59,7 +60,9 @@ export class Session {
     return `${this.id}.${secret}`
   }
 
-  // A token that is neither the current one nor the one just replaced was replaced long ago: someone kept a copy.
+  // The previous token, moments after its rotation, is a second tab: it retries. Later it is a client whose answer
+  // never arrived, killed or offline mid-refresh, since the current token has not been presented: it is let back
+  // in. Any other token was replaced before that: someone kept a copy.
   check(tokenHash: string, now: Date): RefreshOutcome {
     if (this.revokedAt !== null || this.expiresAt <= now) {
       return 'expired'
@@ -69,17 +72,29 @@ export class Session {
       return 'valid'
     }
 
+    if (tokenHash !== this.previousTokenHash) {
+      return 'reused'
+    }
+
     const justRotated =
       this.rotatedAt !== null && now.getTime() - this.rotatedAt.getTime() < ROTATION_GRACE_MS
 
-    return tokenHash === this.previousTokenHash && justRotated ? 'superseded' : 'reused'
+    return justRotated ? 'superseded' : 'previous'
   }
 
-  rotate(tokenHash: string, now: Date): void {
+  rotate(tokenHash: string, now: Date, lifetimeMs: number): void {
     this.previousTokenHash = this.tokenHash
     this.tokenHash = tokenHash
     this.rotatedAt = now
-    this.expiresAt = new Date(now.getTime() + SESSION_LIFETIME_MS)
+    this.expiresAt = new Date(now.getTime() + lifetimeMs)
+  }
+
+  // A rotation from the previous token: the current one, never delivered, is dropped, and the previous stays the
+  // previous. Should the dropped one come back, it is a copy, and ends the session.
+  rotateFromPrevious(tokenHash: string, now: Date, lifetimeMs: number): void {
+    this.tokenHash = tokenHash
+    this.rotatedAt = now
+    this.expiresAt = new Date(now.getTime() + lifetimeMs)
   }
 
   revoke(now: Date): void {

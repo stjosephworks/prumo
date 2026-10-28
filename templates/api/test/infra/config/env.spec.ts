@@ -26,6 +26,19 @@ describe('WEB_ORIGIN', () => {
   })
 })
 
+describe('SESSION_LIFETIME_DAYS', () => {
+  const env = { ...RAW, WEB_ORIGIN: 'http://localhost:5173' }
+
+  it('is thirty days unless set, and a whole number of days from 1 to 365', () => {
+    expect(validate(env).SESSION_LIFETIME_DAYS).toBe(30)
+    expect(validate({ ...env, SESSION_LIFETIME_DAYS: '7' }).SESSION_LIFETIME_DAYS).toBe(7)
+    expect(() => validate({ ...env, SESSION_LIFETIME_DAYS: '0' })).toThrow('SESSION_LIFETIME_DAYS')
+    expect(() => validate({ ...env, SESSION_LIFETIME_DAYS: '1.5' })).toThrow(
+      'SESSION_LIFETIME_DAYS',
+    )
+  })
+})
+
 describe('TRUST_PROXY', () => {
   it('trusts nobody by default, so a client cannot choose the address the rate limits read', () => {
     expect(validate({ ...RAW, WEB_ORIGIN: 'http://localhost:5173' }).TRUST_PROXY).toBe(false)

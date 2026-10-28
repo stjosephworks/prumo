@@ -11,8 +11,10 @@ way in from a controller of its own. Answer their errors as every route does, in
 
 Issue an access token as a JWT valid for **15 minutes**, signed with `HS256` from `JWT_SECRET`, and name the
 algorithm when verifying it. Issue the refresh token as an opaque `<sessionId>.<secret>`, store only its
-SHA-256, and **rotate it on every use**. A token from an earlier rotation revokes its session; the one replaced
-less than ten seconds ago answers 409 instead, and revokes nothing.
+SHA-256, and **rotate it on every use**. The token replaced less than ten seconds ago answers 409, and revokes
+nothing. Replaced longer ago, it is taken back once: the session rotates from it, dropping the current token, which
+was never presented, and the previous stays the previous. Any other token revokes its session, the dropped one
+included. A session lives `SESSION_LIFETIME_DAYS` past its last refresh, thirty unless set.
 
 <!-- prumo:password -->
 Serve `POST /api/auth/sign-up` and `sign-in` from `password.controller.ts`. Hash passwords with Argon2id through
@@ -80,7 +82,11 @@ An access token is checked by its signature alone, so no request touches the dat
 nothing can revoke one before it expires. Fifteen minutes bounds that. The refresh token is what can be
 revoked, so it lives in the database, and rotation makes a stolen copy detectable: whoever presents an old one
 is not the client that rotated it, and the session ends for both. The ten seconds exist because two tabs
-refreshing at once both present the same token, and the second must not sign the user out.
+refreshing at once both present the same token, and the second must not sign the user out. After them, the previous
+token comes from a client whose answer never arrived: an app killed or offline in the middle of a refresh. Taking it
+back delays catching a stolen copy until the thief and the owner have both refreshed, when one of them presents a
+token whose successor was used; signing everyone out on every lost answer would cost more. How long a session lives
+is a product's decision, a bank's hours or a social app's months, which is why it is a setting.
 
 <!-- prumo:password -->
 The decoy hash is there because the time a sign-in takes would otherwise say which emails have an account.
@@ -134,8 +140,9 @@ Every route, every use case that acts for a user, `src/domain/auth/`, and `src/i
 **Boot.** The hook is global, so a route is unprotected only by an explicit `public: true`.
 
 **Tests.** `auth.controller.spec.ts` covers both transports, rotation and the Origin check, signed in through the
-project's own way in. `refresh-session.use-case.spec.ts` proves that a replayed token revokes the session and that
-one just rotated does not. `jose-access-tokens.adapter.spec.ts` refuses an expired token, another secret, another
+project's own way in. `refresh-session.use-case.spec.ts` proves that a token rotated a moment ago retries, that a
+lost answer is taken back, that the dropped token, an older one and a copy whose successor was used each revoke the
+session. `jose-access-tokens.adapter.spec.ts` refuses an expired token, another secret, another
 issuer, an unsigned token and another algorithm.
 
 <!-- prumo:password -->

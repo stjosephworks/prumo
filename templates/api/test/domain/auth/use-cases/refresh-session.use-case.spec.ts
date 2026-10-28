@@ -30,18 +30,43 @@ describe('RefreshSessionUseCase', () => {
     await expect(refresh.execute(second.refreshToken)).resolves.toBeDefined()
   })
 
-  it('ends the session when a token comes back after the grace period', async () => {
+  it('lets a client whose answer never arrived back in with the previous token, after the grace', async () => {
     vi.useFakeTimers()
     const { signedIn, refresh, sessions } = authFakes()
     const first = await signedIn()
-    const second = await refresh.execute(first.refreshToken)
+    const lost = await refresh.execute(first.refreshToken)
 
     vi.advanceTimersByTime(ROTATION_GRACE_MS)
 
+    const recovered = await refresh.execute(first.refreshToken)
+
+    expect([...sessions.rows.values()][0]?.revokedAt).toBeNull()
+    await expect(refresh.execute(recovered.refreshToken)).resolves.toBeDefined()
+    // The answer that never arrived holds a token nobody should have: it ends the session.
+    await expect(refresh.execute(lost.refreshToken)).rejects.toBeInstanceOf(InvalidSessionError)
+    expect([...sessions.rows.values()][0]?.revokedAt).not.toBeNull()
+  })
+
+  it('ends the session when a token older than the previous one comes back', async () => {
+    const { signedIn, refresh, sessions } = authFakes()
+    const first = await signedIn()
+    const second = await refresh.execute(first.refreshToken)
+    await refresh.execute(second.refreshToken)
+
     await expect(refresh.execute(first.refreshToken)).rejects.toBeInstanceOf(InvalidSessionError)
     expect([...sessions.rows.values()][0]?.revokedAt).not.toBeNull()
-    // The thief's replay also locked out the rightful client: that is the point.
-    await expect(refresh.execute(second.refreshToken)).rejects.toBeInstanceOf(InvalidSessionError)
+  })
+
+  it('still catches a copied token, once its successor has been used', async () => {
+    vi.useFakeTimers()
+    const { signedIn, refresh } = authFakes()
+    const copied = await signedIn()
+    const owner = await refresh.execute(copied.refreshToken)
+
+    vi.advanceTimersByTime(ROTATION_GRACE_MS)
+    await refresh.execute(owner.refreshToken)
+
+    await expect(refresh.execute(copied.refreshToken)).rejects.toBeInstanceOf(InvalidSessionError)
   })
 
   it('refuses a token that names no session or is not one at all', async () => {
