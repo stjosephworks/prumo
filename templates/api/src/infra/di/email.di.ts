@@ -1,16 +1,16 @@
 import type { DependencyContainer } from 'tsyringe'
 import { MAILER } from '@/domain/auth/ports/mailer.port'
 import { ONE_TIME_CODES } from '@/domain/auth/ports/one-time-codes.port'
-import { EMAIL_CODE_REPOSITORY } from '@/domain/auth/repositories/email-code.repository'
+import { ONE_TIME_CODE_REPOSITORY } from '@/domain/auth/repositories/one-time-code.repository'
 import { ENV, type Env } from '@/infra/config/env'
-import { MikroOrmEmailCodeRepository } from '@/infra/database/mikroorm/repositories/mikroorm-email-code.repository'
+import { MikroOrmOneTimeCodeRepository } from '@/infra/database/mikroorm/repositories/mikroorm-one-time-code.repository'
 import { HmacOneTimeCodes } from '@/infra/email/hmac-one-time-codes.adapter'
 import { LogMailer } from '@/infra/email/log-mailer.adapter'
 
 export function registerEmail(container: DependencyContainer): void {
   const env = container.resolve<Env>(ENV)
 
-  container.register(EMAIL_CODE_REPOSITORY, { useClass: MikroOrmEmailCodeRepository })
+  container.register(ONE_TIME_CODE_REPOSITORY, { useClass: MikroOrmOneTimeCodeRepository })
   container.register(ONE_TIME_CODES, { useValue: new HmacOneTimeCodes(env) })
   // Silent under test, where a test registers its own Mailer to read what was sent.
   container.register(MAILER, {

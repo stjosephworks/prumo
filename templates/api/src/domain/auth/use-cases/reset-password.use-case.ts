@@ -5,9 +5,9 @@ import { InvalidCodeError } from '@/domain/auth/errors/invalid-code.error'
 import { ONE_TIME_CODES, type OneTimeCodes } from '@/domain/auth/ports/one-time-codes.port'
 import { PASSWORD_HASHER, type PasswordHasher } from '@/domain/auth/ports/password-hasher.port'
 import {
-  EMAIL_CODE_REPOSITORY,
-  type EmailCodeRepository,
-} from '@/domain/auth/repositories/email-code.repository'
+  ONE_TIME_CODE_REPOSITORY,
+  type OneTimeCodeRepository,
+} from '@/domain/auth/repositories/one-time-code.repository'
 import {
   SESSION_REPOSITORY,
   type SessionRepository,
@@ -26,7 +26,7 @@ import {
 export class ResetPasswordUseCase {
   constructor(
     @inject(USER_REPOSITORY) private readonly users: UserRepository,
-    @inject(EMAIL_CODE_REPOSITORY) private readonly codes: EmailCodeRepository,
+    @inject(ONE_TIME_CODE_REPOSITORY) private readonly codes: OneTimeCodeRepository,
     @inject(SESSION_REPOSITORY) private readonly sessions: SessionRepository,
     @inject(ONE_TIME_CODES) private readonly oneTimeCodes: OneTimeCodes,
     @inject(PASSWORD_HASHER) private readonly hasher: PasswordHasher,
@@ -39,10 +39,10 @@ export class ResetPasswordUseCase {
 
     const reset = await this.transactions.run(async () => {
       const now = new Date()
-      const user = await this.users.findByEmail(User.normalizeEmail(email))
-      const stored = user === null ? null : await this.codes.lockFor(user.id, 'reset-password')
+      const address = User.normalizeEmail(email)
+      const stored = await this.codes.lockFor('email', address, 'reset-password')
 
-      if (user === null || stored === null) {
+      if (stored === null) {
         return null
       }
 
@@ -50,7 +50,10 @@ export class ResetPasswordUseCase {
 
       await this.codes.save(stored)
 
-      if (outcome !== 'valid') {
+      // A code also exists for an address with no account, so the account is read only once the code holds.
+      const user = outcome === 'valid' ? await this.users.findByEmail(address) : null
+
+      if (user === null) {
         return null
       }
 

@@ -4,9 +4,9 @@ import { User } from '@/domain/auth/entities/user.entity'
 import { InvalidCodeError } from '@/domain/auth/errors/invalid-code.error'
 import { ONE_TIME_CODES, type OneTimeCodes } from '@/domain/auth/ports/one-time-codes.port'
 import {
-  EMAIL_CODE_REPOSITORY,
-  type EmailCodeRepository,
-} from '@/domain/auth/repositories/email-code.repository'
+  ONE_TIME_CODE_REPOSITORY,
+  type OneTimeCodeRepository,
+} from '@/domain/auth/repositories/one-time-code.repository'
 import { USER_REPOSITORY, type UserRepository } from '@/domain/auth/repositories/user.repository'
 import {
   type SessionTokens,
@@ -21,7 +21,7 @@ import {
 export class VerifyEmailUseCase {
   constructor(
     @inject(USER_REPOSITORY) private readonly users: UserRepository,
-    @inject(EMAIL_CODE_REPOSITORY) private readonly codes: EmailCodeRepository,
+    @inject(ONE_TIME_CODE_REPOSITORY) private readonly codes: OneTimeCodeRepository,
     @inject(ONE_TIME_CODES) private readonly oneTimeCodes: OneTimeCodes,
     @inject(TRANSACTION_MANAGER) private readonly transactions: TransactionManager,
     private readonly startSession: StartSessionUseCase,
@@ -32,10 +32,10 @@ export class VerifyEmailUseCase {
     // The spent attempt is committed before the error is thrown, or a wrong guess would cost nothing.
     const verified = await this.transactions.run(async () => {
       const now = new Date()
-      const user = await this.users.findByEmail(User.normalizeEmail(email))
-      const stored = user === null ? null : await this.codes.lockFor(user.id, 'verify-email')
+      const address = User.normalizeEmail(email)
+      const stored = await this.codes.lockFor('email', address, 'verify-email')
 
-      if (user === null || stored === null) {
+      if (stored === null) {
         return null
       }
 
@@ -43,7 +43,10 @@ export class VerifyEmailUseCase {
 
       await this.codes.save(stored)
 
-      if (outcome !== 'valid') {
+      // A code also exists for an address with no account, so the account is read only once the code holds.
+      const user = outcome === 'valid' ? await this.users.findByEmail(address) : null
+
+      if (user === null) {
         return null
       }
 

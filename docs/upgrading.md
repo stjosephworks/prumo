@@ -73,9 +73,17 @@ three of its own.
 | `src/infra/config/env.ts`, `src/infra/http/app.ts`, `.env.example` | api | `TRUST_PROXY`, passed to Fastify's `trustProxy`: `false` by default, `true`, or the proxies' IPs and CIDRs |
 | `.prumo/api/config.md`, `.prumo/api/auth.md` | api | When to set `TRUST_PROXY`; the web and the API on one site |
 | `.prumo/social/sign-in.md` | api with Apple | Register the domains the API sends mail from with Apple |
+| `migrations/…_create_email_code.ts` → `…_create_one_time_code.ts`, and every file named `email-code` | api with email | `email_code` (per user) becomes `one_time_code` (per channel, destination and purpose), with the sending limits' columns. An existing project writes a migration that creates `one_time_code` and drops `email_code`: live codes are lost, and their owners ask for new ones |
+| `src/domain/shared/errors/domain-error.ts`, `src/infra/http/errors/error-handler.ts` | api | A `throttled` kind answers 429, with `Retry-After` when the error carries `retryAfter` |
+| `src/api-contract/api-error.ts`, `src/features/forms/server-errors.ts`, `src/features/forms/use-cooldown.ts`, `verify-email-form.tsx` | web, mobile | `ApiError.retryAfter`; a 429 says when to try again; the new-code button counts down |
+| `.prumo/email/codes.md`, `.prumo/email/mailer.md` | api with email | The limits, the sweep, and a failed send answering like a sent one |
 
 Why: behind a load balancer every client shared the balancer's address, so the rate limits put the whole world in
 one bucket of ten sign-ins a minute.
+
+Why, for the codes: the per-IP limits let one address be sent a code every few seconds from many IPs, filling a
+mailbox; with a phone, every text costs money. And a code was keyed by its user, so none could exist before the
+account, which a sign-in by code needs.
 
 ### 0.8.2
 

@@ -12,6 +12,9 @@ To send real mail, write a second adapter under `src/infra/email/` and register 
 `LogMailer`, for production only. Either speak SMTP, with `nodemailer` and an `SMTP_URL` any provider accepts, or
 call a provider's HTTP API. Validate the new variable in `env.ts`.
 
+A real adapter catches a failed send, logs it at `error` with the provider's answer, and returns. The route that
+asked answers the same either way, so a failure says nothing about the address.
+
 In a test, register a `FakeMailer` and read the code from it, as `test/support/test-app.ts` does.
 
 ## Rationale
@@ -22,6 +25,10 @@ depend on mail work end to end from the first `pnpm dev`: the code is in the ter
 
 The port is the whole contract on purpose. SES, Postmark, Resend, Mailgun and a company relay all accept the
 same three fields, so changing provider is one new adapter and one line in the container.
+
+A failure that reached the client would differ between an address that has an account, which is mailed, and one
+that has none, which is not; that difference is the one every code route is written to hide. The log is where the
+failure is seen instead.
 
 **What this costs:** until an adapter is written, a deployed API sends nothing, and a user waiting for a code
 never receives it. Nothing warns about that but this document.

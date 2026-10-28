@@ -63,6 +63,26 @@ describe('email verification on the web', () => {
     expect(await screen.findByRole('heading', { name: 'Your profile' })).toBeInTheDocument()
   })
 
+  it('counts down to the next code when one was sent moments ago', async () => {
+    const visitor = userEvent.setup()
+    const { transport } = app({
+      'POST /api/auth/email/verification': () =>
+        new Response(
+          JSON.stringify({ status: 429, title: 'Too Many Requests', code: 'too_many_codes' }),
+          {
+            status: 429,
+            headers: { 'content-type': 'application/problem+json', 'retry-after': '42' },
+          },
+        ),
+    })
+
+    renderApp(`/verify-email?email=${user.email}`, transport)
+
+    await visitor.click(await screen.findByRole('button', { name: 'Send a new code' }))
+
+    expect(await screen.findByRole('button', { name: 'Send a new code in 42s' })).toBeDisabled()
+  })
+
   it('sends an unconfirmed account that signs in to the code page', async () => {
     const visitor = userEvent.setup()
     const { transport } = app({

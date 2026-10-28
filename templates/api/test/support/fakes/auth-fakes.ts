@@ -4,12 +4,12 @@ import { FakeOneTimeCodes } from '@test/support/fakes/fake-one-time-codes' // pr
 import { FakeOpaqueTokens } from '@test/support/fakes/fake-opaque-tokens'
 import { FakePasswordHasher } from '@test/support/fakes/fake-password-hasher'
 import { ImmediateTransactionManager } from '@test/support/fakes/immediate-transaction-manager'
-import { InMemoryEmailCodeRepository } from '@test/support/fakes/in-memory-email-code.repository' // prumo:email
+import { InMemoryOneTimeCodeRepository } from '@test/support/fakes/in-memory-one-time-code.repository' // prumo:email
 import { InMemoryProfileRepository } from '@test/support/fakes/in-memory-profile.repository'
 import { InMemorySessionRepository } from '@test/support/fakes/in-memory-session.repository'
 import { InMemoryUserRepository } from '@test/support/fakes/in-memory-user.repository'
 import type { SignUpDto } from '@/domain/auth/dto/sign-up.dto'
-import { IssueEmailCodeUseCase } from '@/domain/auth/use-cases/issue-email-code.use-case' // prumo:email
+import { IssueCodeUseCase } from '@/domain/auth/use-cases/issue-code.use-case' // prumo:email
 import { RefreshSessionUseCase } from '@/domain/auth/use-cases/refresh-session.use-case'
 import { RequestPasswordResetUseCase } from '@/domain/auth/use-cases/request-password-reset.use-case' // prumo:email
 import { ResetPasswordUseCase } from '@/domain/auth/use-cases/reset-password.use-case' // prumo:email
@@ -35,9 +35,9 @@ export function authFakes() {
   const startSession = new StartSessionUseCase(sessions, tokens, opaque)
   // prumo:email
   const mailer = new FakeMailer()
-  const codes = new InMemoryEmailCodeRepository()
+  const codes = new InMemoryOneTimeCodeRepository()
   const oneTimeCodes = new FakeOneTimeCodes()
-  const issueEmailCode = new IssueEmailCodeUseCase(codes, oneTimeCodes, mailer, transactions)
+  const issueCode = new IssueCodeUseCase(codes, oneTimeCodes, mailer, transactions)
   const verifyEmail = new VerifyEmailUseCase(users, codes, oneTimeCodes, transactions, startSession)
   // prumo:end-email
   const signUp = new SignUpUseCase(
@@ -46,7 +46,7 @@ export function authFakes() {
     transactions,
     new CreateProfileUseCase(profiles),
     startSession,
-    issueEmailCode, // prumo:email
+    issueCode, // prumo:email
   )
 
   // Signs up and, where the email must be confirmed first, confirms it: a session either way.
@@ -79,7 +79,8 @@ export function authFakes() {
     // prumo:email
     mailer,
     verifyEmail,
-    requestPasswordReset: new RequestPasswordResetUseCase(users, issueEmailCode),
+    codes,
+    requestPasswordReset: new RequestPasswordResetUseCase(users, issueCode),
     resetPassword: new ResetPasswordUseCase(
       users,
       codes,
