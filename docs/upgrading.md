@@ -66,6 +66,17 @@ three of its own.
 
 ## What changed, release by release
 
+### 0.8.1
+
+| File | Types | Change |
+|---|---|---|
+| `package.json` | api | `start:dev` passes `--env-file-if-exists=.env`, so `node --watch` restarts the API when `.env` changes |
+| `.prumo/api/config.md` | api | Says why |
+
+Why: moving a web app to a free port writes its new origin into the API's `WEB_ORIGIN`, but an API already running
+kept the old list and refused the app's requests until it was restarted. The web apps already restarted on a
+changed `.env`.
+
 ### 0.8.0
 
 **`site` is gone; a web app names its framework.** `web` is one type built with Vite (the default), Next or Astro,
