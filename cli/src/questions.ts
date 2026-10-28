@@ -312,6 +312,13 @@ export async function resolveAnswers(
     )
   }
 
+  if (types.includes('mobile') && !signIn.includes('password')) {
+    warnings.push(
+      'App Review and Google Play review sign in to the app, and cannot read the inbox or phone a code goes to. ' +
+        'Before submitting, set REVIEW_SIGN_IN on the API to an address you hold and a code: .prumo/api/auth.md.',
+    )
+  }
+
   if (signIn.includes('phone-code')) {
     warnings.push(
       'Sign-in by phone texts its codes to the log until the TextMessages port gets a provider, and only to the ' +

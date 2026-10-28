@@ -277,19 +277,20 @@ export const FEATURES: Record<Feature, Spec> = {
         'src/domain/auth/ports/phone-numbers.port.ts',
         'src/domain/auth/use-cases/request-phone-code.use-case.ts',
         'src/domain/auth/use-cases/sign-in-with-phone-code.use-case.ts',
-        'src/infra/sms/libphonenumber-phone-numbers.adapter.ts',
+        'src/infra/sms',
         'src/infra/http/controllers/phone-code.controller.ts',
         'migrations/Migration20261005111548_add_user_phone.ts',
         'test/domain/auth/use-cases/phone-code.use-case.spec.ts',
         'test/infra/http/controllers/phone-code.controller.spec.ts',
-        'test/infra/sms/libphonenumber-phone-numbers.adapter.spec.ts',
+        'test/infra/sms',
       ],
     },
     dependencies: { api: ['libphonenumber-js'] },
   },
-  // The screens that sign in by a code, whichever channels it goes by.
+  // Signing in by a code, whichever channels it goes by: the screens, and the agreed codes a store reviewer uses.
   'code-sign-in': {
     files: {
+      api: ['src/domain/auth/ports/review-sign-ins.port.ts', 'src/infra/review'],
       'web-vite': ['src/features/auth/code-sign-in-form.tsx', 'test/features/auth/code.spec.tsx'],
       'web-next': ['src/features/auth/code-sign-in-form.tsx', 'test/features/auth/code.spec.tsx'],
       'web-astro': ['src/features/auth/code-sign-in-form.tsx', 'test/features/auth/code.spec.tsx'],

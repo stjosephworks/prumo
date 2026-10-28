@@ -29,6 +29,7 @@ import {
 import { VerifyEmailUseCase } from '@/domain/auth/use-cases/verify-email.use-case' // prumo:email
 import { Profile } from '@/domain/users/entities/profile.entity'
 import { CreateProfileUseCase } from '@/domain/users/use-cases/create-profile.use-case'
+import { EnvReviewSignIns } from '@/infra/review/env-review-sign-ins.adapter' // prumo:code-sign-in
 import { LibPhoneNumbers } from '@/infra/sms/libphonenumber-phone-numbers.adapter' // prumo:phone-code
 
 // Every auth use case wired to in-memory ports, sharing one set of them as the container would.
@@ -52,6 +53,17 @@ export function authFakes() {
   // The real reader, which needs nothing: it is the API's own rule of what a number is.
   const phones = new LibPhoneNumbers(['US', 'BR'])
   // prumo:end-phone-code
+  // prumo:code-sign-in
+  // An address a store reviewer signs in at, and the uses reported for it.
+  const reviewUses: string[] = []
+  const reviews = new EnvReviewSignIns(
+    new Map([
+      ['review@example.com', '424242'],
+      ['+14155550100', '424242'],
+    ]),
+    (line) => reviewUses.push(line),
+  )
+  // prumo:end-code-sign-in
   // prumo:codes
   const issueCode = new IssueCodeUseCase(
     codes,
@@ -136,6 +148,7 @@ export function authFakes() {
       startSession,
     ),
     // prumo:end-email
+    reviewUses, // prumo:code-sign-in
     // prumo:email-code
     requestSignInCode: new RequestSignInCodeUseCase(issueCode),
     signInWithCode: new SignInWithCodeUseCase(
@@ -143,6 +156,7 @@ export function authFakes() {
       sessions,
       codes,
       oneTimeCodes,
+      reviews,
       transactions,
       createProfile,
       startSession,
@@ -154,6 +168,7 @@ export function authFakes() {
       users,
       codes,
       oneTimeCodes,
+      reviews,
       phones,
       transactions,
       createProfile,

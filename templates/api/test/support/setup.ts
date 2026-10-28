@@ -28,6 +28,7 @@ export function testEnv(): Env {
     WEB_ORIGIN: ['http://localhost:5173'],
     TRUST_PROXY: false,
     SMS_COUNTRIES: ['US', 'BR'], // prumo:phone-code
+    REVIEW_SIGN_IN: new Map([['review@example.com', '424242']]), // prumo:code-sign-in
     LOG_LEVEL: 'error',
   }
 }

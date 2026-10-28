@@ -2,12 +2,14 @@ import type { DependencyContainer } from 'tsyringe'
 import { MAILER } from '@/domain/auth/ports/mailer.port' // prumo:mail
 import { ONE_TIME_CODES } from '@/domain/auth/ports/one-time-codes.port'
 import { PHONE_NUMBERS } from '@/domain/auth/ports/phone-numbers.port' // prumo:phone-code
+import { REVIEW_SIGN_INS } from '@/domain/auth/ports/review-sign-ins.port' // prumo:code-sign-in
 import { TEXT_MESSAGES } from '@/domain/auth/ports/text-messages.port' // prumo:sms
 import { ONE_TIME_CODE_REPOSITORY } from '@/domain/auth/repositories/one-time-code.repository'
 import { HmacOneTimeCodes } from '@/infra/codes/hmac-one-time-codes.adapter'
 import { ENV, type Env } from '@/infra/config/env'
 import { MikroOrmOneTimeCodeRepository } from '@/infra/database/mikroorm/repositories/mikroorm-one-time-code.repository'
 import { LogMailer } from '@/infra/email/log-mailer.adapter' // prumo:mail
+import { EnvReviewSignIns } from '@/infra/review/env-review-sign-ins.adapter' // prumo:code-sign-in
 import { LibPhoneNumbers } from '@/infra/sms/libphonenumber-phone-numbers.adapter' // prumo:phone-code
 import { LogTextMessages } from '@/infra/sms/log-text-messages.adapter' // prumo:sms
 
@@ -37,4 +39,13 @@ export function registerCodes(container: DependencyContainer): void {
   })
   // prumo:end-sms
   container.register(PHONE_NUMBERS, { useValue: new LibPhoneNumbers(env.SMS_COUNTRIES) }) // prumo:phone-code
+  // prumo:code-sign-in
+  container.register(REVIEW_SIGN_INS, {
+    useValue: new EnvReviewSignIns(env.REVIEW_SIGN_IN, (line) => {
+      if (env.NODE_ENV !== 'test') {
+        console.warn(line)
+      }
+    }),
+  })
+  // prumo:end-code-sign-in
 }

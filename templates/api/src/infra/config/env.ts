@@ -38,6 +38,26 @@ const envSchema = z.object({
     .transform((value) => value.split(',').map((code) => code.trim().toUpperCase()))
     .pipe(z.array(z.string().regex(/^[A-Z]{2}$/)).min(1)),
   // prumo:end-phone-code
+  // prumo:code-sign-in
+  // For store review only: `destination:code` pairs, comma-separated, each address signing in with its fixed code
+  // after asking for one, within the usual attempts. Unset, nobody can.
+  REVIEW_SIGN_IN: z
+    .string()
+    .optional()
+    .transform((value) =>
+      (value ?? '')
+        .split(',')
+        .map((pair) => pair.trim())
+        .filter((pair) => pair !== '')
+        .map((pair) => {
+          const at = pair.lastIndexOf(':')
+
+          return [pair.slice(0, at).trim().toLowerCase(), pair.slice(at + 1).trim()] as const
+        }),
+    )
+    .pipe(z.array(z.tuple([z.string().min(1), z.string().regex(/^\d{6}$/)])))
+    .transform((pairs) => new Map(pairs)),
+  // prumo:end-code-sign-in
   // prumo:social
   // Where a mobile app is sent back after signing in with a provider: its own scheme, as in app.json.
   MOBILE_APP_SCHEME: z

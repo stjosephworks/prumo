@@ -47,6 +47,13 @@ with `config: { public: true }`; that means only *do not answer 401*, and the to
 user in the handler with `currentUser(request)` and pass its id to the use case as an argument. A use case
 never reads the request.
 
+<!-- prumo:code-sign-in -->
+For a store's review, name an address you hold and a 6-digit code in `REVIEW_SIGN_IN`, as `destination:code` pairs.
+After asking for a code there, the reviewer enters the agreed one instead, within the same five attempts and fifteen
+minutes; every use is logged at `warn`. Leave it unset when no review is pending: a fixed code is a weaker secret
+than a sent one, and anyone who learns it signs in as that address.
+<!-- prumo:end-code-sign-in -->
+
 <!-- prumo:contact -->
 Change the address an account signs in with only after a sign-in of the last ten minutes (`Session.isRecentSignIn`,
 `RequireRecentSignInUseCase`); refuse an older one with **403** `reauthentication_required`, and a session an OAuth

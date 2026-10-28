@@ -309,6 +309,15 @@ describe('resolveAnswers for how people sign in', () => {
     expect(answers.warnings).toEqual([expect.stringContaining('SMS_COUNTRIES')])
   })
 
+  it('warns a passwordless mobile app that store review needs an agreed code', async () => {
+    const answers = await resolveAnswers(
+      flags({ types: 'api,mobile', signIn: 'email-code', ...rest }),
+      undefined,
+    )
+
+    expect(answers.warnings).toEqual([expect.stringContaining('REVIEW_SIGN_IN')])
+  })
+
   it('keeps a project without an api on the password screens it has always had', async () => {
     const answers = await resolveAnswers(flags({ types: 'web', alone: true, ...rest }), undefined)
 

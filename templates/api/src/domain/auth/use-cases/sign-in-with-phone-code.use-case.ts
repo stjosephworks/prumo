@@ -4,6 +4,7 @@ import { User } from '@/domain/auth/entities/user.entity'
 import { InvalidCodeError } from '@/domain/auth/errors/invalid-code.error'
 import { ONE_TIME_CODES, type OneTimeCodes } from '@/domain/auth/ports/one-time-codes.port'
 import { PHONE_NUMBERS, type PhoneNumbers } from '@/domain/auth/ports/phone-numbers.port'
+import { REVIEW_SIGN_INS, type ReviewSignIns } from '@/domain/auth/ports/review-sign-ins.port'
 import {
   ONE_TIME_CODE_REPOSITORY,
   type OneTimeCodeRepository,
@@ -26,6 +27,7 @@ export class SignInWithPhoneCodeUseCase {
     @inject(USER_REPOSITORY) private readonly users: UserRepository,
     @inject(ONE_TIME_CODE_REPOSITORY) private readonly codes: OneTimeCodeRepository,
     @inject(ONE_TIME_CODES) private readonly oneTimeCodes: OneTimeCodes,
+    @inject(REVIEW_SIGN_INS) private readonly reviewSignIns: ReviewSignIns,
     @inject(PHONE_NUMBERS) private readonly phones: PhoneNumbers,
     @inject(TRANSACTION_MANAGER) private readonly transactions: TransactionManager,
     private readonly createProfile: CreateProfileUseCase,
@@ -50,7 +52,11 @@ export class SignInWithPhoneCodeUseCase {
         return null
       }
 
-      const outcome = stored.check(this.oneTimeCodes.digest(code), now)
+      const outcome = stored.check(
+        this.oneTimeCodes.digest(code),
+        now,
+        this.reviewSignIns.accepts(read.e164, code),
+      )
 
       await this.codes.save(stored)
 

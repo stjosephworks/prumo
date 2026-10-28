@@ -65,3 +65,28 @@ describe('SMS_COUNTRIES', () => {
   })
 })
 // prumo:end-phone-code
+
+// prumo:code-sign-in
+describe('REVIEW_SIGN_IN', () => {
+  const env = { ...RAW, WEB_ORIGIN: 'http://localhost:5173' }
+
+  it('names nobody when unset, and reads destination:code pairs, a phone included', () => {
+    expect(validate(env).REVIEW_SIGN_IN.size).toBe(0)
+    expect(
+      validate({ ...env, REVIEW_SIGN_IN: 'Review@Example.com:424242, +14155550100:135790' })
+        .REVIEW_SIGN_IN,
+    ).toEqual(
+      new Map([
+        ['review@example.com', '424242'],
+        ['+14155550100', '135790'],
+      ]),
+    )
+  })
+
+  it('refuses a code that is not six digits', () => {
+    expect(() => validate({ ...env, REVIEW_SIGN_IN: 'review@example.com:1234' })).toThrow(
+      'REVIEW_SIGN_IN',
+    )
+  })
+})
+// prumo:end-code-sign-in

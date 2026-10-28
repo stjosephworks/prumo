@@ -103,12 +103,13 @@ export class OneTimeCode {
   }
 
   // Five wrong guesses out of a million leave nothing to brute-force: the code dies, and a new one must be sent.
-  check(codeHash: string, now: Date): CodeOutcome {
+  // `alsoAccepted` lets a code agreed beforehand stand for the one sent, within the same attempts and lifetime.
+  check(codeHash: string, now: Date, alsoAccepted = false): CodeOutcome {
     if (this.attemptsLeft <= 0 || this.expiresAt <= now) {
       return 'expired'
     }
 
-    if (codeHash === this.codeHash) {
+    if (codeHash === this.codeHash || alsoAccepted) {
       this.attemptsLeft = 0
       return 'valid'
     }

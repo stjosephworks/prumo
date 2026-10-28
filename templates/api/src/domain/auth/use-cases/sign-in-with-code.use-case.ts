@@ -3,6 +3,7 @@ import type { EmailSignInDto } from '@/domain/auth/dto/email-sign-in.dto'
 import { User } from '@/domain/auth/entities/user.entity'
 import { InvalidCodeError } from '@/domain/auth/errors/invalid-code.error'
 import { ONE_TIME_CODES, type OneTimeCodes } from '@/domain/auth/ports/one-time-codes.port'
+import { REVIEW_SIGN_INS, type ReviewSignIns } from '@/domain/auth/ports/review-sign-ins.port'
 import {
   ONE_TIME_CODE_REPOSITORY,
   type OneTimeCodeRepository,
@@ -30,6 +31,7 @@ export class SignInWithCodeUseCase {
     @inject(SESSION_REPOSITORY) private readonly sessions: SessionRepository,
     @inject(ONE_TIME_CODE_REPOSITORY) private readonly codes: OneTimeCodeRepository,
     @inject(ONE_TIME_CODES) private readonly oneTimeCodes: OneTimeCodes,
+    @inject(REVIEW_SIGN_INS) private readonly reviewSignIns: ReviewSignIns,
     @inject(TRANSACTION_MANAGER) private readonly transactions: TransactionManager,
     private readonly createProfile: CreateProfileUseCase,
     private readonly startSession: StartSessionUseCase,
@@ -47,7 +49,11 @@ export class SignInWithCodeUseCase {
         return null
       }
 
-      const outcome = stored.check(this.oneTimeCodes.digest(code), now)
+      const outcome = stored.check(
+        this.oneTimeCodes.digest(code),
+        now,
+        this.reviewSignIns.accepts(address, code),
+      )
 
       await this.codes.save(stored)
 

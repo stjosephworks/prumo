@@ -94,6 +94,30 @@ describe('signing in with an email code', () => {
     ).rejects.toBeInstanceOf(InvalidCodeError)
   })
 
+  it("lets a store reviewer's address in with its agreed code, once one was asked for, and reports it", async () => {
+    const { requestSignInCode, signInWithCode, reviewUses } = authFakes()
+
+    await expect(
+      signInWithCode.execute({ email: 'review@example.com', code: '424242' }),
+    ).rejects.toBeInstanceOf(InvalidCodeError)
+
+    await requestSignInCode.execute('review@example.com')
+
+    await expect(
+      signInWithCode.execute({ email: 'review@example.com', code: '424242' }),
+    ).resolves.toBeDefined()
+    expect(reviewUses).toEqual([expect.stringContaining('review@example.com')])
+  })
+
+  it('accepts the agreed code for no other address', async () => {
+    const { requestSignInCode, signInWithCode } = authFakes()
+    await requestSignInCode.execute(EMAIL)
+
+    await expect(signInWithCode.execute({ email: EMAIL, code: '424242' })).rejects.toBeInstanceOf(
+      InvalidCodeError,
+    )
+  })
+
   // prumo:password
   // The attack social sign-in closes, by code: a password account opened with someone else's address, unconfirmed.
   it('takes an unconfirmed password account from whoever chose the password', async () => {

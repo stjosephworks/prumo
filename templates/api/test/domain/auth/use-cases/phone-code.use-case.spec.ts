@@ -99,4 +99,14 @@ describe('signing in with a phone code', () => {
 
     await expect(requestPhoneCode.execute(PHONE)).rejects.toBeInstanceOf(TooManyCodesError)
   })
+
+  it("lets a store reviewer's number in with its agreed code, once one was texted", async () => {
+    const { requestPhoneCode, signInWithPhoneCode } = authFakes()
+
+    await requestPhoneCode.execute('+14155550100')
+
+    await expect(
+      signInWithPhoneCode.execute({ phone: '+1 415 555 0100', code: '424242' }),
+    ).resolves.toBeDefined()
+  })
 })
