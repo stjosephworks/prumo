@@ -3,7 +3,9 @@ import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
 import { memoryTokenStore } from '@test/support/memory-token-store'
 import { createTestQueryClient } from '@test/support/query-client'
 import { render, screen, userEvent, waitFor } from '@testing-library/react-native'
+import * as AppleAuthentication from 'expo-apple-authentication' // prumo:apple
 import * as WebBrowser from 'expo-web-browser' // prumo:apple
+import { Platform } from 'react-native' // prumo:apple
 import { createAuthClient } from '@/api-contract'
 import { DeleteAccount } from '@/features/profile/delete-account'
 import { clearUserData } from '@/features/storage/storage'
@@ -12,6 +14,10 @@ import { clearUserData } from '@/features/storage/storage'
 jest.mock('@/features/storage/storage', () => ({ clearUserData: jest.fn() }))
 // prumo:apple
 jest.mock('expo-web-browser', () => ({ openAuthSessionAsync: jest.fn() }))
+jest.mock('expo-apple-authentication', () => ({
+  signInAsync: jest.fn(),
+  AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
+}))
 // jest-expo leaves the app manifest empty, so expo-linking cannot know the app's scheme; this one stands in for it.
 jest.mock('expo-linking', () => ({
   ...jest.requireActual('expo-linking'),
@@ -81,6 +87,8 @@ describe('DeleteAccount', () => {
 
   // prumo:apple
   it('sends an account that signs in with Apple to confirm with Apple, then forgets it', async () => {
+    // Apple's own sheet is iOS only: elsewhere the browser goes to Apple.
+    const android = jest.replaceProperty(Platform, 'OS', 'android')
     const user = userEvent.setup()
     const asked: string[] = []
     const apple = `${API_URL}/api/auth/social/apple/deletion?ticket=t`
@@ -114,6 +122,50 @@ describe('DeleteAccount', () => {
     expect(WebBrowser.openAuthSessionAsync).toHaveBeenCalledWith(apple, 'acme://social')
     expect(clearUserData).toHaveBeenCalled()
     await expect(tokens.read()).resolves.toBeNull()
+    android.restore()
+  })
+
+  it('confirms with Apple’s own sheet on iOS, on a nonce bound to the account', async () => {
+    const ios = jest.replaceProperty(Platform, 'OS', 'ios')
+    const user = userEvent.setup()
+    const sent: unknown[] = []
+
+    jest.mocked(WebBrowser.openAuthSessionAsync).mockClear()
+
+    jest.mocked(AppleAuthentication.signInAsync).mockResolvedValue({
+      identityToken: 'apple-token',
+      authorizationCode: 'code-1',
+      fullName: null,
+    } as Awaited<ReturnType<typeof AppleAuthentication.signInAsync>>)
+    const { onSignedOut, tokens } = await renderDelete(
+      () =>
+        json(
+          409,
+          { status: 409, title: 'Conflict', code: 'provider_confirmation_required' },
+          'application/problem+json',
+        ),
+      {
+        'POST /api/auth/social/apple/deletion/nonce': () =>
+          json(200, { trip: 'trip-1', nonce: 'nonce-1' }),
+        'POST /api/auth/social/apple/deletion/token': async (request) => {
+          sent.push(await request.json())
+          return new Response(null, { status: 204 })
+        },
+      },
+    )
+
+    await user.press(screen.getByRole('button', { name: 'Delete account' }))
+    await user.press(screen.getByRole('button', { name: 'Delete my account' }))
+    await user.press(await screen.findByRole('button', { name: 'Continue with Apple' }))
+
+    await waitFor(() => expect(onSignedOut).toHaveBeenCalled())
+    expect(AppleAuthentication.signInAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ nonce: 'nonce-1' }),
+    )
+    expect(sent).toEqual([{ trip: 'trip-1', idToken: 'apple-token', code: 'code-1' }])
+    expect(WebBrowser.openAuthSessionAsync).not.toHaveBeenCalled()
+    await expect(tokens.read()).resolves.toBeNull()
+    ios.restore()
   })
   // prumo:end-apple
 })

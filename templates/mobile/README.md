@@ -52,6 +52,18 @@ API's log, in a line starting `[sms] to`, and the first one creates the account.
 Signing up first asks for the 6-digit code that confirms the email. No mail is sent yet: the API writes it to its
 log, in a line starting `[mail] to`, and a forgotten password works the same way.
 <!-- prumo:end-email -->
+<!-- prumo:apple -->
+
+On iOS, Continue with Apple opens Apple's own sheet, which needs `ios.bundleIdentifier` set in `app.json`, Sign in
+with Apple enabled on that App ID, and the same identifier as the API's `APPLE_BUNDLE_ID`. Android goes through the
+browser.
+<!-- prumo:end-apple -->
+<!-- prumo:google -->
+
+Continue with Google goes through the browser until `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` and
+`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` are set in `.env`, as `.env.example` describes; then it opens Google's own sheet.
+Build again after setting them: they add a URL scheme to the iOS app.
+<!-- prumo:end-google -->
 
 ## Everyday commands
 

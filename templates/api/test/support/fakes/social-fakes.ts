@@ -5,6 +5,7 @@ import type { Identity } from '@/domain/auth/entities/identity.entity'
 import type { SocialSignIn } from '@/domain/auth/entities/social-sign-in.entity'
 import type {
   IdentityProviders,
+  NativeCredential,
   ProviderCallback,
   ProviderName,
   ProviderProfile,
@@ -14,10 +15,13 @@ import type { IdentityRepository } from '@/domain/auth/repositories/identity.rep
 import type { SocialSignInRepository } from '@/domain/auth/repositories/social-sign-in.repository'
 import { CompleteSocialSignInUseCase } from '@/domain/auth/use-cases/complete-social-sign-in.use-case'
 import { DeleteAccountUseCase } from '@/domain/auth/use-cases/delete-account.use-case' // prumo:apple
+import { DeleteAccountWithIdTokenUseCase } from '@/domain/auth/use-cases/delete-account-with-id-token.use-case' // prumo:apple
 import { ExchangeSocialCodeUseCase } from '@/domain/auth/use-cases/exchange-social-code.use-case'
+import { IssueNativeNonceUseCase } from '@/domain/auth/use-cases/issue-native-nonce.use-case' // prumo:apple
 import { LinkIdentityUseCase } from '@/domain/auth/use-cases/link-identity.use-case'
 import { RequireRecentSignInUseCase } from '@/domain/auth/use-cases/require-recent-sign-in.use-case' // prumo:apple
 import { ResumeAccountDeletionUseCase } from '@/domain/auth/use-cases/resume-account-deletion.use-case' // prumo:apple
+import { SignInWithIdTokenUseCase } from '@/domain/auth/use-cases/sign-in-with-id-token.use-case'
 import { StartAccountDeletionUseCase } from '@/domain/auth/use-cases/start-account-deletion.use-case' // prumo:apple
 import { StartSessionUseCase } from '@/domain/auth/use-cases/start-session.use-case'
 import { StartSocialSignInUseCase } from '@/domain/auth/use-cases/start-social-sign-in.use-case'
@@ -64,7 +68,9 @@ export class FakeIdentityProviders implements IdentityProviders {
     name: 'Ana',
   }
   lastCallback: ProviderCallback | undefined
+  lastNative: NativeCredential | undefined
   readonly revoked: ProviderName[] = []
+  readonly revokedCodes: string[] = []
 
   constructor(private readonly configured: ProviderName[] = ['google', 'apple']) {}
 
@@ -88,6 +94,20 @@ export class FakeIdentityProviders implements IdentityProviders {
   async revoke(provider: ProviderName, callback: ProviderCallback): Promise<ProviderProfile> {
     this.revoked.push(provider)
     return this.profile(provider, callback)
+  }
+
+  isNativeConfigured(provider: ProviderName): boolean {
+    return this.configured.includes(provider)
+  }
+
+  async verify(_provider: ProviderName, credential: NativeCredential): Promise<ProviderProfile> {
+    this.lastNative = credential
+    return this.next
+  }
+
+  async revokeNative(provider: ProviderName, code: string): Promise<void> {
+    this.revoked.push(provider)
+    this.revokedCodes.push(code)
   }
 }
 
@@ -140,10 +160,27 @@ export function socialFakes() {
       deleteAccount, // prumo:apple
     ),
     exchange: new ExchangeSocialCodeUseCase(signIns, opaque, transactions, startSession),
+    signInWithIdToken: new SignInWithIdTokenUseCase(
+      providers,
+      signIns,
+      opaque,
+      transactions,
+      linkIdentity,
+      startSession,
+    ),
     // prumo:apple
     deleteAccount,
     startDeletion: new StartAccountDeletionUseCase(signIns, opaque),
     resumeDeletion: new ResumeAccountDeletionUseCase(providers, signIns, opaque, transactions),
+    issueNonce: new IssueNativeNonceUseCase(providers, signIns, opaque),
+    deleteWithIdToken: new DeleteAccountWithIdTokenUseCase(
+      providers,
+      signIns,
+      identities,
+      opaque,
+      transactions,
+      deleteAccount,
+    ),
     // prumo:end-apple
   }
 }

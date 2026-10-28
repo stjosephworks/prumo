@@ -357,6 +357,7 @@ export const FEATURES: Record<Feature, Spec> = {
         'src/domain/auth/use-cases/start-social-sign-in.use-case.ts',
         'src/domain/auth/use-cases/complete-social-sign-in.use-case.ts',
         'src/domain/auth/use-cases/exchange-social-code.use-case.ts',
+        'src/domain/auth/use-cases/sign-in-with-id-token.use-case.ts',
         'src/infra/social',
         'src/infra/di/social.di.ts',
         'src/infra/http/controllers/social.controller.ts',
@@ -385,22 +386,30 @@ export const FEATURES: Record<Feature, Spec> = {
       ],
       mobile: [
         'src/features/auth/social-buttons.tsx',
+        'src/features/auth/native-sign-in.ts',
         'test/features/auth/social-buttons.spec.tsx',
       ],
     },
     dependencies: { api: ['openid-client'] },
   },
-  google: { files: {}, dependencies: {} },
-  // Apple also confirms the deletion of an account that signs in with it, so the API can revoke the authorization.
+  // Google's own sheet in the mobile app, which Jest needs a stand-in for.
+  google: {
+    files: { mobile: ['test/support/google-sign-in.ts'] },
+    dependencies: { mobile: ['@react-native-google-signin/google-signin'] },
+  },
+  // Apple also confirms the deletion of an account that signs in with it, so the API can revoke the authorization,
+  // and its own sheet in the iOS app takes a nonce from the API.
   apple: {
     files: {
       api: [
         'src/domain/auth/errors/provider-confirmation-required.error.ts',
         'src/domain/auth/use-cases/start-account-deletion.use-case.ts',
         'src/domain/auth/use-cases/resume-account-deletion.use-case.ts',
+        'src/domain/auth/use-cases/issue-native-nonce.use-case.ts',
+        'src/domain/auth/use-cases/delete-account-with-id-token.use-case.ts',
       ],
     },
-    dependencies: {},
+    dependencies: { mobile: ['expo-apple-authentication'] },
   },
 }
 
@@ -483,6 +492,9 @@ export async function applyFeatures(
     // The settings a feature needs are cut with it, and so is what the README says about it.
     join(app, '.env.example'),
     join(app, 'README.md'),
+    // A mobile app's native plugins, and the stand-ins its tests need for them.
+    join(app, 'app.config.ts'),
+    join(app, 'jest.config.js'),
   ]
   const manifest = join(app, 'package.json')
   let pkg = await readFile(manifest, 'utf8')

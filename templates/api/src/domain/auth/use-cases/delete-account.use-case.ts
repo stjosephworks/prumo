@@ -37,7 +37,7 @@ export class DeleteAccountUseCase {
     const identities = await this.identities.findByUser(userId)
 
     if (
-      this.providers.isConfigured('apple') &&
+      (this.providers.isConfigured('apple') || this.providers.isNativeConfigured('apple')) &&
       identities.some((identity) => identity.provider === 'apple')
     ) {
       throw new ProviderConfirmationRequiredError('apple')

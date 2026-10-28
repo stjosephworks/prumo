@@ -151,14 +151,58 @@ describe('a social sign-in, start to session', () => {
   })
 })
 
+describe('signing in with a provider’s own sheet', () => {
+  it('links the identity and opens a session, as a trip through the browser would', async () => {
+    const { signInWithIdToken, providers, identities } = socialFakes()
+
+    const tokens = await signInWithIdToken.execute({
+      provider: 'google',
+      idToken: 'id-token',
+      trip: null,
+      name: null,
+    })
+
+    expect(tokens.refreshToken).toEqual(expect.any(String))
+    expect(providers.lastNative).toEqual({ idToken: 'id-token', nonce: null, name: null })
+    expect(identities.rows).toEqual([expect.objectContaining({ subject: 'google-sub-1' })])
+  })
+})
+
 // prumo:apple
+const APPLE = {
+  subject: 'apple-sub-1',
+  email: 'ana@privaterelay.appleid.com',
+  emailVerified: true,
+  name: null,
+}
+
+describe('signing in with Apple’s own sheet', () => {
+  it('checks the token against the nonce of its trip, and takes each trip once', async () => {
+    const { issueNonce, signInWithIdToken, providers } = socialFakes()
+    providers.next = APPLE
+    const { trip, nonce } = await issueNonce.execute({ provider: 'apple' })
+    const signIn = (sent = trip) =>
+      signInWithIdToken.execute({ provider: 'apple', idToken: 'id-token', trip: sent, name: 'Ana' })
+
+    await expect(signIn()).resolves.toBeDefined()
+    expect(providers.lastNative).toEqual({ idToken: 'id-token', nonce, name: 'Ana' })
+    await expect(signIn()).rejects.toBeInstanceOf(SocialSignInFailedError)
+    await expect(signIn(`${trip.split('.')[0]}.forged`)).rejects.toBeInstanceOf(
+      SocialSignInFailedError,
+    )
+  })
+
+  it('refuses a nonce when the app cannot use Apple’s sheet', async () => {
+    const { issueNonce, providers } = socialFakes()
+    Object.assign(providers, { configured: [] })
+
+    await expect(issueNonce.execute({ provider: 'apple' })).rejects.toBeInstanceOf(
+      ProviderNotConfiguredError,
+    )
+  })
+})
+
 describe('deleting an account that signs in with Apple', () => {
-  const APPLE = {
-    subject: 'apple-sub-1',
-    email: 'ana@privaterelay.appleid.com',
-    emailVerified: true,
-    name: null,
-  }
 
   // An account Apple created, signed in, whose owner asks to delete it.
   async function linked() {
@@ -216,6 +260,49 @@ describe('deleting an account that signs in with Apple', () => {
     await expect(resumeDeletion.execute(`${ticket.split('.')[0]}.forged`)).rejects.toBeInstanceOf(
       SocialSignInFailedError,
     )
+  })
+
+  it('deletes from the app once Apple’s own sheet confirms, revoking the code it gave', async () => {
+    const fakes = await linked()
+    const { trip, nonce } = await fakes.issueNonce.execute({
+      provider: 'apple',
+      userId: fakes.userId,
+    })
+
+    await fakes.deleteWithIdToken.execute({
+      userId: fakes.userId,
+      provider: 'apple',
+      trip,
+      idToken: 'id-token',
+      code: 'code-1',
+    })
+
+    expect(fakes.providers.lastNative?.nonce).toBe(nonce)
+    expect(fakes.providers.revokedCodes).toEqual(['code-1'])
+    expect(fakes.users.rows.has(fakes.userId)).toBe(false)
+  })
+
+  it('revokes and deletes nothing for another Apple account, a sign-in’s trip or another account’s', async () => {
+    const fakes = await linked()
+    const own = await fakes.issueNonce.execute({ provider: 'apple', userId: fakes.userId })
+    const signingIn = await fakes.issueNonce.execute({ provider: 'apple' })
+    const someoneElses = await fakes.issueNonce.execute({ provider: 'apple', userId: 'user-2' })
+    const deleteWith = (trip: string) =>
+      fakes.deleteWithIdToken.execute({
+        userId: fakes.userId,
+        provider: 'apple',
+        trip,
+        idToken: 'id-token',
+        code: 'code-1',
+      })
+
+    fakes.providers.next = { ...APPLE, subject: 'apple-sub-2' }
+
+    await expect(deleteWith(own.trip)).rejects.toBeInstanceOf(SocialSignInFailedError)
+    await expect(deleteWith(signingIn.trip)).rejects.toBeInstanceOf(SocialSignInFailedError)
+    await expect(deleteWith(someoneElses.trip)).rejects.toBeInstanceOf(SocialSignInFailedError)
+    expect(fakes.providers.revokedCodes).toEqual([])
+    expect(fakes.users.rows.has(fakes.userId)).toBe(true)
   })
 })
 // prumo:end-apple

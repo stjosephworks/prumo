@@ -17,6 +17,25 @@ its `origin`, which must be in `WEB_ORIGIN`, and the `social_sign_in` cookie car
 to `MOBILE_APP_SCHEME://social` with a one-time code it exchanges at `/api/auth/social/exchange` for its tokens,
 within two minutes. A mobile app opens the trip with `expo-web-browser`'s `openAuthSessionAsync`.
 
+In the mobile app, sign in with the provider's own sheet where there is one, and send the ID token it gives to
+`POST /api/auth/social/<provider>/token`, which answers the app's tokens. Check that token with
+`IdentityProviders.verify` as the provider's backend guide says, through `jose`: its signature against the
+provider's keys, its issuer, its audience and its expiry; then link it as a trip's. Keep the sheets in
+`native-sign-in.ts`, and the browser trip wherever a sheet is not there.
+
+<!-- prumo:apple -->
+- Apple's sheet exists on iOS only (`expo-apple-authentication`), and issues its token to the app's bundle
+  identifier, `APPLE_BUNDLE_ID`. Ask `POST /api/auth/social/apple/nonce` for a nonce and its trip, pass the nonce to
+  the sheet, and send the trip back with the token: refuse a token without the trip's nonce, and take each trip
+  once. Android signs in with Apple through the browser.
+<!-- prumo:end-apple -->
+<!-- prumo:google -->
+- Google's sheet (`@react-native-google-signin/google-signin`) issues its token to the web client whose id the app
+  passes it, the API's own `GOOGLE_CLIENT_ID`. Use it once the app has `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` and
+  `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`: `app.config.ts` adds the package's plugin then, with the iOS client's id
+  reversed as a URL scheme. Without them, Google signs in through the browser.
+<!-- prumo:end-google -->
+
 Recognise a returning user by the provider's subject, kept in `identity`. For a first sign-in, link by email
 only when the provider says `email_verified`:
 
@@ -43,6 +62,11 @@ to Apple on a trip whose `intent` is `delete`. On the callback, revoke the token
 `revocation_endpoint` (`IdentityProviders.revoke`), check that the Apple account is the one the account's identity
 names, delete the account, and send the client back to sign-in with `deleted=1`. Keep nothing of Apple's between
 sign-ins.
+
+On iOS, Apple's sheet confirms instead. `POST /api/auth/social/apple/deletion/nonce` binds a trip to the signed-in
+account, and `POST /api/auth/social/apple/deletion/token` takes the sheet's token and code: check the token, then
+that the identity is the account's, before trading the code under the bundle ID and revoking what it yields
+(`IdentityProviders.revokeNative`); then delete.
 <!-- prumo:end-apple -->
 
 ## Rationale
@@ -72,9 +96,28 @@ refresh token to revoke later, which would be a credential to guard for the acco
 Apple again is also the recent sign-in a deletion asks for.
 <!-- prumo:end-apple -->
 
-**What this costs:** the trip leaves the app for the system browser and comes back, rather than a native sheet.
-And a provider without its variables in `.env` answers that it is not configured, until someone registers the
-application with it.
+A sheet is what a phone's owner expects: it signs in without leaving the app, with the account the phone already
+holds.
+
+<!-- prumo:apple -->
+Apple's nonce comes from the API, in a trip the app holds, because a nonce the app chose itself would prove nothing:
+a token that leaked could be sent again with the nonce it already carries. A deletion from iOS revokes under the
+bundle ID, the client the person signed in with. Apple gives a person one identifier in every app of a team, so the
+same account signs in on the web and in the app.
+<!-- prumo:end-apple -->
+
+<!-- prumo:google -->
+Google's package, in its free edition, takes no nonce, so its token is checked as Google's own backend guide asks,
+which names none. On Android the free edition is built on Google's legacy Sign-In SDK, which its documentation calls
+deprecated but functional; Credential Manager comes only with the paid edition. Replacing the package touches
+`native-sign-in.ts` alone, since the API takes an ID token wherever it comes from. The sheet waits for both ids
+because the plugin refuses to build without the iOS client's scheme, and a project must run before anyone registers
+it with Google.
+<!-- prumo:end-google -->
+
+**What this costs:** two ways in to keep, the sheet and the browser, which Android needs for Apple and Google needs
+until the app is registered with it. And a provider without its variables in `.env` answers that it is not
+configured, until someone registers the application with it.
 
 <!-- prumo:password -->
 In a project that does not verify emails, no password account is ever confirmed, so the first time its owner
@@ -84,8 +127,8 @@ and cannot tell them apart from whoever registered the email first.
 
 ## Applies to
 
-`src/domain/auth/` for identities and trips, `social.controller.ts`, `src/infra/social/`, and the social buttons on
-the web and mobile.
+`src/domain/auth/` for identities and trips, `social.controller.ts`, `src/infra/social/`, the social buttons on the
+web and mobile, and the mobile app's `native-sign-in.ts` and `app.config.ts`.
 <!-- prumo:apple -->
 With Apple, also the deletion of an account (`delete-account.use-case.ts`, `delete-account.tsx`).
 <!-- prumo:end-apple -->
@@ -107,11 +150,16 @@ second use and another provider. `openid-identity-providers.adapter.spec.ts` run
 local OpenID provider: PKCE, state, nonce, a forged code, and Apple's client secret signed with the `.p8` key.
 `social.controller.spec.ts` covers both clients over HTTP.
 
+For the sheets, the adapter's spec signs ID tokens as a provider would and checks each against its audience,
+issuer and nonce; `social.use-case.spec.ts` and `social.controller.spec.ts` cover signing in with one, and the
+mobile `social-buttons.spec.tsx` each sheet, the browser where there is none, and a sheet closed.
+
 <!-- prumo:apple -->
 For a deletion, `social.use-case.spec.ts` covers the 409, the revocation and the deletion once Apple confirms,
-another Apple account coming back, and a forged ticket; the adapter's spec the revocation itself, and
-`social.controller.spec.ts` the whole trip over HTTP. The clients' `delete-account.spec.tsx` covers the step that
-sends the person to Apple.
+another Apple account coming back, and a forged ticket, and from iOS a sign-in's trip or another account's; the
+adapter's spec the revocation itself, under the bundle ID too, and `social.controller.spec.ts` both ways over HTTP.
+The clients' `delete-account.spec.tsx` covers the step that sends the person to Apple, and the sheet on iOS.
 <!-- prumo:end-apple -->
 
-**Review only.** That a new provider's ID token is validated by `openid-client` before anything reads it.
+**Review only.** That a new provider's ID token is validated, by `openid-client` or by `verify`, before anything
+reads it.

@@ -242,6 +242,15 @@ export function createAuthClient({
     exchangeSocialCode: async (code: string): Promise<void> => {
       await begin('/social/exchange', { code })
     },
+
+    // What a provider's own sign-in sheet on the phone gave the app, traded for the app's tokens. `trip` is the one
+    // whose nonce went to the sheet, where the provider takes one.
+    signInWithIdToken: async (
+      provider: SocialProvider,
+      credential: { idToken: string; trip?: string; name?: string },
+    ): Promise<void> => {
+      await begin(`/social/${provider}/token`, credential)
+    },
     // prumo:end-social
 
     // prumo:apple
@@ -259,6 +268,42 @@ export function createAuthClient({
       }
 
       return ((await response.json()) as { url: string }).url
+    },
+
+    // A nonce for Apple's own sheet, which writes it into its token, and the trip to send back with that token. For a
+    // deletion, the trip is bound to the signed-in account.
+    appleNonce: async (
+      purpose: 'sign-in' | 'deletion' = 'sign-in',
+    ): Promise<{ trip: string; nonce: string }> => {
+      const response =
+        purpose === 'sign-in'
+          ? await send('/social/apple/nonce')
+          : await authorized(url('/social/apple/deletion/nonce'), { method: 'POST' })
+
+      if (!response.ok) {
+        throw await ApiError.fromResponse(response)
+      }
+
+      return (await response.json()) as { trip: string; nonce: string }
+    },
+
+    // Deletes the account from the app, once Apple's own sheet confirmed it on a trip from `appleNonce('deletion')`.
+    async deleteAccountWithApple(credential: {
+      trip: string
+      idToken: string
+      code: string
+    }): Promise<void> {
+      const response = await authorized(url('/social/apple/deletion/token'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(credential),
+      })
+
+      if (!response.ok) {
+        throw await ApiError.fromResponse(response)
+      }
+
+      await tokens?.write(null)
     },
     // prumo:end-apple
 

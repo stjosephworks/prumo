@@ -77,6 +77,8 @@ const envSchema = z.object({
   APPLE_KEY_ID: z.string().min(1).optional(),
   // The .p8 key's contents; on one line, with its line breaks written as \n.
   APPLE_PRIVATE_KEY: z.string().min(1).optional(),
+  // The iOS app's bundle identifier, which Apple's own sheet issues the app's tokens to.
+  APPLE_BUNDLE_ID: z.string().min(1).optional(),
   // prumo:end-apple
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']),
 })

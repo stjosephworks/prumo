@@ -107,6 +107,12 @@ three of its own.
 | `start-account-deletion.use-case.ts`, `resume-account-deletion.use-case.ts`, `provider-confirmation-required.error.ts`, `delete-account.use-case.ts`, `complete-social-sign-in.use-case.ts`, `social.controller.ts` | api with Apple | New. Deleting an account that signs in with Apple answers 409 `provider_confirmation_required`; `POST` and `GET /api/auth/social/apple/deletion` take the browser to Apple, and the callback revokes the token and deletes the account |
 | `src/api-contract/auth.ts`, `delete-account.tsx`, `social-buttons.tsx`, the sign-in route | web, mobile with Apple | `accountDeletionUrl`; Continue with Apple when the deletion answers 409; Your account was deleted on the way back |
 | `.prumo/social/sign-in.md`, `.prumo/api/auth.md` | api with Apple | The deletion through Apple |
+| `identity-providers.port.ts`, `openid-identity-providers.adapter.ts`, `sign-in-with-id-token.use-case.ts`, `social.controller.ts` | api with social | `IdentityProviders.isNativeConfigured`, `verify` and `revokeNative`; `POST /api/auth/social/<provider>/token` signs in with the ID token a provider's own sheet gave the app, checked with `jose` |
+| `issue-native-nonce.use-case.ts`, `delete-account-with-id-token.use-case.ts`, `delete-account.use-case.ts`, `env.ts`, `.env.example` | api with Apple | New. `POST /api/auth/social/apple/nonce`, `apple/deletion/nonce` and `apple/deletion/token`; `APPLE_BUNDLE_ID`, the iOS app's bundle identifier, which Apple's sheet issues tokens to |
+| `src/api-contract/auth.ts` | web, mobile with social | `signInWithIdToken`; with Apple, `appleNonce` and `deleteAccountWithApple` |
+| `src/features/auth/native-sign-in.ts`, `social-buttons.tsx`, `delete-account.tsx`, `src/config.ts`, `app.config.ts`, `.env.example`, `package.json` | mobile with social | New. Apple's sheet on iOS (`expo-apple-authentication` 57.0.2, and its plugin); Google's sheet (`@react-native-google-signin/google-signin` 16.1.5) once `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` and `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` are set, its plugin added by `app.config.ts`; the browser otherwise |
+| `jest.config.js`, `test/support/google-sign-in.ts` | mobile with Google | New. A stand-in for Google's native module, loaded before every test |
+| `.prumo/social/sign-in.md`, `.prumo/mobile/config.md`, `.prumo/core/testing.md` | api, mobile with social | The sheets, their ids, and the stand-in |
 | `test/support/test-app.ts`, `test/support/fakes/auth-fakes.ts` | api | `signIn` and `signedIn` reach a session through the project's own way in; `signUpWithPassword` and `register` stay for the password's own specs |
 
 Why: behind a load balancer every client shared the balancer's address, so the rate limits put the whole world in
@@ -115,6 +121,9 @@ one bucket of ten sign-ins a minute.
 Why, for the ways in: a project could not be generated without passwords, and a code that creates the account on
 first use is what many products want instead. A project that wants to add sign-in by code generates a reference with
 `--sign-in password,email-code` and carries the email-code files over.
+
+Why, for the sheets: a phone signs in with the account it already holds, without leaving the app. The browser stays
+for Apple on Android, and for Google until the app is registered with it.
 
 Why, for Apple's deletion: Apple asks an app with Sign in with Apple to revoke the user's tokens when it deletes the
 account. A fresh sign-in gives the token to revoke, so none is kept for the account's life.

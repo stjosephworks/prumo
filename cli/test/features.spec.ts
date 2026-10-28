@@ -273,6 +273,15 @@ describe('generate with social sign-in', () => {
     expect(buttons).toContain('Continue with Google')
     expect(buttons).not.toContain('Continue with Apple')
     expect(await migrations(target)).toHaveLength(3)
+
+    // The mobile app keeps Google's own sheet and its stand-in for tests, and nothing of Apple's.
+    const mobile = (path: string) => readFile(join(target, 'apps/mobile', path), 'utf8')
+
+    expect(await mobile('app.config.ts')).toContain('@react-native-google-signin/google-signin')
+    expect(await mobile('app.config.ts')).not.toMatch(/expo-apple-authentication|prumo:/)
+    expect(await mobile('jest.config.js')).toContain('google-sign-in.ts')
+    expect(await mobile('package.json')).not.toContain('expo-apple-authentication')
+    expect(await mobile('src/features/auth/native-sign-in.ts')).not.toContain('Apple')
   })
 
   it('leaves no mobile scheme without a mobile app, and nothing social without the answer', async () => {

@@ -4,8 +4,11 @@ import { z } from 'zod'
 import { tokensResponseSchema } from '@/domain/auth/dto/tokens-response.dto'
 import type { SocialClient } from '@/domain/auth/entities/social-sign-in.entity'
 import { CompleteSocialSignInUseCase } from '@/domain/auth/use-cases/complete-social-sign-in.use-case'
+import { DeleteAccountWithIdTokenUseCase } from '@/domain/auth/use-cases/delete-account-with-id-token.use-case' // prumo:apple
 import { ExchangeSocialCodeUseCase } from '@/domain/auth/use-cases/exchange-social-code.use-case'
+import { IssueNativeNonceUseCase } from '@/domain/auth/use-cases/issue-native-nonce.use-case' // prumo:apple
 import { ResumeAccountDeletionUseCase } from '@/domain/auth/use-cases/resume-account-deletion.use-case' // prumo:apple
+import { SignInWithIdTokenUseCase } from '@/domain/auth/use-cases/sign-in-with-id-token.use-case'
 import { StartAccountDeletionUseCase } from '@/domain/auth/use-cases/start-account-deletion.use-case' // prumo:apple
 import { StartSocialSignInUseCase } from '@/domain/auth/use-cases/start-social-sign-in.use-case'
 import { DomainError } from '@/domain/shared/errors/domain-error'
@@ -264,6 +267,95 @@ export async function socialController(fastify: FastifyInstance): Promise<void> 
     },
   )
   // prumo:end-apple
+
+  // prumo:apple
+  // A nonce for Apple's own sheet in the app, and the trip to send back with the token it writes the nonce into.
+  app.post(
+    '/apple/nonce',
+    {
+      config: { public: true, ...ATTEMPTS },
+      schema: {
+        tags: ['auth'],
+        response: { 200: z.object({ trip: z.string(), nonce: z.string() }) },
+      },
+    },
+    async () => app.container.resolve(IssueNativeNonceUseCase).execute({ provider: 'apple' }),
+  )
+
+  // Deleting the account from the app: the nonce binds Apple's sheet to the signed-in account, and the sheet's token
+  // and code come back to revoke and delete.
+  app.post(
+    '/apple/deletion/nonce',
+    {
+      config: ATTEMPTS,
+      schema: {
+        tags: ['auth'],
+        response: { 200: z.object({ trip: z.string(), nonce: z.string() }) },
+      },
+    },
+    async (request) =>
+      app.container
+        .resolve(IssueNativeNonceUseCase)
+        .execute({ provider: 'apple', userId: currentUser(request).id }),
+  )
+
+  app.post(
+    '/apple/deletion/token',
+    {
+      config: ATTEMPTS,
+      schema: {
+        tags: ['auth'],
+        body: z.strictObject({
+          trip: z.string().min(1).max(512),
+          idToken: z.string().min(1).max(8192),
+          code: z.string().min(1).max(512),
+        }),
+        response: { 204: z.null() },
+      },
+    },
+    async (request, reply) => {
+      await app.container
+        .resolve(DeleteAccountWithIdTokenUseCase)
+        .execute({ userId: currentUser(request).id, provider: 'apple', ...request.body })
+
+      return reply.status(204).send(null)
+    },
+  )
+  // prumo:end-apple
+
+  // A provider's own sheet signed the person in on the phone: the app sends the ID token it gave, with the trip where
+  // the provider took this API's nonce, and gets its tokens.
+  app.post(
+    '/:provider/token',
+    {
+      config: { public: true, ...ATTEMPTS },
+      schema: {
+        tags: ['auth'],
+        params: providerParams,
+        body: z.strictObject({
+          idToken: z.string().min(1).max(8192),
+          trip: z.string().min(1).max(512).optional(),
+          name: z.string().trim().min(1).max(200).optional(),
+        }),
+        response: { 200: tokensResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      const { idToken, trip, name } = request.body
+
+      return deliver(
+        request,
+        reply,
+        await app.container.resolve(SignInWithIdTokenUseCase).execute({
+          provider: request.params.provider,
+          idToken,
+          trip: trip ?? null,
+          name: name ?? null,
+        }),
+        200,
+      )
+    },
+  )
 
   // The mobile app trades the code it was sent back with for its tokens, once.
   app.post(

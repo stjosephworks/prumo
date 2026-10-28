@@ -130,6 +130,39 @@ describe('social sign-in on mobile', () => {
   })
 })
 
+describe('a provider’s own sheet on the phone, over HTTP', () => {
+  const bearer = { 'x-auth-transport': 'bearer' }
+
+  it('trades the ID token the sheet gave for the app’s tokens', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/auth/social/${PROVIDER}/token`,
+      headers: bearer,
+      payload: { idToken: 'id-token' },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json().accessToken).toEqual(expect.any(String))
+  })
+
+  // prumo:apple
+  it('binds Apple’s sheet to a nonce good for one trip', async () => {
+    const issued = await app.inject({ method: 'POST', url: '/api/auth/social/apple/nonce' })
+    const signIn = () =>
+      app.inject({
+        method: 'POST',
+        url: '/api/auth/social/apple/token',
+        headers: bearer,
+        payload: { idToken: 'id-token', trip: issued.json().trip, name: 'Ana' },
+      })
+
+    expect(issued.json()).toEqual({ trip: expect.any(String), nonce: expect.any(String) })
+    expect((await signIn()).statusCode).toBe(200)
+    expect((await signIn()).statusCode).toBe(401)
+  })
+  // prumo:end-apple
+})
+
 // prumo:apple
 describe('deleting an account that signs in with Apple, over HTTP', () => {
   it('asks for Apple, sends the browser there with a link, and deletes on the way back', async () => {
@@ -178,6 +211,48 @@ describe('deleting an account that signs in with Apple, over HTTP', () => {
     expect(toApple.headers.location).toMatch(/^https:\/\/apple\.test\/authorize/)
     expect(back.headers.location).toBe(`${WEB}/sign-in?deleted=1`)
     expect(providers.revoked).toEqual(['apple'])
+    await expect(testOrm().em.fork().count(User)).resolves.toBe(0)
+
+    await own.app.close()
+  })
+
+  it('deletes from the app once Apple’s own sheet confirms', async () => {
+    const providers = new FakeIdentityProviders()
+    providers.next = {
+      subject: 'apple-sub-1',
+      email: 'ana@privaterelay.appleid.com',
+      emailVerified: true,
+      name: null,
+    }
+    const own = await testApp({
+      env: testEnv(),
+      configure: (container) => container.register(IDENTITY_PROVIDERS, { useValue: providers }),
+    })
+    const post = (url: string, headers: Record<string, string>, payload?: object) =>
+      own.app.inject({ method: 'POST', url, headers, ...(payload !== undefined && { payload }) })
+    const issued = await post('/api/auth/social/apple/nonce', {})
+    const signedIn = await post(
+      '/api/auth/social/apple/token',
+      { 'x-auth-transport': 'bearer' },
+      { idToken: 'id-token', trip: issued.json().trip },
+    )
+    const session = { authorization: `Bearer ${signedIn.json().accessToken}` }
+
+    const refused = await own.app.inject({
+      method: 'DELETE',
+      url: '/api/auth/account',
+      headers: session,
+    })
+    const confirming = await post('/api/auth/social/apple/deletion/nonce', session)
+    const deleted = await post('/api/auth/social/apple/deletion/token', session, {
+      trip: confirming.json().trip,
+      idToken: 'id-token',
+      code: 'code-1',
+    })
+
+    expect(refused.statusCode).toBe(409)
+    expect(deleted.statusCode).toBe(204)
+    expect(providers.revokedCodes).toEqual(['code-1'])
     await expect(testOrm().em.fork().count(User)).resolves.toBe(0)
 
     await own.app.close()

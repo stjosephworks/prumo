@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { ApiError, type AuthClient } from '@/api-contract'
 import { Button } from '@/components/ui/button'
+import { appleSheet, hasAppleSheet } from '@/features/auth/native-sign-in' // prumo:apple
 import { clearUserData } from '@/features/storage/storage'
 
 type Step = 'idle' | 'confirming' | 'stale' | 'apple' | 'failed'
@@ -72,30 +73,51 @@ export function DeleteAccount({
   }
 
   // prumo:apple
-  // Apple revokes the account's authorization when the person confirms with Apple, and the API then deletes it and
-  // sends the browser back with `deleted=1`. The tokens left on the device open nothing; signing out drops them.
+  // Apple revokes the account's authorization when the person confirms with Apple, and the API then deletes it.
   async function continueWithApple() {
     try {
-      const result = await WebBrowser.openAuthSessionAsync(
-        await auth.accountDeletionUrl('mobile'),
-        Linking.createURL('social'),
-      )
-
-      // Closing the browser is a decision, not a failure.
-      if (result.type !== 'success') {
+      if (!(await (hasAppleSheet() ? deleteWithAppleSheet() : deleteThroughBrowser()))) {
         return
-      }
-
-      if (!(result.url.split('?')[1] ?? '').split('&').includes('deleted=1')) {
-        throw new Error('Apple came back without deleting the account')
       }
     } catch {
       setStep('failed')
       return
     }
 
-    await auth.signOut().catch(() => undefined)
     forget()
+  }
+
+  // On iOS, Apple's own sheet confirms on a trip bound to this account. False when the person closes it.
+  async function deleteWithAppleSheet(): Promise<boolean> {
+    const { trip, nonce } = await auth.appleNonce('deletion')
+    const apple = await appleSheet(nonce, false)
+
+    if (apple === null) {
+      return false
+    }
+
+    await auth.deleteAccountWithApple({ trip, idToken: apple.idToken, code: apple.code })
+    return true
+  }
+
+  // Elsewhere the browser goes to Apple and comes back with `deleted=1`. The tokens left on the device open nothing;
+  // signing out drops them. False when the person closes the browser.
+  async function deleteThroughBrowser(): Promise<boolean> {
+    const result = await WebBrowser.openAuthSessionAsync(
+      await auth.accountDeletionUrl('mobile'),
+      Linking.createURL('social'),
+    )
+
+    if (result.type !== 'success') {
+      return false
+    }
+
+    if (!(result.url.split('?')[1] ?? '').split('&').includes('deleted=1')) {
+      throw new Error('Apple came back without deleting the account')
+    }
+
+    await auth.signOut().catch(() => undefined)
+    return true
   }
 
   if (step === 'apple') {

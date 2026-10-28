@@ -69,7 +69,10 @@ export async function fakeOidcServer({ pkce }: { pkce: boolean }) {
 
       grants.delete(form.get('code') ?? '')
 
-      const idToken = await new SignJWT({ nonce: grant.nonce, ...grant.claims })
+      const idToken = await new SignJWT({
+        ...(grant.nonce !== '' && { nonce: grant.nonce }),
+        ...grant.claims,
+      })
         .setProtectedHeader({ alg: 'RS256', kid: 'k1' })
         .setIssuer(issuer)
         .setAudience(form.get('client_id') ?? '')
@@ -105,6 +108,23 @@ export async function fakeOidcServer({ pkce }: { pkce: boolean }) {
         challenge: params.get('code_challenge'),
         claims,
       })
+      return code
+    },
+    // What a provider's own sheet on a phone hands the app: an ID token signed by the provider, for the app's id.
+    mint(claims: Record<string, unknown>, audience: string, as = issuer): Promise<string> {
+      return new SignJWT(claims)
+        .setProtectedHeader({ alg: 'RS256', kid: 'k1' })
+        .setIssuer(as)
+        .setAudience(audience)
+        .setIssuedAt()
+        .setExpirationTime('5m')
+        .sign(privateKey)
+    },
+    // The code a sheet hands the app beside the token, which the token endpoint trades with no redirect.
+    code(claims: Record<string, unknown>): string {
+      const code = crypto.randomUUID()
+
+      grants.set(code, { nonce: '', challenge: null, claims })
       return code
     },
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
