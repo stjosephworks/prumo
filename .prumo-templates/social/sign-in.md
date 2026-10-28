@@ -29,6 +29,10 @@ Refuse a provider email that is not verified.
 
 When the project has a mobile app and offers Google, offer Apple too before publishing on iOS.
 
+When the project offers Apple and sends mail, register every domain it sends from with Apple before going live,
+with SPF or DKIM: a user who hides their email gets a relay address, and the relay bounces mail from a source it
+does not know.
+
 ## Rationale
 
 The API keeps the client secret and validates the ID token, so neither a browser nor an app ever holds a

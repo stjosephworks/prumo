@@ -68,6 +68,7 @@ export async function buildApp(container: DependencyContainer): Promise<FastifyI
   const env = container.resolve<Env>(ENV)
   const app = Fastify({
     logger: logger(env),
+    trustProxy: env.TRUST_PROXY,
     requestIdHeader: 'x-request-id',
     genReqId: () => randomUUID(),
   })

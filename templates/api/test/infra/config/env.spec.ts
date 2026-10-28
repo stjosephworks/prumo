@@ -24,3 +24,26 @@ describe('WEB_ORIGIN', () => {
     )
   })
 })
+
+describe('TRUST_PROXY', () => {
+  it('trusts nobody by default, so a client cannot choose the address the rate limits read', () => {
+    expect(validate({ ...RAW, WEB_ORIGIN: 'http://localhost:5173' }).TRUST_PROXY).toBe(false)
+  })
+
+  it('takes true, or the proxies as IPs and CIDRs, comma-separated', () => {
+    const env = { ...RAW, WEB_ORIGIN: 'http://localhost:5173' }
+
+    expect(validate({ ...env, TRUST_PROXY: 'true' }).TRUST_PROXY).toBe(true)
+    expect(validate({ ...env, TRUST_PROXY: '10.0.0.0/8, 192.168.1.4' }).TRUST_PROXY).toEqual([
+      '10.0.0.0/8',
+      '192.168.1.4',
+    ])
+  })
+
+  it('refuses a hop count, which Fastify no longer accepts, and anything that is not an address', () => {
+    const env = { ...RAW, WEB_ORIGIN: 'http://localhost:5173' }
+
+    expect(() => validate({ ...env, TRUST_PROXY: '1' })).toThrow('TRUST_PROXY')
+    expect(() => validate({ ...env, TRUST_PROXY: 'load-balancer' })).toThrow('TRUST_PROXY')
+  })
+})

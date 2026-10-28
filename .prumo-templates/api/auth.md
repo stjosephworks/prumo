@@ -22,6 +22,9 @@ on `/api/auth/refresh`, both `Secure` when `API_URL` is https. Give a native cli
 only when it sends `X-Auth-Transport: bearer`; it then sends `Authorization: Bearer`. Refuse with 403 any
 request that changes state, carries a cookie and no bearer, and does not come from an origin in `WEB_ORIGIN`, the comma-separated list of the web apps.
 
+Serve every web app and the API from one site, a single registrable domain such as `app.example.com` and
+`api.example.com`. Different subdomains are fine; different domains are not.
+
 Every route is protected by the global `preHandler` hook in `auth.hook.ts`. Mark a route that needs no session
 with `config: { public: true }`; that means only *do not answer 401*, and the token is still read. Read the
 user in the handler with `currentUser(request)` and pass its id to the use case as an argument. A use case
@@ -31,7 +34,8 @@ Create a user and the application's own row for it in one use case, inside one t
 creates the `User` and calls `CreateProfileUseCase`.
 
 Limit the routes that take a password with `@fastify/rate-limit`, through the route's own
-`config.rateLimit`. The plugin is registered with `global: false`.
+`config.rateLimit`. The plugin is registered with `global: false`. It counts by `request.ip`, which is the
+client's only when `TRUST_PROXY` names the proxy in front (`api/config.md`).
 
 ## Rationale
 
@@ -51,6 +55,9 @@ A cookie no script can read is a token an injected script cannot take, which is 
 one in a body. A cookie is also sent by the browser whoever wrote the page, which is what the Origin check
 answers: a request leaning on a cookie must come from the web app. A native app has no cookie jar and no
 Origin, so it carries a bearer and passes.
+
+The cookies are `SameSite=Lax`, so a browser leaves them off a request one site makes to another: a web app on
+another domain would sign in and then be anonymous on every call.
 
 **What this costs:** the security of sign-in is this code's. There is no upstream fix to wait for. Email
 verification, password reset and social sign-in are questions `prumo new` asks; a project that answered no to

@@ -19,3 +19,30 @@ describe('buildApp', () => {
     await app.close()
   })
 })
+
+describe('TRUST_PROXY', () => {
+  // The address a request is counted under by the rate limits, and logged with.
+  async function addressSeen(trustProxy: boolean | string[]): Promise<string> {
+    const app = await buildApp(
+      createContainer({ env: { ...testEnv(), TRUST_PROXY: trustProxy }, orm: testOrm() }),
+    )
+
+    app.get('/address', { config: { public: true } }, async (request) => request.ip)
+
+    const response = await app.inject({
+      url: '/address',
+      headers: { 'x-forwarded-for': '203.0.113.7' },
+    })
+
+    await app.close()
+    return response.body
+  }
+
+  it('ignores X-Forwarded-For by default: the client cannot pick its own address', async () => {
+    expect(await addressSeen(false)).toBe('127.0.0.1')
+  })
+
+  it('reads the client from X-Forwarded-For when the request came through a trusted proxy', async () => {
+    expect(await addressSeen(['127.0.0.1'])).toBe('203.0.113.7')
+  })
+})

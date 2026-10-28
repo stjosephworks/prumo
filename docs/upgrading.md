@@ -66,6 +66,17 @@ three of its own.
 
 ## What changed, release by release
 
+### 0.9.0
+
+| File | Types | Change |
+|---|---|---|
+| `src/infra/config/env.ts`, `src/infra/http/app.ts`, `.env.example` | api | `TRUST_PROXY`, passed to Fastify's `trustProxy`: `false` by default, `true`, or the proxies' IPs and CIDRs |
+| `.prumo/api/config.md`, `.prumo/api/auth.md` | api | When to set `TRUST_PROXY`; the web and the API on one site |
+| `.prumo/social/sign-in.md` | api with Apple | Register the domains the API sends mail from with Apple |
+
+Why: behind a load balancer every client shared the balancer's address, so the rate limits put the whole world in
+one bucket of ten sign-ins a minute.
+
 ### 0.8.2
 
 | File | Types | Change |

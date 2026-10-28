@@ -26,6 +26,7 @@ export function testEnv(): Env {
     JWT_SECRET: 'test-secret-that-is-at-least-32-characters',
     API_URL: 'http://localhost:3000',
     WEB_ORIGIN: ['http://localhost:5173'],
+    TRUST_PROXY: false,
     LOG_LEVEL: 'error',
   }
 }

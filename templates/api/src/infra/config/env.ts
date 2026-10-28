@@ -16,6 +16,20 @@ const envSchema = z.object({
     .string()
     .transform((value) => value.split(',').map((origin) => origin.trim()))
     .pipe(z.tuple([origin], origin)),
+  // Who may name the client's address in X-Forwarded-For, which the rate limits and the logs read: nobody (false),
+  // whatever reaches the API (true, only where nothing but the platform's proxy can), or the proxies' IPs or CIDRs,
+  // comma-separated. Fastify refuses a hop count: a client that reaches the API directly could forge it.
+  TRUST_PROXY: z
+    .string()
+    .default('false')
+    .transform((value) =>
+      value === 'false' || value === 'true'
+        ? value === 'true'
+        : value.split(',').map((entry) => entry.trim()),
+    )
+    .pipe(
+      z.union([z.boolean(), z.array(z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()])).min(1)]),
+    ),
   // prumo:social
   // Where a mobile app is sent back after signing in with a provider: its own scheme, as in app.json.
   MOBILE_APP_SCHEME: z
