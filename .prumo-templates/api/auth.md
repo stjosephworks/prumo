@@ -63,6 +63,12 @@ client obtained always. Send the code to the new address only when no account ha
 either way, and once it comes back tell the old address, without naming the new one. Keep the other sessions.
 <!-- prumo:end-contact -->
 
+Delete an account at its owner's request with `DELETE /api/auth/account`, after a sign-in of the last ten minutes,
+from the profile on every client. `DeleteAccountUseCase` removes what the application holds first, then the user,
+whose sessions, codes and identities the database removes with it. A table of the application that refers to the
+user restricts the deletion, so a new one is handled there on purpose: deleted, or anonymised where a law or a
+contract says something must stay.
+
 Create a user and the application's own row for it in one use case, inside one transaction: the use case that
 creates the `User` calls `CreateProfileUseCase`. Take the device's `locale` and `timezone`, both optional, with
 the request that creates the account, and use them for the new profile only: a locale the profile does not support
@@ -102,6 +108,11 @@ Without a password, the address is the credential: whoever changes it owns the a
 taken from a device, or an assistant acting for the person, must not be enough for that, so the change asks for a
 sign-in of moments ago. The notice to the old address is how its owner learns of a change they did not make.
 <!-- prumo:end-contact -->
+
+The App Store and Google Play reject an app that creates accounts and cannot delete them, and Google Play asks for
+a way to do it on the web too; laws such as the GDPR and the LGPD give the person the right to it anyway. A
+deletion is the last thing a stolen session could do, so it asks for a sign-in of moments ago, like a change of
+address.
 
 A cookie no script can read is a token an injected script cannot take, which is why the web never receives
 one in a body. A cookie is also sent by the browser whoever wrote the page, which is what the Origin check

@@ -6,6 +6,7 @@ import { profileQuery } from '@/api-contract'
 import { SignOutButton } from '@/features/auth/sign-out-button'
 import { useClients } from '@/features/clients/clients-context'
 import { ContactForm } from '@/features/profile/contact-form' // prumo:contact
+import { DeleteAccount } from '@/features/profile/delete-account'
 import { ProfileForm } from '@/features/profile/profile-form'
 
 export default function ProfileScreen() {
@@ -21,6 +22,7 @@ export default function ProfileScreen() {
       <ContactForm api={api} auth={auth} onSignedOut={() => router.replace('/sign-in')} />
       {/* prumo:end-contact */}
       <SignOutButton auth={auth} onSignedOut={() => router.replace('/sign-in')} />
+      <DeleteAccount auth={auth} onSignedOut={() => router.replace('/sign-in')} />
     </SafeAreaView>
   )
 }

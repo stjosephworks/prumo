@@ -4,6 +4,7 @@ import { refreshSchema } from '@/domain/auth/dto/refresh.dto'
 import { sessionResponseSchema } from '@/domain/auth/dto/session-response.dto'
 import { tokensResponseSchema } from '@/domain/auth/dto/tokens-response.dto'
 import { InvalidSessionError } from '@/domain/auth/errors/invalid-session.error'
+import { DeleteAccountUseCase } from '@/domain/auth/use-cases/delete-account.use-case'
 import { FindUserUseCase } from '@/domain/auth/use-cases/find-user.use-case'
 import { RefreshSessionUseCase } from '@/domain/auth/use-cases/refresh-session.use-case'
 import { SignOutUseCase } from '@/domain/auth/use-cases/sign-out.use-case'
@@ -53,6 +54,16 @@ export async function authController(fastify: FastifyInstance): Promise<void> {
   app.post('/sign-out', { schema: { tags: ['auth'] } }, async (request, reply) => {
     await app.container
       .resolve(SignOutUseCase)
+      .execute(currentUser(request).id, currentSession(request))
+    clearCookies(reply)
+
+    return reply.code(204).send()
+  })
+
+  // Deletes the signed-in person's account, after a sign-in of moments ago; the web's cookies go with it.
+  app.delete('/account', { schema: { tags: ['auth'] } }, async (request, reply) => {
+    await app.container
+      .resolve(DeleteAccountUseCase)
       .execute(currentUser(request).id, currentSession(request))
     clearCookies(reply)
 

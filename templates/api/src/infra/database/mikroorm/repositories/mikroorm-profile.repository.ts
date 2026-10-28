@@ -14,4 +14,8 @@ export class MikroOrmProfileRepository implements ProfileRepository {
   async save(profile: Profile): Promise<void> {
     await this.em.persist(profile).flush()
   }
+
+  async deleteByUserId(userId: string): Promise<void> {
+    await this.em.nativeDelete(Profile, { userId })
+  }
 }

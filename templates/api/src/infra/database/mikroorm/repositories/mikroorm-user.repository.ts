@@ -22,6 +22,10 @@ export class MikroOrmUserRepository implements UserRepository {
   }
   // prumo:end-phone-code
 
+  async delete(userId: string): Promise<void> {
+    await this.em.nativeDelete(User, { id: userId })
+  }
+
   async save(user: User): Promise<void> {
     try {
       await this.em.persist(user).flush()

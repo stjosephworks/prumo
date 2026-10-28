@@ -245,6 +245,18 @@ export function createAuthClient({
     // prumo:end-social
 
     // The device forgets the tokens whether or not the request arrives: signing out locally is what was asked.
+    // Deletes the signed-in person's account. The API asks for a sign-in of moments ago, and refuses an older one
+    // with 403 `reauthentication_required`.
+    async deleteAccount(): Promise<void> {
+      const response = await authorized(url('/account'), { method: 'DELETE' })
+
+      if (!response.ok) {
+        throw await ApiError.fromResponse(response)
+      }
+
+      await tokens?.write(null)
+    },
+
     async signOut(): Promise<void> {
       try {
         const response = await authorized(url('/sign-out'), { method: 'POST' })
