@@ -66,6 +66,15 @@ three of its own.
 
 ## What changed, release by release
 
+### 0.8.2
+
+| File | Types | Change |
+|---|---|---|
+| `vite.config.ts`, `vitest.config.mts` | web | `testTimeout: 15_000` |
+
+Why: a web app's form tests crossed Vitest's 5-second default on a slow machine, Windows CI among them, while the
+same suite passed alone.
+
 ### 0.8.1
 
 | File | Types | Change |
