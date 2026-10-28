@@ -1,8 +1,9 @@
 import { FakeIdentityProviders } from '@test/support/fakes/social-fakes'
-import { testEnv } from '@test/support/setup'
+import { testEnv, testOrm } from '@test/support/setup'
 import { testApp } from '@test/support/test-app'
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { User } from '@/domain/auth/entities/user.entity' // prumo:apple
 import { IDENTITY_PROVIDERS } from '@/domain/auth/ports/identity-providers.port'
 
 const WEB = 'http://localhost:5173'
@@ -128,3 +129,58 @@ describe('social sign-in on mobile', () => {
     expect((await exchange()).statusCode).toBe(401)
   })
 })
+
+// prumo:apple
+describe('deleting an account that signs in with Apple, over HTTP', () => {
+  it('asks for Apple, sends the browser there with a link, and deletes on the way back', async () => {
+    const providers = new FakeIdentityProviders()
+    providers.next = {
+      subject: 'apple-sub-1',
+      email: 'ana@privaterelay.appleid.com',
+      emailVerified: true,
+      name: null,
+    }
+    const own = await testApp({
+      env: { ...testEnv(), WEB_ORIGIN: [WEB] },
+      configure: (container) => container.register(IDENTITY_PROVIDERS, { useValue: providers }),
+    })
+    const signingIn = await own.app.inject({ url: '/api/auth/social/apple' })
+    const signedIn = await own.app.inject({
+      url: `/api/auth/social/apple/callback?code=c&state=${stateOf(signingIn)}`,
+      headers: { cookie: browserCookie(signingIn) },
+    })
+    const session = {
+      cookie: signedIn.cookies.map((each) => `${each.name}=${each.value}`).join('; '),
+      origin: WEB,
+    }
+
+    const refused = await own.app.inject({
+      method: 'DELETE',
+      url: '/api/auth/account',
+      headers: session,
+    })
+    const link = await own.app.inject({
+      method: 'POST',
+      url: '/api/auth/social/apple/deletion',
+      headers: session,
+      payload: { client: 'web' },
+    })
+    const toApple = await own.app.inject({
+      url: new URL(link.json().url).pathname + new URL(link.json().url).search,
+    })
+    const back = await own.app.inject({
+      url: `/api/auth/social/apple/callback?code=c&state=${stateOf(toApple)}`,
+      headers: { cookie: browserCookie(toApple) },
+    })
+
+    expect(refused.statusCode).toBe(409)
+    expect(refused.json()).toMatchObject({ code: 'provider_confirmation_required' })
+    expect(toApple.headers.location).toMatch(/^https:\/\/apple\.test\/authorize/)
+    expect(back.headers.location).toBe(`${WEB}/sign-in?deleted=1`)
+    expect(providers.revoked).toEqual(['apple'])
+    await expect(testOrm().em.fork().count(User)).resolves.toBe(0)
+
+    await own.app.close()
+  })
+})
+// prumo:end-apple

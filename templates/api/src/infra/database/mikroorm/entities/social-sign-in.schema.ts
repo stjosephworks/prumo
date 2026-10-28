@@ -12,6 +12,7 @@ export const SocialSignInSchema = new EntitySchema({
     codeVerifier: { type: 'text', nullable: true },
     nonce: { type: 'text' },
     status: { type: 'text' },
+    intent: { type: 'text', default: 'sign-in' },
     userId: {
       kind: 'm:1',
       // EntitySchema cannot type a to-one relation held as its primary key on a string property.

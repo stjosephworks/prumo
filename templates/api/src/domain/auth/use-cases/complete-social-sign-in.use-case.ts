@@ -1,5 +1,5 @@
 import { inject, injectable } from 'tsyringe'
-import { SocialSignIn } from '@/domain/auth/entities/social-sign-in.entity'
+import { type SocialClient, SocialSignIn } from '@/domain/auth/entities/social-sign-in.entity'
 import { SocialSignInFailedError } from '@/domain/auth/errors/social-sign-in-failed.error'
 import {
   IDENTITY_PROVIDERS,
@@ -7,10 +7,17 @@ import {
   type ProviderName,
 } from '@/domain/auth/ports/identity-providers.port'
 import { OPAQUE_TOKENS, type OpaqueTokens } from '@/domain/auth/ports/opaque-tokens.port'
+// prumo:apple
+import {
+  IDENTITY_REPOSITORY,
+  type IdentityRepository,
+} from '@/domain/auth/repositories/identity.repository'
+// prumo:end-apple
 import {
   SOCIAL_SIGN_IN_REPOSITORY,
   type SocialSignInRepository,
 } from '@/domain/auth/repositories/social-sign-in.repository'
+import { DeleteAccountUseCase } from '@/domain/auth/use-cases/delete-account.use-case' // prumo:apple
 import { LinkIdentityUseCase } from '@/domain/auth/use-cases/link-identity.use-case'
 import {
   type SessionTokens,
@@ -29,9 +36,11 @@ export type SocialCallback = {
   name: string | null
 }
 
+// biome-ignore format: one member a line, so cutting a feature cuts its own
 export type SocialOutcome =
   | { client: 'web'; returnTo: string; tokens: SessionTokens }
   | { client: 'mobile'; code: string }
+  | { client: SocialClient; deleted: true } // prumo:apple
 
 @injectable()
 export class CompleteSocialSignInUseCase {
@@ -42,6 +51,8 @@ export class CompleteSocialSignInUseCase {
     @inject(TRANSACTION_MANAGER) private readonly transactions: TransactionManager,
     private readonly linkIdentity: LinkIdentityUseCase,
     private readonly startSession: StartSessionUseCase,
+    @inject(IDENTITY_REPOSITORY) private readonly identities: IdentityRepository, // prumo:apple
+    private readonly deleteAccount: DeleteAccountUseCase, // prumo:apple
   ) {}
 
   async execute(callback: SocialCallback): Promise<SocialOutcome> {
@@ -67,6 +78,13 @@ export class CompleteSocialSignInUseCase {
     if (started === null) {
       throw new SocialSignInFailedError()
     }
+
+    // prumo:apple
+    if (started.intent === 'delete' && started.userId !== null) {
+      return this.completeDeletion(callback, started, started.userId)
+    }
+
+    // prumo:end-apple
 
     const profile = await this.providers.profile(callback.provider, {
       callbackUrl: callback.callbackUrl,
@@ -100,4 +118,33 @@ export class CompleteSocialSignInUseCase {
       tokens: await this.startSession.execute(userId),
     }
   }
+
+  // prumo:apple
+  // The provider's account must be the one linked to the account being deleted; its authorization is revoked, then
+  // the account goes.
+  private async completeDeletion(
+    callback: SocialCallback,
+    started: SocialSignIn,
+    userId: string,
+  ): Promise<SocialOutcome> {
+    const profile = await this.providers.revoke(callback.provider, {
+      callbackUrl: callback.callbackUrl,
+      state: started.id,
+      codeVerifier: started.codeVerifier,
+      nonce: started.nonce,
+      name: callback.name,
+    })
+    const identity = await this.identities.findBySubject(callback.provider, profile.subject)
+
+    if (identity?.userId !== userId) {
+      throw new SocialSignInFailedError(
+        'That is not the account being deleted. Nothing was deleted.',
+      )
+    }
+
+    await this.deleteAccount.deleteNow(userId)
+
+    return { client: started.client, deleted: true }
+  }
+  // prumo:end-apple
 }

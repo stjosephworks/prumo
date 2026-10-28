@@ -341,7 +341,7 @@ export const FEATURES: Record<Feature, Spec> = {
     dependencies: {},
   },
   // Sign-in with a provider: the OpenID adapter, the trip there and back, and the identities it links, with their
-  // tables in a migration of their own. Google and Apple are cut by their markers alone.
+  // tables in a migration of their own. Google is cut by its markers alone.
   social: {
     files: {
       api: [
@@ -391,7 +391,17 @@ export const FEATURES: Record<Feature, Spec> = {
     dependencies: { api: ['openid-client'] },
   },
   google: { files: {}, dependencies: {} },
-  apple: { files: {}, dependencies: {} },
+  // Apple also confirms the deletion of an account that signs in with it, so the API can revoke the authorization.
+  apple: {
+    files: {
+      api: [
+        'src/domain/auth/errors/provider-confirmation-required.error.ts',
+        'src/domain/auth/use-cases/start-account-deletion.use-case.ts',
+        'src/domain/auth/use-cases/resume-account-deletion.use-case.ts',
+      ],
+    },
+    dependencies: {},
+  },
 }
 
 export function cutFeature(text: string, feature: Feature, keep: boolean, file = 'a file'): string {

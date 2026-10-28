@@ -1,5 +1,6 @@
 import { socialFakes } from '@test/support/fakes/social-fakes'
 import { describe, expect, it } from 'vitest'
+import { ProviderConfirmationRequiredError } from '@/domain/auth/errors/provider-confirmation-required.error' // prumo:apple
 import { ProviderEmailUnverifiedError } from '@/domain/auth/errors/provider-email-unverified.error'
 import { ProviderNotConfiguredError } from '@/domain/auth/errors/provider-not-configured.error'
 import { SocialSignInFailedError } from '@/domain/auth/errors/social-sign-in-failed.error'
@@ -116,7 +117,7 @@ describe('a social sign-in, start to session', () => {
       name: 'Ana',
     })
 
-    if (outcome.client !== 'mobile') {
+    if (!('code' in outcome)) {
       throw new Error('expected a code for the mobile app')
     }
 
@@ -149,3 +150,72 @@ describe('a social sign-in, start to session', () => {
     ).rejects.toBeInstanceOf(ProviderNotConfiguredError)
   })
 })
+
+// prumo:apple
+describe('deleting an account that signs in with Apple', () => {
+  const APPLE = {
+    subject: 'apple-sub-1',
+    email: 'ana@privaterelay.appleid.com',
+    emailVerified: true,
+    name: null,
+  }
+
+  // An account Apple created, signed in, whose owner asks to delete it.
+  async function linked() {
+    const fakes = socialFakes()
+    const userId = await fakes.linkIdentity.execute('apple', APPLE)
+    const session = await fakes.signedIn('someone@example.com')
+
+    fakes.providers.next = APPLE
+    return { ...fakes, userId, sessionId: session.sessionId }
+  }
+
+  async function trip(fakes: Awaited<ReturnType<typeof linked>>) {
+    const ticket = await fakes.startDeletion.execute({ userId: fakes.userId, client: 'web' })
+    await fakes.resumeDeletion.execute(ticket)
+
+    return fakes.complete.execute({
+      provider: 'apple',
+      state: ticket.split('.')[0] ?? '',
+      browserToken: ticket,
+      callbackUrl: new URL('http://localhost:3000/cb'),
+      name: null,
+    })
+  }
+
+  it('asks to confirm with Apple instead of deleting at once', async () => {
+    const { deleteAccount, userId, sessionId, users } = await linked()
+
+    await expect(deleteAccount.execute(userId, sessionId)).rejects.toBeInstanceOf(
+      ProviderConfirmationRequiredError,
+    )
+    expect(users.rows.has(userId)).toBe(true)
+  })
+
+  it('revokes the Apple authorization and deletes the account once Apple confirms it', async () => {
+    const fakes = await linked()
+
+    await expect(trip(fakes)).resolves.toEqual({ client: 'web', deleted: true })
+    expect(fakes.providers.revoked).toEqual(['apple'])
+    expect(fakes.users.rows.has(fakes.userId)).toBe(false)
+    expect(fakes.profiles.rows.has(fakes.userId)).toBe(false)
+  })
+
+  it('deletes nothing when another Apple account comes back', async () => {
+    const fakes = await linked()
+    fakes.providers.next = { ...APPLE, subject: 'apple-sub-2' }
+
+    await expect(trip(fakes)).rejects.toBeInstanceOf(SocialSignInFailedError)
+    expect(fakes.users.rows.has(fakes.userId)).toBe(true)
+  })
+
+  it('takes no ticket but the one it gave', async () => {
+    const { startDeletion, resumeDeletion, userId } = await linked()
+    const ticket = await startDeletion.execute({ userId, client: 'web' })
+
+    await expect(resumeDeletion.execute(`${ticket.split('.')[0]}.forged`)).rejects.toBeInstanceOf(
+      SocialSignInFailedError,
+    )
+  })
+})
+// prumo:end-apple

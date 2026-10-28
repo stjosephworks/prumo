@@ -4,10 +4,10 @@ import { useState } from 'react'
 import { ApiError, type AuthClient } from '@/api-contract'
 import { Button } from '@/components/ui/button'
 
-type Step = 'idle' | 'confirming' | 'stale' | 'failed'
+type Step = 'idle' | 'confirming' | 'stale' | 'apple' | 'failed'
 
 // Deleting the account, which cannot be undone, so it asks twice; a sign-in older than ten minutes is asked again.
-export function DeleteAccount({ auth }: { auth: Pick<AuthClient, 'deleteAccount' | 'signOut'> }) {
+export function DeleteAccount({ auth }: { auth: AuthClient }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>('idle')
@@ -20,6 +20,14 @@ export function DeleteAccount({ auth }: { auth: Pick<AuthClient, 'deleteAccount'
       await auth.deleteAccount()
     } catch (error) {
       setDeleting(false)
+
+      // prumo:apple
+      if (error instanceof ApiError && error.code === 'provider_confirmation_required') {
+        setStep('apple')
+        return
+      }
+
+      // prumo:end-apple
       setStep(
         error instanceof ApiError && error.code === 'reauthentication_required'
           ? 'stale'
@@ -52,6 +60,30 @@ export function DeleteAccount({ auth }: { auth: Pick<AuthClient, 'deleteAccount'
     )
   }
 
+  // prumo:apple
+  // Apple revokes the account's authorization when the person confirms with Apple, and the API then deletes it.
+  async function continueWithApple() {
+    try {
+      window.location.assign(await auth.accountDeletionUrl('web', window.location.origin))
+    } catch {
+      setStep('failed')
+    }
+  }
+
+  if (step === 'apple') {
+    return (
+      <div className="flex flex-col gap-3">
+        <p role="status" className="text-sm text-muted-foreground">
+          Your account signs in with Apple. Confirm with Apple to delete it.
+        </p>
+        <Button type="button" variant="destructive" onClick={continueWithApple}>
+          Continue with Apple
+        </Button>
+      </div>
+    )
+  }
+
+  // prumo:end-apple
   if (step === 'idle') {
     return (
       <Button type="button" variant="destructive" onClick={() => setStep('confirming')}>

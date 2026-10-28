@@ -35,6 +35,16 @@ When the project offers Apple and sends mail, register every domain it sends fro
 with SPF or DKIM: a user who hides their email gets a relay address, and the relay bounces mail from a source it
 does not know.
 
+<!-- prumo:apple -->
+Delete an account that signs in with Apple only once Apple confirms it, and revoke Apple's authorization on the
+way. `DELETE /api/auth/account` answers **409** `provider_confirmation_required` for it; the client asks
+`POST /api/auth/social/apple/deletion` for an address and opens it as it opens a sign-in; the API takes the browser
+to Apple on a trip whose `intent` is `delete`. On the callback, revoke the token Apple gives for the code at its
+`revocation_endpoint` (`IdentityProviders.revoke`), check that the Apple account is the one the account's identity
+names, delete the account, and send the client back to sign-in with `deleted=1`. Keep nothing of Apple's between
+sign-ins.
+<!-- prumo:end-apple -->
+
 ## Rationale
 
 The API keeps the client secret and validates the ID token, so neither a browser nor an app ever holds a
@@ -54,6 +64,14 @@ account nobody confirmed belongs to whoever proves the inbox, and that proof is 
 The App Store asks an app offering a third-party login for its primary account to offer an equivalent
 privacy-preserving login too (App Review Guideline 4.8); Sign in with Apple is one.
 
+<!-- prumo:apple -->
+Apple asks an app with Sign in with Apple to revoke the user's tokens through its REST API when the account is
+deleted, and the App Store asks every app that creates accounts to let them be deleted (App Review Guideline
+5.1.1(v)). A token is only had for an authorization code, and a fresh sign-in gives one, so the project keeps no
+refresh token to revoke later, which would be a credential to guard for the account's whole life. Signing in with
+Apple again is also the recent sign-in a deletion asks for.
+<!-- prumo:end-apple -->
+
 **What this costs:** the trip leaves the app for the system browser and comes back, rather than a native sheet.
 And a provider without its variables in `.env` answers that it is not configured, until someone registers the
 application with it.
@@ -68,6 +86,9 @@ and cannot tell them apart from whoever registered the email first.
 
 `src/domain/auth/` for identities and trips, `social.controller.ts`, `src/infra/social/`, and the social buttons on
 the web and mobile.
+<!-- prumo:apple -->
+With Apple, also the deletion of an account (`delete-account.use-case.ts`, `delete-account.tsx`).
+<!-- prumo:end-apple -->
 
 ## Examples
 
@@ -85,5 +106,12 @@ the web and mobile.
 second use and another provider. `openid-identity-providers.adapter.spec.ts` runs the real adapter against a
 local OpenID provider: PKCE, state, nonce, a forged code, and Apple's client secret signed with the `.p8` key.
 `social.controller.spec.ts` covers both clients over HTTP.
+
+<!-- prumo:apple -->
+For a deletion, `social.use-case.spec.ts` covers the 409, the revocation and the deletion once Apple confirms,
+another Apple account coming back, and a forged ticket; the adapter's spec the revocation itself, and
+`social.controller.spec.ts` the whole trip over HTTP. The clients' `delete-account.spec.tsx` covers the step that
+sends the person to Apple.
+<!-- prumo:end-apple -->
 
 **Review only.** That a new provider's ID token is validated by `openid-client` before anything reads it.

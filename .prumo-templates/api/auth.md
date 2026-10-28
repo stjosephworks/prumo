@@ -68,6 +68,10 @@ from the profile on every client. `DeleteAccountUseCase` removes what the applic
 whose sessions, codes and identities the database removes with it. A table of the application that refers to the
 user restricts the deletion, so a new one is handled there on purpose: deleted, or anonymised where a law or a
 contract says something must stay.
+<!-- prumo:apple -->
+An account that signs in with Apple is deleted through Apple instead, which revokes Apple's authorization
+(`social/sign-in.md`): the deletion answers **409** `provider_confirmation_required` for it.
+<!-- prumo:end-apple -->
 
 Create a user and the application's own row for it in one use case, inside one transaction: the use case that
 creates the `User` calls `CreateProfileUseCase`. Take the device's `locale` and `timezone`, both optional, with

@@ -11,6 +11,7 @@ export async function fakeOidcServer({ pkce }: { pkce: boolean }) {
   const jwk = { ...(await exportJWK(publicKey)), kid: 'k1', alg: 'RS256', use: 'sig' }
   const grants = new Map<string, Grant>()
   const tokenRequests: URLSearchParams[] = []
+  const revocations: URLSearchParams[] = []
   let issuer = ''
 
   const server: Server = createServer(async (request, response) => {
@@ -25,6 +26,7 @@ export async function fakeOidcServer({ pkce }: { pkce: boolean }) {
         issuer,
         authorization_endpoint: `${issuer}/authorize`,
         token_endpoint: `${issuer}/token`,
+        revocation_endpoint: `${issuer}/revoke`,
         jwks_uri: `${issuer}/jwks`,
         response_types_supported: ['code'],
         subject_types_supported: ['public'],
@@ -32,6 +34,14 @@ export async function fakeOidcServer({ pkce }: { pkce: boolean }) {
         token_endpoint_auth_methods_supported: ['client_secret_post'],
         ...(pkce && { code_challenge_methods_supported: ['S256'] }),
       })
+    }
+
+    if (url.pathname === '/revoke') {
+      let body = ''
+      for await (const chunk of request) body += chunk
+      revocations.push(new URLSearchParams(body))
+      response.writeHead(200)
+      return response.end()
     }
 
     if (url.pathname === '/jwks') {
@@ -67,7 +77,12 @@ export async function fakeOidcServer({ pkce }: { pkce: boolean }) {
         .setExpirationTime('5m')
         .sign(privateKey)
 
-      return json(200, { access_token: 'access', token_type: 'Bearer', id_token: idToken })
+      return json(200, {
+        access_token: 'access',
+        refresh_token: 'refresh',
+        token_type: 'Bearer',
+        id_token: idToken,
+      })
     }
 
     json(404, {})
@@ -79,6 +94,7 @@ export async function fakeOidcServer({ pkce }: { pkce: boolean }) {
   return {
     issuer: new URL(issuer),
     tokenRequests,
+    revocations,
     // What the provider would do after the user signs in: remember the request and hand back a code.
     authorize(authorizationUrl: string, claims: Record<string, unknown>): string {
       const params = new URL(authorizationUrl).searchParams

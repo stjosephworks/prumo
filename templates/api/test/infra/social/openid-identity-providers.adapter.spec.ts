@@ -149,6 +149,42 @@ describe('OpenIdIdentityProviders with Apple', () => {
     expect(profile).toMatchObject({ subject: 'a-1', emailVerified: true, name: 'Ana Apple' })
     expect(jose.decodeProtectedHeader(secret)).toMatchObject({ alg: 'ES256', kid: 'KEY1234567' })
     expect(payload.exp).toBeGreaterThan(Date.now() / 1000)
+    expect(server.revocations).toEqual([])
+  })
+
+  it('revokes the refresh token a fresh code yields, for a deletion', async () => {
+    server = await fakeOidcServer({ pkce: false })
+    const { privateKey } = await jose.generateKeyPair('ES256', { extractable: true })
+    const providers = new OpenIdIdentityProviders(
+      {
+        ...testEnv(),
+        APPLE_CLIENT_ID: 'com.example.web',
+        APPLE_TEAM_ID: 'TEAM123456',
+        APPLE_KEY_ID: 'KEY1234567',
+        APPLE_PRIVATE_KEY: (await jose.exportPKCS8(privateKey)).replaceAll('\n', '\\n'),
+      },
+      { issuers: { apple: server.issuer }, insecure: true },
+    )
+    const redirect = await providers.redirect('apple', 'state-1')
+    const code = server.authorize(redirect.url, {
+      sub: 'a-1',
+      email: 'ana@privaterelay.appleid.com',
+      email_verified: 'true',
+    })
+
+    const profile = await providers.revoke('apple', {
+      callbackUrl: callback('apple', code, 'state-1'),
+      state: 'state-1',
+      codeVerifier: null,
+      nonce: redirect.nonce,
+      name: null,
+    })
+
+    expect(profile.subject).toBe('a-1')
+    expect(server.revocations).toHaveLength(1)
+    expect(server.revocations[0]?.get('token')).toBe('refresh')
+    expect(server.revocations[0]?.get('token_type_hint')).toBe('refresh_token')
+    expect(server.revocations[0]?.get('client_id')).toBe('com.example.web')
   })
 })
 // prumo:end-apple

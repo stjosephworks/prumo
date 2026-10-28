@@ -24,6 +24,9 @@ export interface IdentityProviders {
   isConfigured(provider: ProviderName): boolean
   redirect(provider: ProviderName, state: string): Promise<ProviderRedirect>
   profile(provider: ProviderName, callback: ProviderCallback): Promise<ProviderProfile>
+  // The same, for a person deleting their account: the provider's authorization of this application is revoked too,
+  // which Apple requires. A provider that requires nothing revokes nothing.
+  revoke(provider: ProviderName, callback: ProviderCallback): Promise<ProviderProfile>
 }
 
 export const IDENTITY_PROVIDERS = Symbol('IdentityProviders')

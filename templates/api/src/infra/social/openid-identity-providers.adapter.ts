@@ -17,6 +17,8 @@ type Settings = {
   scope: string
   // Apple answers with a POST when the email is asked for; Google redirects back with a GET.
   formPost: boolean
+  // Apple requires its authorization revoked when the account is deleted; Google asks nothing.
+  revokesOnDeletion: boolean
   secret: () => Promise<string>
 }
 
@@ -56,6 +58,7 @@ export class OpenIdIdentityProviders implements IdentityProviders {
               clientId: env.GOOGLE_CLIENT_ID,
               scope: 'openid email profile',
               formPost: false,
+              revokesOnDeletion: false,
               secret: async () => secret,
             }
       }
@@ -78,6 +81,7 @@ export class OpenIdIdentityProviders implements IdentityProviders {
           clientId: APPLE_CLIENT_ID,
           scope: 'openid email name',
           formPost: true,
+          revokesOnDeletion: true,
           // Apple's client secret is a JWT signed with the team's .p8 key, not a string it hands out.
           secret: async () =>
             new SignJWT({})
@@ -156,7 +160,21 @@ export class OpenIdIdentityProviders implements IdentityProviders {
     return { url: url.href, codeVerifier, nonce }
   }
 
-  async profile(provider: ProviderName, callback: ProviderCallback): Promise<ProviderProfile> {
+  profile(provider: ProviderName, callback: ProviderCallback): Promise<ProviderProfile> {
+    return this.exchange(provider, callback, false)
+  }
+
+  revoke(provider: ProviderName, callback: ProviderCallback): Promise<ProviderProfile> {
+    return this.exchange(provider, callback, true)
+  }
+
+  // Trades the code for tokens and reads the profile from the ID token; for a deletion, revokes them afterwards
+  // where the provider asks for it.
+  private async exchange(
+    provider: ProviderName,
+    callback: ProviderCallback,
+    revoke: boolean,
+  ): Promise<ProviderProfile> {
     const settings = this.settings(provider)
 
     if (settings === null) {
@@ -164,21 +182,25 @@ export class OpenIdIdentityProviders implements IdentityProviders {
     }
 
     try {
-      const tokens = await oidc.authorizationCodeGrant(
-        await this.configuration(provider, settings),
-        callback.callbackUrl,
-        {
-          expectedState: callback.state,
-          expectedNonce: callback.nonce,
-          idTokenExpected: true,
-          ...(callback.codeVerifier !== null && { pkceCodeVerifier: callback.codeVerifier }),
-        },
-      )
+      const configuration = await this.configuration(provider, settings)
+      const tokens = await oidc.authorizationCodeGrant(configuration, callback.callbackUrl, {
+        expectedState: callback.state,
+        expectedNonce: callback.nonce,
+        idTokenExpected: true,
+        ...(callback.codeVerifier !== null && { pkceCodeVerifier: callback.codeVerifier }),
+      })
       // Read only after openid-client checked the ID token's signature, issuer, audience, expiry and nonce.
       const claims = tokens.claims()
 
       if (claims === undefined || typeof claims.email !== 'string') {
         throw new SocialSignInFailedError('The provider did not share an email address')
+      }
+
+      // Apple's own documentation: without a stored token, one obtained from a fresh authorization code is revoked.
+      if (revoke && settings.revokesOnDeletion) {
+        await oidc.tokenRevocation(configuration, tokens.refresh_token ?? tokens.access_token, {
+          token_type_hint: tokens.refresh_token === undefined ? 'access_token' : 'refresh_token',
+        })
       }
 
       return {

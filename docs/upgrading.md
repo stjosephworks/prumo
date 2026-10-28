@@ -103,6 +103,10 @@ three of its own.
 | `session.entity.ts`, `refresh-session.use-case.ts`, `start-session.use-case.ts`, `auth.di.ts`, `env.ts`, `.env.example` | api | The previous refresh token, after the ten-second grace, rotates the session again instead of revoking it (`rotateFromPrevious`); `SESSION_LIFETIME_DAYS`, thirty by default, replaces `SESSION_LIFETIME_MS`, injected as `SESSION_LIFETIME` |
 | `delete-account.use-case.ts`, `delete-profile.use-case.ts`, `auth.controller.ts`, the user and profile repositories | api | New. `DELETE /api/auth/account` after a recent sign-in; the profile, then the user, whose rows the database removes with it |
 | `src/api-contract/auth.ts`, `src/features/profile/delete-account.tsx`, the profile page or screen | web, mobile | `deleteAccount()`, and a Delete account that asks twice |
+| `social-sign-in.entity.ts`, `social-sign-in.schema.ts`, `migrations/…_create_identity_social_sign_in.ts`, `identity-providers.port.ts`, `openid-identity-providers.adapter.ts`, `identity.repository.ts` | api with social | `social_sign_in.intent`, `sign-in` or `delete`; `IdentityProviders.revoke`, which revokes the token a code yields where the provider asks it (Apple); `IdentityRepository.findByUser`. An existing project writes a migration that adds `"intent" text not null default 'sign-in'` |
+| `start-account-deletion.use-case.ts`, `resume-account-deletion.use-case.ts`, `provider-confirmation-required.error.ts`, `delete-account.use-case.ts`, `complete-social-sign-in.use-case.ts`, `social.controller.ts` | api with Apple | New. Deleting an account that signs in with Apple answers 409 `provider_confirmation_required`; `POST` and `GET /api/auth/social/apple/deletion` take the browser to Apple, and the callback revokes the token and deletes the account |
+| `src/api-contract/auth.ts`, `delete-account.tsx`, `social-buttons.tsx`, the sign-in route | web, mobile with Apple | `accountDeletionUrl`; Continue with Apple when the deletion answers 409; Your account was deleted on the way back |
+| `.prumo/social/sign-in.md`, `.prumo/api/auth.md` | api with Apple | The deletion through Apple |
 | `test/support/test-app.ts`, `test/support/fakes/auth-fakes.ts` | api | `signIn` and `signedIn` reach a session through the project's own way in; `signUpWithPassword` and `register` stay for the password's own specs |
 
 Why: behind a load balancer every client shared the balancer's address, so the rate limits put the whole world in
@@ -111,6 +115,9 @@ one bucket of ten sign-ins a minute.
 Why, for the ways in: a project could not be generated without passwords, and a code that creates the account on
 first use is what many products want instead. A project that wants to add sign-in by code generates a reference with
 `--sign-in password,email-code` and carries the email-code files over.
+
+Why, for Apple's deletion: Apple asks an app with Sign in with Apple to revoke the user's tokens when it deletes the
+account. A fresh sign-in gives the token to revoke, so none is kept for the account's life.
 
 Why, for the codes: the per-IP limits let one address be sent a code every few seconds from many IPs, filling a
 mailbox; with a phone, every text costs money. And a code was keyed by its user, so none could exist before the

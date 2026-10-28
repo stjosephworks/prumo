@@ -244,7 +244,24 @@ export function createAuthClient({
     },
     // prumo:end-social
 
-    // The device forgets the tokens whether or not the request arrives: signing out locally is what was asked.
+    // prumo:apple
+    // Where to send the browser to delete an account that signs in with Apple: the API takes it to Apple, which
+    // revokes the account's authorization, and back to sign-in with `deleted=1`.
+    accountDeletionUrl: async (client: 'web' | 'mobile', origin?: string): Promise<string> => {
+      const response = await authorized(url('/social/apple/deletion'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ client, ...(origin !== undefined && { origin }) }),
+      })
+
+      if (!response.ok) {
+        throw await ApiError.fromResponse(response)
+      }
+
+      return ((await response.json()) as { url: string }).url
+    },
+    // prumo:end-apple
+
     // Deletes the signed-in person's account. The API asks for a sign-in of moments ago, and refuses an older one
     // with 403 `reauthentication_required`.
     async deleteAccount(): Promise<void> {
@@ -257,6 +274,7 @@ export function createAuthClient({
       await tokens?.write(null)
     },
 
+    // The device forgets the tokens whether or not the request arrives: signing out locally is what was asked.
     async signOut(): Promise<void> {
       try {
         const response = await authorized(url('/sign-out'), { method: 'POST' })

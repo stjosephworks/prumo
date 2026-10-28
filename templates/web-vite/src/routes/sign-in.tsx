@@ -9,6 +9,8 @@ export const Route = createFileRoute('/sign-in')({
   validateSearch: z.object({
     redirect: z.string().optional(),
     error: z.string().optional(), // prumo:social
+    // The router reads `deleted=1` as a number.
+    deleted: z.coerce.string().optional(), // prumo:apple
   }),
   component: SignInPage,
 })
@@ -21,7 +23,12 @@ function SignInPage() {
     <>
       <h1 className="text-2xl font-semibold">Sign in</h1>
       {/* prumo:social */}
-      <SocialButtons auth={auth} returnTo={search.redirect} error={search.error} />
+      <SocialButtons
+        auth={auth}
+        returnTo={search.redirect}
+        error={search.error}
+        deleted={search.deleted !== undefined} // prumo:apple
+      />
       {/* prumo:end-social */}
       <SignInChoice
         code={<CodeSignInForm auth={auth} redirect={search.redirect} />} // prumo:code-sign-in

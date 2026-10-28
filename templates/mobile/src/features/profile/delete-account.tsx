@@ -1,11 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query'
+import * as Linking from 'expo-linking' // prumo:apple
+import * as WebBrowser from 'expo-web-browser' // prumo:apple
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { ApiError, type AuthClient } from '@/api-contract'
 import { Button } from '@/components/ui/button'
 import { clearUserData } from '@/features/storage/storage'
 
-type Step = 'idle' | 'confirming' | 'stale' | 'failed'
+type Step = 'idle' | 'confirming' | 'stale' | 'apple' | 'failed'
 
 // Deleting the account, which cannot be undone, so it asks twice; a sign-in older than ten minutes is asked again.
 // Either way the person ends signed out, and `onSignedOut` takes them to sign in.
@@ -13,7 +15,7 @@ export function DeleteAccount({
   auth,
   onSignedOut,
 }: {
-  auth: Pick<AuthClient, 'deleteAccount' | 'signOut'>
+  auth: AuthClient
   onSignedOut: () => void
 }) {
   const queryClient = useQueryClient()
@@ -34,6 +36,14 @@ export function DeleteAccount({
       await auth.deleteAccount()
     } catch (error) {
       setDeleting(false)
+
+      // prumo:apple
+      if (error instanceof ApiError && error.code === 'provider_confirmation_required') {
+        setStep('apple')
+        return
+      }
+
+      // prumo:end-apple
       setStep(
         error instanceof ApiError && error.code === 'reauthentication_required'
           ? 'stale'
@@ -61,6 +71,45 @@ export function DeleteAccount({
     )
   }
 
+  // prumo:apple
+  // Apple revokes the account's authorization when the person confirms with Apple, and the API then deletes it and
+  // sends the browser back with `deleted=1`. The tokens left on the device open nothing; signing out drops them.
+  async function continueWithApple() {
+    try {
+      const result = await WebBrowser.openAuthSessionAsync(
+        await auth.accountDeletionUrl('mobile'),
+        Linking.createURL('social'),
+      )
+
+      // Closing the browser is a decision, not a failure.
+      if (result.type !== 'success') {
+        return
+      }
+
+      if (!(result.url.split('?')[1] ?? '').split('&').includes('deleted=1')) {
+        throw new Error('Apple came back without deleting the account')
+      }
+    } catch {
+      setStep('failed')
+      return
+    }
+
+    await auth.signOut().catch(() => undefined)
+    forget()
+  }
+
+  if (step === 'apple') {
+    return (
+      <View className="gap-3">
+        <Text className="text-sm text-neutral-500">
+          Your account signs in with Apple. Confirm with Apple to delete it.
+        </Text>
+        <Button label="Continue with Apple" onPress={continueWithApple} />
+      </View>
+    )
+  }
+
+  // prumo:end-apple
   if (step === 'idle') {
     return <Button label="Delete account" variant="outline" onPress={() => setStep('confirming')} />
   }
