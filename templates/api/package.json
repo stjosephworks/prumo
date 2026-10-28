@@ -5,7 +5,7 @@
   "scripts": {
     "build": "swc src -d dist --strip-leading-paths --delete-dir-on-start --ignore \"**/*.spec.ts,**/*.d.ts\"",
     "start": "node dist/infra/http/server.js",
-    "start:dev": "node --watch -r @swc-node/register src/infra/http/server.ts",
+    "start:dev": "node --watch --env-file-if-exists=.env -r @swc-node/register src/infra/http/server.ts",
     "dev": "node scripts/database.mjs --check && node scripts/ports.mjs -- pnpm start:dev",
     "lint": "biome check",
     "typecheck": "tsc --noEmit",

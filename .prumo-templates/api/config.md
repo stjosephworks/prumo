@@ -37,6 +37,10 @@ point: the ORM's CLI reads the configuration without starting it. Node's
 `--env-file` would work without code, but it has to be typed on every command. One function every entry
 point calls keeps one policy, including *never in production*.
 
+**`start:dev` also passes `--env-file-if-exists=.env`.** It loads nothing `loadEnv()` would not; it is there so
+`node --watch` watches `.env` and restarts the API when it changes. `scripts/ports.mjs` writes a web app's new
+origin into `WEB_ORIGIN` when it moves the app, and a running API that kept the old list refuses that app.
+
 ## Applies to
 
 `src/infra/config/env.ts` and every consumer of a setting.
