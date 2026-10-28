@@ -50,6 +50,11 @@ const MAILS: Partial<Record<CodePurpose, (to: string, code: string) => Mail>> = 
     text: `Enter ${code} to sign in. The code expires in 15 minutes. If you did not ask for it, ignore this email: nobody can sign in without it.`,
   }),
   // prumo:end-email-code
+  'change-email': (to, code) => ({
+    to,
+    subject: `${code} is your code to change your email`,
+    text: `Enter ${code} to make this the email of your account. The code expires in 15 minutes. If you did not ask for it, ignore this email: nothing changes without it.`,
+  }),
 }
 
 // prumo:end-mail
@@ -59,6 +64,10 @@ const TEXTS: Partial<Record<CodePurpose, (to: string, code: string) => TextMessa
   'sign-in': (to, code) => ({
     to,
     text: `${code} is your sign-in code. It expires in 15 minutes. Never share it.`,
+  }),
+  'change-phone': (to, code) => ({
+    to,
+    text: `${code} is your code to make this the phone of your account. It expires in 15 minutes. Never share it.`,
   }),
 }
 
@@ -74,11 +83,12 @@ export class IssueCodeUseCase {
   ) {}
 
   // Writes the destination's code whether or not it is sent, so the limits answer alike for an address with an
-  // account and one without. `deliver` is false when nobody there may receive it.
+  // account and one without. `deliver` is false when nobody there may receive it; `userId` binds a code that changes
+  // an account's address to that account.
   async execute(
     { channel, destination }: CodeTarget,
     purpose: CodePurpose,
-    { deliver }: { deliver: boolean },
+    { deliver, userId = null }: { deliver: boolean; userId?: string | null },
   ): Promise<void> {
     const code = this.oneTimeCodes.create()
     const codeHash = this.oneTimeCodes.digest(code)
@@ -91,7 +101,10 @@ export class IssueCodeUseCase {
       const existing = await this.codes.lockFor(channel, destination, purpose)
 
       if (existing === null) {
-        await this.codes.save(new OneTimeCode(channel, destination, purpose, codeHash, now))
+        const created = new OneTimeCode(channel, destination, purpose, codeHash, now)
+
+        created.userId = userId
+        await this.codes.save(created)
         return
       }
 
@@ -102,6 +115,7 @@ export class IssueCodeUseCase {
       }
 
       existing.issue(codeHash, now)
+      existing.userId = userId
       await this.codes.save(existing)
     })
 

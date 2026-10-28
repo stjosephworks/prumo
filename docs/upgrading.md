@@ -95,6 +95,10 @@ three of its own.
 | `session-response.dto.ts`, `auth.controller.ts`, `src/api-contract/auth.ts` | api, web, mobile with phone-code | The session's user carries `phone`, and an `email` that may be null |
 | `code-sign-in-form.tsx` | web, mobile | Asks for an email or a phone number, whichever the project signs in by, with a switch when it has both; the button reads Send me a code |
 | `.prumo/codes/`, `.prumo/email/codes.md`, `.prumo/phone/` | api | The rules every code keeps move from `email/codes.md` to the new `codes/codes.md`; `phone/` is new |
+| `session.entity.ts`, `require-recent-sign-in.use-case.ts`, `reauthentication-required.error.ts` | api | `Session.isRecentSignIn`: a sign-in of the last ten minutes, never by an OAuth client |
+| `one_time_code.user_id`, purposes `change-email` and `change-phone` | api with codes | A code that changes an account's address is bound to it |
+| `email-change.controller.ts`, `request-email-change.use-case.ts`, `change-email.use-case.ts` (and the `phone` ones) | api with email or phone codes | New. `POST /api/v1/users/me/email/code` and `/me/email` (and `/me/phone…`): a code to the new address if free, 204 either way, a notice to the old one |
+| `src/api-contract/client.ts`, `src/api-contract/contact.ts`, `src/features/profile/contact-form.tsx` | web, mobile | `ApiClient.post`, and a 204 read as nothing; the profile shows each address with a way to change it |
 | `test/support/test-app.ts`, `test/support/fakes/auth-fakes.ts` | api | `signIn` and `signedIn` reach a session through the project's own way in; `signUpWithPassword` and `register` stay for the password's own specs |
 
 Why: behind a load balancer every client shared the balancer's address, so the rate limits put the whole world in

@@ -15,11 +15,13 @@ import type { DependencyContainer } from 'tsyringe'
 import { ENV, type Env } from '@/infra/config/env'
 import { authController } from '@/infra/http/controllers/auth.controller'
 import { authEmailController } from '@/infra/http/controllers/auth-email.controller' // prumo:email
+import { emailChangeController } from '@/infra/http/controllers/email-change.controller' // prumo:mail
 import { emailCodeController } from '@/infra/http/controllers/email-code.controller' // prumo:email-code
 import { healthController } from '@/infra/http/controllers/health.controller'
 import { mcpController } from '@/infra/http/controllers/mcp.controller' // prumo:mcp
 import { oauthController } from '@/infra/http/controllers/oauth.controller' // prumo:mcp
 import { passwordController } from '@/infra/http/controllers/password.controller' // prumo:password
+import { phoneChangeController } from '@/infra/http/controllers/phone-change.controller' // prumo:sms
 import { phoneCodeController } from '@/infra/http/controllers/phone-code.controller' // prumo:phone-code
 import { socialController } from '@/infra/http/controllers/social.controller' // prumo:social
 import { usersController } from '@/infra/http/controllers/users.controller'
@@ -111,6 +113,8 @@ export async function buildApp(container: DependencyContainer): Promise<FastifyI
   await app.register(socialController, { prefix: '/api/auth/social' }) // prumo:social
   await app.register(healthController, { prefix: '/api/health' })
   await app.register(usersController, { prefix: '/api/v1/users' })
+  await app.register(emailChangeController, { prefix: '/api/v1/users/me' }) // prumo:mail
+  await app.register(phoneChangeController, { prefix: '/api/v1/users/me' }) // prumo:sms
   // prumo:mcp
   await app.register(oauthController)
   await app.register(mcpController, { prefix: '/api/mcp' })

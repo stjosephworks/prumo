@@ -58,7 +58,18 @@ export class User {
     return true
   }
 
+  // A code sent to the new address came back to this account's owner, so it is theirs, and confirmed.
+  changeEmail(email: string, now: Date): void {
+    this.email = User.normalizeEmail(email)
+    this.emailVerifiedAt = now
+  }
+
   // prumo:phone-code
+  changePhone(phone: string, now: Date): void {
+    this.phone = phone
+    this.phoneVerifiedAt = now
+  }
+
   // A code sent to the phone came back. Only ever set by such a code, so nobody else can have claimed it first.
   verifyPhone(now: Date): void {
     this.phoneVerifiedAt ??= now

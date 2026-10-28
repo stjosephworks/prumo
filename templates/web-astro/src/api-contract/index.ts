@@ -16,6 +16,14 @@ export {
   type VerifyEmailRequest, // prumo:email
 } from './auth'
 export { type ApiClient, createClient, type Transport } from './client'
+// prumo:contact
+export {
+  changeEmail, // prumo:mail
+  changePhone, // prumo:sms
+  requestEmailChange, // prumo:mail
+  requestPhoneChange, // prumo:sms
+} from './contact'
+// prumo:end-contact
 export {
   LOCALES,
   type Locale,

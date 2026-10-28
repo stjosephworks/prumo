@@ -5,6 +5,10 @@ export const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000
 // retry instead of being treated as a stolen token.
 export const ROTATION_GRACE_MS = 10 * 1000
 
+// How long after signing in a person may still change what signs them in: long enough to finish what they came
+// for, short enough that a session taken later cannot.
+export const RECENT_SIGN_IN_MS = 10 * 60 * 1000
+
 export type RefreshOutcome = 'valid' | 'superseded' | 'reused' | 'expired'
 
 // A session the user started in this application has none of these. One an OAuth client obtained names the client,
@@ -34,6 +38,12 @@ export class Session {
     this.resource = grant?.resource ?? null
     this.scope = grant?.scope ?? null
     this.expiresAt = new Date(now.getTime() + SESSION_LIFETIME_MS)
+  }
+
+  // Signed into in this application moments ago. A session an OAuth client obtained never is: it acts for the
+  // person, and cannot change how they sign in.
+  isRecentSignIn(now: Date): boolean {
+    return this.clientId === null && now.getTime() - this.createdAt.getTime() < RECENT_SIGN_IN_MS
   }
 
   // The refresh token names its session, so a token from any earlier rotation is recognised as reuse.

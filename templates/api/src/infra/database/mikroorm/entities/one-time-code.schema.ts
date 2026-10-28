@@ -10,7 +10,7 @@ export const OneTimeCodeSchema = new EntitySchema({
     { name: 'one_time_code_channel_check', expression: `"channel" in ('email', 'phone')` },
     {
       name: 'one_time_code_purpose_check',
-      expression: `"purpose" in ('verify-email', 'reset-password', 'sign-in')`,
+      expression: `"purpose" in ('verify-email', 'reset-password', 'sign-in', 'change-email', 'change-phone')`,
     },
   ],
   properties: {
@@ -18,6 +18,16 @@ export const OneTimeCodeSchema = new EntitySchema({
     channel: { type: 'text' },
     destination: { type: 'text' },
     purpose: { type: 'text' },
+    userId: {
+      kind: 'm:1',
+      // EntitySchema cannot type a to-one relation held as its primary key on a string property.
+      entity: () => 'User' as never,
+      mapToPk: true,
+      fieldName: 'user_id',
+      nullable: true,
+      // A code meant for an account means nothing without it.
+      deleteRule: 'cascade',
+    },
     codeHash: { type: 'text' },
     attemptsLeft: { type: 'integer' },
     expiresAt: { type: 'datetime' },

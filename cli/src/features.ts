@@ -16,6 +16,7 @@ export const FEATURE_NAMES = [
   'codes',
   'mail',
   'sms',
+  'contact',
   'email',
   'social',
   'google',
@@ -58,6 +59,7 @@ export function enabledFor(answers: {
     codes: answers.email || emailCode || phoneCode,
     mail: answers.email || emailCode,
     sms: phoneCode,
+    contact: answers.email || emailCode || phoneCode,
     email: answers.email,
     social: answers.social.length > 0,
     google: answers.social.includes('google'),
@@ -179,13 +181,19 @@ export const FEATURES: Record<Feature, Spec> = {
     },
     dependencies: {},
   },
-  // Mail: the Mailer port and the adapter that logs it, for whatever sends a code by email.
+  // Mail: the Mailer port and the adapter that logs it, for whatever sends a code by email, and changing the email
+  // of an account, which is proved by one.
   mail: {
     files: {
       api: [
         'src/domain/auth/ports/mailer.port.ts',
         'src/domain/auth/dto/email-request.dto.ts',
+        'src/domain/auth/dto/email-change.dto.ts',
+        'src/domain/auth/use-cases/request-email-change.use-case.ts',
+        'src/domain/auth/use-cases/change-email.use-case.ts',
         'src/infra/email',
+        'src/infra/http/controllers/email-change.controller.ts',
+        'test/infra/http/controllers/email-change.controller.spec.ts',
         'test/support/fakes/fake-mailer.ts',
       ],
     },
@@ -289,12 +297,43 @@ export const FEATURES: Record<Feature, Spec> = {
     },
     dependencies: {},
   },
-  // Text messages: the TextMessages port and the adapter that logs it.
+  // Changing the email or the phone of an account, on the clients: whichever of the two the project sends codes by.
+  contact: {
+    files: {
+      'web-vite': [
+        'src/api-contract/contact.ts',
+        'src/features/profile/contact-form.tsx',
+        'test/features/profile/contact-form.spec.tsx',
+      ],
+      'web-next': [
+        'src/api-contract/contact.ts',
+        'src/features/profile/contact-form.tsx',
+        'test/features/profile/contact-form.spec.tsx',
+      ],
+      'web-astro': [
+        'src/api-contract/contact.ts',
+        'src/features/profile/contact-form.tsx',
+        'test/features/profile/contact-form.spec.tsx',
+      ],
+      mobile: [
+        'src/api-contract/contact.ts',
+        'src/features/profile/contact-form.tsx',
+        'test/features/profile/contact-form.spec.tsx',
+      ],
+    },
+    dependencies: {},
+  },
+  // Text messages: the TextMessages port and the adapter that logs it, and changing the phone of an account.
   sms: {
     files: {
       api: [
         'src/domain/auth/ports/text-messages.port.ts',
+        'src/domain/auth/dto/phone-change.dto.ts',
+        'src/domain/auth/use-cases/request-phone-change.use-case.ts',
+        'src/domain/auth/use-cases/change-phone.use-case.ts',
         'src/infra/sms/log-text-messages.adapter.ts',
+        'src/infra/http/controllers/phone-change.controller.ts',
+        'test/infra/http/controllers/phone-change.controller.spec.ts',
         'test/support/fakes/fake-text-messages.ts',
       ],
     },

@@ -47,6 +47,13 @@ with `config: { public: true }`; that means only *do not answer 401*, and the to
 user in the handler with `currentUser(request)` and pass its id to the use case as an argument. A use case
 never reads the request.
 
+<!-- prumo:contact -->
+Change the address an account signs in with only after a sign-in of the last ten minutes (`Session.isRecentSignIn`,
+`RequireRecentSignInUseCase`); refuse an older one with **403** `reauthentication_required`, and a session an OAuth
+client obtained always. Send the code to the new address only when no account has it, answer the request with 204
+either way, and once it comes back tell the old address, without naming the new one. Keep the other sessions.
+<!-- prumo:end-contact -->
+
 Create a user and the application's own row for it in one use case, inside one transaction: the use case that
 creates the `User` calls `CreateProfileUseCase`. Take the device's `locale` and `timezone`, both optional, with
 the request that creates the account, and use them for the new profile only: a locale the profile does not support
@@ -76,6 +83,12 @@ The decoy hash is there because the time a sign-in takes would otherwise say whi
 A code creates the account only when it comes back, because sending one proves nothing: an address that never
 answers leaves no account behind, and one that answers has proved its inbox, which is all an account by code is.
 <!-- prumo:end-email-code -->
+
+<!-- prumo:contact -->
+Without a password, the address is the credential: whoever changes it owns the account from then on. A session
+taken from a device, or an assistant acting for the person, must not be enough for that, so the change asks for a
+sign-in of moments ago. The notice to the old address is how its owner learns of a change they did not make.
+<!-- prumo:end-contact -->
 
 A cookie no script can read is a token an injected script cannot take, which is why the web never receives
 one in a body. A cookie is also sent by the browser whoever wrote the page, which is what the Origin check

@@ -17,6 +17,8 @@ export type CodePurpose =
   | 'verify-email' // prumo:email
   | 'reset-password' // prumo:email
   | 'sign-in' // prumo:code-sign-in
+  | 'change-email' // prumo:mail
+  | 'change-phone' // prumo:sms
 
 export type CodeOutcome = 'valid' | 'wrong' | 'expired'
 
@@ -28,6 +30,8 @@ export class OneTimeCode {
   // A normalised email, or a phone in E.164.
   destination: string
   purpose: CodePurpose
+  // The account a code changes an address of; null for a code that proves an address on its own.
+  userId: string | null = null
   codeHash: string
   attemptsLeft: number
   expiresAt: Date

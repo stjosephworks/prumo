@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { ROTATION_GRACE_MS, Session } from '@/domain/auth/entities/session.entity'
+import {
+  RECENT_SIGN_IN_MS,
+  ROTATION_GRACE_MS,
+  Session,
+} from '@/domain/auth/entities/session.entity'
 
 const NOW = new Date('2026-10-02T12:00:00Z')
 const later = (ms: number) => new Date(NOW.getTime() + ms)
@@ -46,5 +50,32 @@ describe('Session', () => {
     for (const token of ['', 'no-dot', 'not-a-uuid.secret', `${session.id}.`]) {
       expect(Session.parseRefreshToken(token), token).toBeNull()
     }
+  })
+})
+
+describe('Session.isRecentSignIn', () => {
+  function startedAt(
+    createdAt: Date,
+    grant?: { clientId: string; resource: string; scope: string },
+  ) {
+    const session = new Session('user-1', 'hash', createdAt, grant)
+
+    session.createdAt = createdAt
+    return session
+  }
+
+  it('holds for a sign-in of moments ago, and not once the window has passed', () => {
+    expect(startedAt(later(-60_000)).isRecentSignIn(NOW)).toBe(true)
+    expect(startedAt(later(-RECENT_SIGN_IN_MS)).isRecentSignIn(NOW)).toBe(false)
+  })
+
+  it('never holds for a session an OAuth client obtained, however new', () => {
+    const grant = {
+      clientId: 'https://client.example',
+      resource: 'https://api.example',
+      scope: 'profile:read',
+    }
+
+    expect(startedAt(NOW, grant).isRecentSignIn(NOW)).toBe(false)
   })
 })

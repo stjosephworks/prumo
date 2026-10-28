@@ -2,6 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { profileQuery } from '@/api-contract'
 import { SignOutButton } from '@/features/auth/sign-out-button'
+import { ContactForm } from '@/features/profile/contact-form' // prumo:contact
 import { ProfileForm } from '@/features/profile/profile-form'
 
 export const Route = createFileRoute('/_authenticated/')({
@@ -17,6 +18,9 @@ function ProfilePage() {
     <>
       <h1 className="text-2xl font-semibold">Your profile</h1>
       <ProfileForm api={api} profile={profile} />
+      {/* prumo:contact */}
+      <ContactForm api={api} auth={auth} />
+      {/* prumo:end-contact */}
       <SignOutButton auth={auth} />
     </>
   )

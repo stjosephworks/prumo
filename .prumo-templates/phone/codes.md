@@ -25,6 +25,9 @@ app associated with it, which the generated app is not. Add the line once the ap
 On a client, give the phone field `type="tel"` and `autoComplete="tel"`, and the code field
 `autoComplete="one-time-code"`, which offers a code that just arrived by text on iOS and Android alike.
 
+Change an account's phone with the purpose `change-phone`, the code bound to the account that asked:
+`POST /api/v1/users/me/phone/code`, then `POST /api/v1/users/me/phone` (`api/auth.md`).
+
 ## Rationale
 
 A text to an expensive destination costs the project money and earns whoever owns that number a share, which is

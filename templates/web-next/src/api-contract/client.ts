@@ -16,11 +16,17 @@ export function createClient({ baseUrl, fetch }: { baseUrl: string; fetch: Trans
       throw await ApiError.fromResponse(response)
     }
 
+    // An action with nothing to answer answers 204, with no body to read.
+    if (response.status === 204) {
+      return undefined as T
+    }
+
     return (await response.json()) as T
   }
 
   return {
     get: <T>(path: string) => request<T>('GET', path),
     patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
+    post: <T>(path: string, body: unknown) => request<T>('POST', path, body),
   }
 }

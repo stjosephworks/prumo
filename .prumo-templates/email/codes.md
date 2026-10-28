@@ -29,6 +29,9 @@ Ask for the address, then the code, on one screen. A 429 there still moves on to
 is still good.
 <!-- prumo:end-email-code -->
 
+Change an account's email with the purpose `change-email`, the code bound to the account that asked
+(`one_time_code.user_id`): `POST /api/v1/users/me/email/code`, then `POST /api/v1/users/me/email` (`api/auth.md`).
+
 ## Rationale
 
 Every answer that could say whether an email has an account says the same thing instead, so these routes cannot
