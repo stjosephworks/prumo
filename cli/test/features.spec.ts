@@ -122,6 +122,7 @@ describe('generate with and without MCP', () => {
         types: ['api', 'web'],
         architecture: 'monorepo',
         multiTenant: false,
+        languages: ['en'],
         mcp,
         signIn: ['password'],
         email: false,
@@ -241,6 +242,7 @@ describe('generate with social sign-in', () => {
         types,
         architecture: 'monorepo',
         multiTenant: false,
+        languages: ['en'],
         mcp: false,
         signIn: ['password'],
         email: false,
@@ -316,6 +318,7 @@ describe('generate with email', () => {
     root = await mkdtemp(join(tmpdir(), 'prumo-email-'))
     const answers = {
       multiTenant: false,
+      languages: ['en' as const],
       mcp: false,
       signIn: ['password' as const],
       email: true,
@@ -378,6 +381,7 @@ describe('generate by how people sign in', () => {
         types: ['api', 'web', 'mobile'],
         architecture: 'monorepo',
         multiTenant: false,
+        languages: ['en'],
         mcp: false,
         signIn,
         email,

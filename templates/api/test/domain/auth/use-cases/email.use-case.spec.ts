@@ -8,6 +8,7 @@ import {
 import { EmailNotVerifiedError } from '@/domain/auth/errors/email-not-verified.error'
 import { InvalidCodeError } from '@/domain/auth/errors/invalid-code.error'
 import { TooManyCodesError } from '@/domain/auth/errors/too-many-codes.error'
+import { BASE_LOCALE } from '@/i18n/locales'
 
 const ANA = { name: 'Ana', email: 'ana@example.com', password: 'correct-horse-battery' }
 
@@ -69,7 +70,7 @@ describe('password reset', () => {
     await register(ANA)
     await signIn.execute(ANA)
 
-    await requestPasswordReset.execute(ANA.email)
+    await requestPasswordReset.execute(ANA.email, BASE_LOCALE)
     await resetPassword.execute({
       email: ANA.email,
       code: mailer.lastCode(ANA.email),
@@ -87,7 +88,9 @@ describe('password reset', () => {
   it('sends nothing for an unknown email, and says nothing about it either', async () => {
     const { requestPasswordReset, mailer } = authFakes()
 
-    await expect(requestPasswordReset.execute('nobody@example.com')).resolves.toBeUndefined()
+    await expect(
+      requestPasswordReset.execute('nobody@example.com', BASE_LOCALE),
+    ).resolves.toBeUndefined()
     expect(mailer.sent).toEqual([])
   })
 
@@ -95,10 +98,10 @@ describe('password reset', () => {
     const { register, requestPasswordReset, resetPassword, mailer } = authFakes()
     await register(ANA)
 
-    await requestPasswordReset.execute(ANA.email)
+    await requestPasswordReset.execute(ANA.email, BASE_LOCALE)
     const first = mailer.lastCode(ANA.email)
     wait(SEND_INTERVAL_MS)
-    await requestPasswordReset.execute(ANA.email)
+    await requestPasswordReset.execute(ANA.email, BASE_LOCALE)
 
     await expect(
       resetPassword.execute({ email: ANA.email, code: first, password: 'another-good-password' }),
@@ -110,24 +113,26 @@ describe('sending limits', () => {
   it('sends one code a minute to an address, and says when the next may go', async () => {
     const { register, requestPasswordReset } = authFakes()
     await register(ANA)
-    await requestPasswordReset.execute(ANA.email)
+    await requestPasswordReset.execute(ANA.email, BASE_LOCALE)
     wait(20_000)
 
-    const refused = await requestPasswordReset.execute(ANA.email).catch((error: unknown) => error)
+    const refused = await requestPasswordReset
+      .execute(ANA.email, BASE_LOCALE)
+      .catch((error: unknown) => error)
 
     expect(refused).toBeInstanceOf(TooManyCodesError)
     expect((refused as TooManyCodesError).retryAfter).toBe(40)
     wait(40_000)
-    await expect(requestPasswordReset.execute(ANA.email)).resolves.toBeUndefined()
+    await expect(requestPasswordReset.execute(ANA.email, BASE_LOCALE)).resolves.toBeUndefined()
   })
 
   it('limits an address with no account exactly as one with an account, so it tells nothing', async () => {
     const { requestPasswordReset, mailer } = authFakes()
-    await requestPasswordReset.execute('nobody@example.com')
+    await requestPasswordReset.execute('nobody@example.com', BASE_LOCALE)
 
-    await expect(requestPasswordReset.execute('nobody@example.com')).rejects.toBeInstanceOf(
-      TooManyCodesError,
-    )
+    await expect(
+      requestPasswordReset.execute('nobody@example.com', BASE_LOCALE),
+    ).rejects.toBeInstanceOf(TooManyCodesError)
     expect(mailer.sent).toEqual([])
   })
 
@@ -137,21 +142,23 @@ describe('sending limits', () => {
     wait(SEND_INTERVAL_MS)
 
     for (let i = 0; i < SENDS_PER_HOUR; i += 1) {
-      await requestPasswordReset.execute(ANA.email)
+      await requestPasswordReset.execute(ANA.email, BASE_LOCALE)
       wait(SEND_INTERVAL_MS)
     }
 
-    await expect(requestPasswordReset.execute(ANA.email)).rejects.toBeInstanceOf(TooManyCodesError)
+    await expect(requestPasswordReset.execute(ANA.email, BASE_LOCALE)).rejects.toBeInstanceOf(
+      TooManyCodesError,
+    )
     wait(60 * 60 * 1000)
-    await expect(requestPasswordReset.execute(ANA.email)).resolves.toBeUndefined()
+    await expect(requestPasswordReset.execute(ANA.email, BASE_LOCALE)).resolves.toBeUndefined()
   })
 
   it('forgets an address once its code is dead and its day is over', async () => {
     const { requestPasswordReset, codes } = authFakes()
-    await requestPasswordReset.execute('nobody@example.com')
+    await requestPasswordReset.execute('nobody@example.com', BASE_LOCALE)
     wait(24 * 60 * 60 * 1000 + 1)
 
-    await requestPasswordReset.execute('someone@example.com')
+    await requestPasswordReset.execute('someone@example.com', BASE_LOCALE)
 
     expect([...codes.rows.values()].map((code) => code.destination)).toEqual([
       'someone@example.com',

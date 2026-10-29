@@ -107,7 +107,18 @@ describe('prumo', () => {
     root = await mkdtemp(join(tmpdir(), 'prumo-cli-'))
 
     const result = prumo(
-      ['new', 'acme', '--types', 'web', '--alone', '--single-tenant', '--skip-install', '--json'],
+      [
+        'new',
+        'acme',
+        '--types',
+        'web',
+        '--alone',
+        '--single-tenant',
+        '--languages',
+        'en',
+        '--skip-install',
+        '--json',
+      ],
       root,
     )
 

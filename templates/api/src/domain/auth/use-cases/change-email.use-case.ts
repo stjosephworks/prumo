@@ -13,6 +13,12 @@ import {
   TRANSACTION_MANAGER,
   type TransactionManager,
 } from '@/domain/shared/transactions/transaction-manager'
+import {
+  PROFILE_REPOSITORY,
+  type ProfileRepository,
+} from '@/domain/users/repositories/profile.repository'
+import { BASE_LOCALE } from '@/i18n/locales'
+import { messagesFor } from '@/i18n/messages'
 
 @injectable()
 export class ChangeEmailUseCase {
@@ -22,6 +28,7 @@ export class ChangeEmailUseCase {
     @inject(ONE_TIME_CODES) private readonly oneTimeCodes: OneTimeCodes,
     @inject(MAILER) private readonly mailer: Mailer,
     @inject(TRANSACTION_MANAGER) private readonly transactions: TransactionManager,
+    @inject(PROFILE_REPOSITORY) private readonly profiles: ProfileRepository,
   ) {}
 
   // The code came back from the new address to the account that asked: it becomes the account's email, confirmed.
@@ -64,13 +71,13 @@ export class ChangeEmailUseCase {
       throw new InvalidCodeError()
     }
 
-    // The previous address learns of it without learning the new one, so a change its owner did not make is noticed.
+    // The previous address learns of it without learning the new one, so a change its owner did not make is noticed,
+    // in the account's language.
     if (changed.previous !== null) {
-      await this.mailer.send({
-        to: changed.previous,
-        subject: 'The email of your account was changed',
-        text: 'This address is no longer the email of your account. If you did not change it, someone else may be signed in to your account: contact the people who run this service.',
-      })
+      const profile = await this.profiles.findByUserId(userId)
+      const { subject, text } = messagesFor(profile?.locale ?? BASE_LOCALE).mail.emailChanged
+
+      await this.mailer.send({ to: changed.previous, subject, text })
     }
 
     return changed.user

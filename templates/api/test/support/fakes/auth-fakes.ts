@@ -72,6 +72,7 @@ export function authFakes() {
     codes,
     oneTimeCodes,
     transactions,
+    profiles,
     mailer, // prumo:mail
     texts, // prumo:sms
   )
@@ -153,7 +154,7 @@ export function authFakes() {
     // prumo:end-email
     reviewUses, // prumo:code-sign-in
     // prumo:email-code
-    requestSignInCode: new RequestSignInCodeUseCase(issueCode),
+    requestSignInCode: new RequestSignInCodeUseCase(users, issueCode),
     signInWithCode: new SignInWithCodeUseCase(
       users,
       sessions,
@@ -166,7 +167,7 @@ export function authFakes() {
     ),
     // prumo:end-email-code
     // prumo:phone-code
-    requestPhoneCode: new RequestPhoneCodeUseCase(phones, issueCode),
+    requestPhoneCode: new RequestPhoneCodeUseCase(users, phones, issueCode),
     signInWithPhoneCode: new SignInWithPhoneCodeUseCase(
       users,
       codes,

@@ -413,7 +413,8 @@ export const FEATURES: Record<Feature, Spec> = {
   },
 }
 
-export function cutFeature(text: string, feature: Feature, keep: boolean, file = 'a file'): string {
+// A feature, or a language of the project's: both are marked and cut the same way.
+export function cutFeature(text: string, feature: string, keep: boolean, file = 'a file'): string {
   // Inside JSX a comment is written {/* … */}, in an env file with #, and in Markdown as <!-- … -->, so a block may
   // open and close any of these ways.
   const start = new RegExp(

@@ -14,6 +14,7 @@ import {
   type TransactionManager,
 } from '@/domain/shared/transactions/transaction-manager'
 import { CreateProfileUseCase } from '@/domain/users/use-cases/create-profile.use-case'
+import { negotiateLocale } from '@/i18n/locales' // prumo:email
 
 @injectable()
 export class SignUpUseCase {
@@ -58,6 +59,8 @@ export class SignUpUseCase {
     if (user.emailVerifiedAt === null) {
       await this.issueCode.execute({ channel: 'email', destination: address }, 'verify-email', {
         deliver: true,
+        account: user.id,
+        locale: negotiateLocale([locale]),
       })
       return null
     }

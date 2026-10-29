@@ -2,6 +2,10 @@ import { authFakes } from '@test/support/fakes/auth-fakes'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CODE_ATTEMPTS, SEND_INTERVAL_MS } from '@/domain/auth/entities/one-time-code.entity'
 import { InvalidCodeError } from '@/domain/auth/errors/invalid-code.error'
+import { BASE_LOCALE, LOCALES } from '@/i18n/locales'
+
+// A language of the project's that a device names in lowercase: whichever, as long as the project speaks it.
+const DEVICE_LOCALE = LOCALES.at(-1) ?? BASE_LOCALE
 
 const EMAIL = 'ana@example.com'
 
@@ -18,11 +22,11 @@ describe('signing in with an email code', () => {
   it('creates a confirmed account with its profile when the first code comes back', async () => {
     const { requestSignInCode, signInWithCode, users, profiles, mailer } = authFakes()
 
-    await requestSignInCode.execute(' Ana@Example.com')
+    await requestSignInCode.execute(' Ana@Example.com', BASE_LOCALE)
     const tokens = await signInWithCode.execute({
       email: EMAIL,
       code: mailer.lastCode(EMAIL),
-      locale: 'pt',
+      locale: DEVICE_LOCALE.toLowerCase(),
       timezone: 'America/Sao_Paulo',
     })
     const [user] = [...users.rows.values()]
@@ -33,7 +37,7 @@ describe('signing in with an email code', () => {
     expect(user?.passwordHash).toBeNull() // prumo:password
     expect(profiles.rows.get(user?.id ?? '')).toMatchObject({
       displayName: 'ana',
-      locale: 'pt-BR',
+      locale: DEVICE_LOCALE,
       timezone: 'America/Sao_Paulo',
     })
   })
@@ -41,7 +45,7 @@ describe('signing in with an email code', () => {
   it('creates nothing when a code is only sent', async () => {
     const { requestSignInCode, users } = authFakes()
 
-    await requestSignInCode.execute(EMAIL)
+    await requestSignInCode.execute(EMAIL, BASE_LOCALE)
 
     expect(users.rows.size).toBe(0)
   })
@@ -49,10 +53,10 @@ describe('signing in with an email code', () => {
   it('signs the same account in the next time', async () => {
     const { requestSignInCode, signInWithCode, users, mailer } = authFakes()
 
-    await requestSignInCode.execute(EMAIL)
+    await requestSignInCode.execute(EMAIL, BASE_LOCALE)
     await signInWithCode.execute({ email: EMAIL, code: mailer.lastCode(EMAIL) })
     vi.setSystemTime(new Date(Date.now() + SEND_INTERVAL_MS))
-    await requestSignInCode.execute(EMAIL)
+    await requestSignInCode.execute(EMAIL, BASE_LOCALE)
     await signInWithCode.execute({ email: EMAIL, code: mailer.lastCode(EMAIL) })
 
     expect(users.rows.size).toBe(1)
@@ -60,7 +64,7 @@ describe('signing in with an email code', () => {
 
   it('kills a code after five wrong guesses, even if the right one comes next', async () => {
     const { requestSignInCode, signInWithCode, mailer } = authFakes()
-    await requestSignInCode.execute(EMAIL)
+    await requestSignInCode.execute(EMAIL, BASE_LOCALE)
     const code = mailer.lastCode(EMAIL)
 
     for (let i = 0; i < CODE_ATTEMPTS; i += 1) {
@@ -76,10 +80,10 @@ describe('signing in with an email code', () => {
 
   it('voids the previous code when a new one is sent', async () => {
     const { requestSignInCode, signInWithCode, mailer } = authFakes()
-    await requestSignInCode.execute(EMAIL)
+    await requestSignInCode.execute(EMAIL, BASE_LOCALE)
     const first = mailer.lastCode(EMAIL)
     vi.setSystemTime(new Date(Date.now() + SEND_INTERVAL_MS))
-    await requestSignInCode.execute(EMAIL)
+    await requestSignInCode.execute(EMAIL, BASE_LOCALE)
 
     await expect(signInWithCode.execute({ email: EMAIL, code: first })).rejects.toBeInstanceOf(
       InvalidCodeError,
@@ -101,7 +105,7 @@ describe('signing in with an email code', () => {
       signInWithCode.execute({ email: 'review@example.com', code: '424242' }),
     ).rejects.toBeInstanceOf(InvalidCodeError)
 
-    await requestSignInCode.execute('review@example.com')
+    await requestSignInCode.execute('review@example.com', BASE_LOCALE)
 
     await expect(
       signInWithCode.execute({ email: 'review@example.com', code: '424242' }),
@@ -111,7 +115,7 @@ describe('signing in with an email code', () => {
 
   it('accepts the agreed code for no other address', async () => {
     const { requestSignInCode, signInWithCode } = authFakes()
-    await requestSignInCode.execute(EMAIL)
+    await requestSignInCode.execute(EMAIL, BASE_LOCALE)
 
     await expect(signInWithCode.execute({ email: EMAIL, code: '424242' })).rejects.toBeInstanceOf(
       InvalidCodeError,
@@ -128,7 +132,7 @@ describe('signing in with an email code', () => {
     }
     vi.setSystemTime(new Date(Date.now() + SEND_INTERVAL_MS))
 
-    await requestSignInCode.execute(EMAIL)
+    await requestSignInCode.execute(EMAIL, BASE_LOCALE)
     await signInWithCode.execute({ email: EMAIL, code: mailer.lastCode(EMAIL) })
     const [user] = [...users.rows.values()]
 

@@ -4,6 +4,7 @@ import { join, relative, sep } from 'node:path'
 import { type App, appsOfType, PORTS, portOf, templateOf } from './apps.ts'
 import { applyFeatures, cutFeatures, type Enabled, NONE } from './features.ts'
 import { prependProperty, readJsonc, removeWhatBaseDeclares, setJsonc } from './jsonc.ts'
+import { applyLanguages, LANGUAGES, type Language } from './languages.ts'
 
 export type AppType = 'api' | 'web' | 'mobile'
 
@@ -46,6 +47,11 @@ export function rootDevPrefix(api: string): string {
 
 const CONTRACT_IMPORT = "'@/api-contract'"
 const CONTRACT_PACKAGE = '@app/api-contract'
+
+// Where an app keeps the project's languages, and the package they move to in a workspace.
+const LOCALES_FILE = join('src', 'i18n', 'locales.ts')
+const I18N_IMPORT = "'@/i18n/locales'"
+const I18N_PACKAGE = '@app/i18n'
 
 function dependencySections(pkg: PackageJson): Dependencies[] {
   return [pkg.dependencies, pkg.devDependencies].filter((section) => section !== undefined)
@@ -164,6 +170,60 @@ async function importContract(client: string): Promise<void> {
 export async function joinContract(client: string): Promise<void> {
   await rm(join(client, 'src', 'api-contract'), { recursive: true })
   await importContract(client)
+}
+
+// The languages are one list for the whole workspace, so every app imports them from one package, the API too: it
+// loads the package's TypeScript at runtime, through Node's own type stripping (.prumo/i18n/languages.md).
+export async function extractI18n(target: string, apps: App[]): Promise<void> {
+  const speaking = apps
+    .map((app) => join(target, 'apps', app.name))
+    .filter((app) => existsSync(join(app, LOCALES_FILE)))
+  const [first, ...others] = speaking
+  const i18n = join(target, 'packages', 'i18n')
+
+  if (first === undefined) {
+    await rm(i18n, { recursive: true, force: true })
+    return
+  }
+
+  const expected = await readFile(join(first, LOCALES_FILE), 'utf8')
+
+  for (const other of others) {
+    if ((await readFile(join(other, LOCALES_FILE), 'utf8')) !== expected) {
+      throw new Error(
+        `${relative(target, other)}/${LOCALES_FILE} differs from ${relative(target, first)}'s`,
+      )
+    }
+
+    await rm(join(other, LOCALES_FILE))
+  }
+
+  await mkdir(join(i18n, 'src'), { recursive: true })
+  await rename(join(first, LOCALES_FILE), join(i18n, 'src', 'index.ts'))
+
+  for (const app of speaking) {
+    await importI18n(app)
+  }
+}
+
+async function importI18n(app: string): Promise<void> {
+  for (const directory of ['src', 'test']) {
+    for (const file of await sourceFiles(join(app, directory)).catch(() => [])) {
+      await rewriteText(file, (text) => text.replaceAll(I18N_IMPORT, `'${I18N_PACKAGE}'`))
+    }
+  }
+
+  await rewriteText(join(app, 'package.json'), (text) =>
+    setJsonc(text, ['dependencies', I18N_PACKAGE], 'workspace:*'),
+  )
+}
+
+// An app added to a workspace speaks its languages from its package, and drops the template's copy.
+export async function joinI18n(app: string): Promise<void> {
+  if (existsSync(join(app, LOCALES_FILE))) {
+    await rm(join(app, LOCALES_FILE))
+    await importI18n(app)
+  }
 }
 
 function setEnvLine(text: string, key: string, value: string, file: string): string {
@@ -339,9 +399,10 @@ async function assertCatalogCovers(target: string, catalog: Dependencies): Promi
   const manifests = [
     join(target, 'package.json'),
     join(target, 'packages', 'api-contract', 'package.json'),
+    join(target, 'packages', 'i18n', 'package.json'),
   ]
 
-  for (const manifest of manifests) {
+  for (const manifest of manifests.filter((path) => existsSync(path))) {
     const pkg = readJsonc<PackageJson>(await readFile(manifest, 'utf8'))
 
     for (const section of dependencySections(pkg)) {
@@ -361,11 +422,14 @@ export async function composeWorkspace({
   target,
   apps,
   features = NONE,
+  languages = [...LANGUAGES],
 }: {
   templates: string
   target: string
   apps: App[]
   features?: Enabled
+  // The project's languages, its base first; a template as it is speaks all of Prumo's, English first.
+  languages?: Language[]
 }): Promise<void> {
   await mkdir(target, { recursive: true })
   await copyTemplate(join(templates, 'workspace'), target)
@@ -384,6 +448,7 @@ export async function composeWorkspace({
 
     // Before the catalog is collected, so a dependency that leaves never reaches it.
     await applyFeatures(directory, templateOf(app), features)
+    await applyLanguages(directory, languages)
     directories.push(directory)
   }
 
@@ -394,8 +459,10 @@ export async function composeWorkspace({
   if (clients.length > 0) {
     await extractContract(target, clients)
   } else {
-    await rm(join(target, 'packages'), { recursive: true, force: true })
+    await rm(join(target, 'packages', 'api-contract'), { recursive: true, force: true })
   }
+
+  await extractI18n(target, apps)
 
   // One command for everything and one per app. Each app answers to `dev`, so the root never needs to know how.
   // The database and the ports are the exception: both may ask a question, which the interleaved output of a
@@ -419,9 +486,7 @@ export async function composeWorkspace({
   )
   const catalogs = collectCatalog(manifests)
 
-  if (clients.length > 0) {
-    await assertCatalogCovers(target, catalogs.default)
-  }
+  await assertCatalogCovers(target, catalogs.default)
 
   const approvals: string[] = []
 

@@ -66,6 +66,24 @@ three of its own.
 
 ## What changed, release by release
 
+### 0.10.0
+
+| File | Types | Change |
+|---|---|---|
+| `.prumo/config.json` | every type | `languages`, the project's, its base first. A config without it was generated speaking English, with its words in each component |
+| `.prumo/i18n/languages.md` | every type | New, in an area every project receives: the messages, the base, and how a language is added |
+| `src/i18n/locales.ts`, or `packages/i18n` in a workspace | api | New. `LOCALES`, `LOCALE_INFO`, `negotiateLocale`, `parseAcceptLanguage` and `format`. In a workspace the API imports `@app/i18n`, its TypeScript stripped by Node at runtime |
+| `src/i18n/messages/` | api | New. The API's words, one file per language: every error a person reads, every mail and every text |
+| `src/domain/shared/errors/domain-error.ts`, every error a person reads, `error-handler.ts` | api | A `DomainError` names its message in `text`, with `values`; `detail` is written in the request's language. An error without `text` keeps its message |
+| `src/infra/http/hooks/locale.hook.ts`, `app.ts`, `fastify.d.ts` | api | New. `request.locale` from `Accept-Language`; zod writes field messages in it through `z.locales` |
+| `issue-code.use-case.ts`, every use case that asks for a code, `change-email.use-case.ts`, `change-phone.use-case.ts` | api with codes | Mail and texts in the account's language, else the request's: `execute(target, purpose, { deliver, account, locale })` |
+| `profile.entity.ts`, `profile.schema.ts`, `migrations/…_create_user_profile_session.ts`, `update-profile.dto.ts`, `profile-response.dto.ts` | api | `LOCALES` comes from `src/i18n/locales.ts`; a new profile speaks the device's language as the project speaks it, else the base, which is also the column's default. `Profile.localeFor` is gone |
+| `link-identity.use-case.ts`, `complete-social-sign-in.use-case.ts`, `sign-in-with-id-token.use-case.ts` | api with social | An account created by a provider starts in the request's language |
+| `.prumo/api/languages.md` | api | New. The request's language, the errors, mail and texts, and the deploy the package needs |
+
+Why: making an app speak a second language means finding every word written into its code. Every project now starts
+with its words in messages, so a language is added as a file and its translation.
+
 ### 0.9.0
 
 | File | Types | Change |

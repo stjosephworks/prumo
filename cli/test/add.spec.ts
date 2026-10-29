@@ -33,6 +33,7 @@ describe('prumo add', () => {
         types: ['api', 'web'],
         architecture: 'monorepo',
         multiTenant: false,
+        languages: ['en'],
         mcp: false,
         signIn: ['password'],
         email: false,

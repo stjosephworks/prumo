@@ -69,9 +69,9 @@ terminal every question that applies needs its flag, the layout of a single type
 answer is an error rather than a default, so nothing important gets decided by silence:
 
 ```sh
-npx @stjoseph/prumo new my-app --types api,web --single-tenant --no-mcp --sign-in password --email --no-social
-npx @stjoseph/prumo new my-api --types api --alone --single-tenant --sign-in email-code
-npx @stjoseph/prumo new my-shop --types api,web:next --single-tenant --no-mcp --sign-in email-code --social google
+npx @stjoseph/prumo new my-app --types api,web --single-tenant --languages en --no-mcp --sign-in password --email --no-social
+npx @stjoseph/prumo new my-api --types api --alone --single-tenant --languages pt-BR,en --sign-in email-code
+npx @stjoseph/prumo new my-shop --types api,web:next --single-tenant --languages es-419,en,pt-BR --no-mcp --sign-in email-code --social google
 ```
 
 | Flag | What it answers |
@@ -80,6 +80,7 @@ npx @stjoseph/prumo new my-shop --types api,web:next --single-tenant --no-mcp --
 | `--app <name>=<type>` | Advanced, repeatable: an app with a name of its own, as `--app backoffice=web` or `--app blog=web:astro`. A type left out of `--types` and given here is renamed. Only `web` repeats, on any framework, and an `--app` makes a workspace |
 | `--alone` or `--monorepo` | How a single type is laid out, so one type needs one of them. Several types always make a workspace and refuse `--alone` |
 | `--multi-tenant` or `--single-tenant` | Whether the application serves several tenants. Multi-tenant ships the `multi-tenancy` conventions; the generated code itself is not tenant-aware yet |
+| `--languages en,pt-BR,es-419` | The languages the project speaks, one or more, the base first: the one every other is checked against and spoken when none of a person's fits. Every project is born with its words in message files, one per language, so adding one later is a file and its translation. Prumo translates its templates into these three; another is added once the project exists, as `.prumo/i18n/languages.md` says |
 | `--mcp` or `--no-mcp` | With an api and a web: whether AI assistants reach the API through MCP, signed in as the user |
 | `--sign-in password,email-code,phone-code` | With an api: how people sign in, one or more. `password` is an email and a password; `email-code` and `phone-code` a 6-digit code sent by email or by text, the first of which creates the account. Texts go only to the countries in `SMS_COUNTRIES`. Social sign-in comes on top of them, never alone |
 | `--email` or `--no-email` | With an api and `password`: email verification and password reset, by a 6-digit code sent through the `Mailer` port, which writes to the log until you give it a provider |

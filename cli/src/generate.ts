@@ -8,6 +8,7 @@ import { type AppType, composeWorkspace, copyTemplate } from './compose.ts'
 import { type Answers, writeContext } from './context.ts'
 import { applyFeatures, enabledFor } from './features.ts'
 import { setJsonc } from './jsonc.ts'
+import { applyLanguages } from './languages.ts'
 import { schemeFor, targetProblem } from './names.ts'
 import { CliError } from './output.ts'
 
@@ -197,6 +198,7 @@ async function write({
   if (answers.architecture === 'alone' && only !== undefined) {
     await copyTemplate(join(templates, templateOf(only)), target)
     await applyFeatures(target, templateOf(only), enabledFor(answers))
+    await applyLanguages(target, answers.languages)
     await nameProject(target, answers.name)
     await writeLocalEnv(target, only.type)
 
@@ -210,7 +212,13 @@ async function write({
   } else {
     const at = (app: { name: string }) => join(target, 'apps', app.name)
 
-    await composeWorkspace({ templates, target, apps, features: enabledFor(answers) })
+    await composeWorkspace({
+      templates,
+      target,
+      apps,
+      features: enabledFor(answers),
+      languages: answers.languages,
+    })
     await nameProject(target, answers.name)
 
     for (const app of apps) {
