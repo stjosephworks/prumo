@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
+import { messages } from '@test/support/messages'
 import { createTestQueryClient } from '@test/support/query-client'
 import { render, screen, userEvent, within } from '@testing-library/react-native'
 import { createClient, type Profile } from '@/api-contract'
@@ -46,15 +47,15 @@ describe('ProfileForm', () => {
       </QueryClientProvider>,
     )
 
-    await userEvent.setup().press(screen.getByRole('button', { name: 'Save' }))
+    await userEvent.setup().press(screen.getByRole('button', { name: messages.profile.save }))
 
     expect(
-      await within(screen.getByTestId('field-Timezone')).findByText(
+      await within(screen.getByTestId(`field-${messages.profile.timezone}`)).findByText(
         'timezone must be a valid IANA zone',
       ),
     ).toBeOnTheScreen()
     expect(
-      within(screen.getByTestId('field-Display name')).queryByText(
+      within(screen.getByTestId(`field-${messages.profile.displayName}`)).queryByText(
         'timezone must be a valid IANA zone',
       ),
     ).toBeNull()

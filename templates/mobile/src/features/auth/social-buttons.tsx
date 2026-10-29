@@ -6,6 +6,7 @@ import { Text, View } from 'react-native'
 import { type AuthClient, type SocialProvider, sessionQuery } from '@/api-contract'
 import { Button } from '@/components/ui/button'
 import * as sheets from '@/features/auth/native-sign-in'
+import { useMessages } from '@/i18n/i18n'
 
 // Read by hand: the return URL carries one parameter, and parsing it needs nothing from the platform.
 function codeFrom(url: string): string | undefined {
@@ -24,6 +25,7 @@ function codeFrom(url: string): string | undefined {
 // Google. Otherwise the system browser signs in at the provider and comes back to this app's scheme with a one-time
 // code; the code, not a token, is what travels in the URL, and the app trades it for its tokens.
 export function SocialButtons({ auth, onSignedIn }: { auth: AuthClient; onSignedIn: () => void }) {
+  const messages = useMessages()
   const queryClient = useQueryClient()
   const [failed, setFailed] = useState(false)
 
@@ -99,14 +101,22 @@ export function SocialButtons({ auth, onSignedIn }: { auth: AuthClient; onSigned
     <View className="gap-3">
       {failed ? (
         <Text accessibilityRole="alert" className="text-sm text-red-600">
-          The sign-in did not complete. Try again.
+          {messages.auth.social.failed}
         </Text>
       ) : null}
       {/* prumo:google */}
-      <Button label="Continue with Google" variant="outline" onPress={() => signInWith('google')} />
+      <Button
+        label={messages.auth.social.google}
+        variant="outline"
+        onPress={() => signInWith('google')}
+      />
       {/* prumo:end-google */}
       {/* prumo:apple */}
-      <Button label="Continue with Apple" variant="outline" onPress={() => signInWith('apple')} />
+      <Button
+        label={messages.auth.social.apple}
+        variant="outline"
+        onPress={() => signInWith('apple')}
+      />
       {/* prumo:end-apple */}
     </View>
   )

@@ -3,6 +3,7 @@ import { Redirect, Stack, usePathname } from 'expo-router'
 import { sessionQuery } from '@/api-contract'
 import { rememberIntendedRoute } from '@/features/auth/intended-route'
 import { useClients } from '@/features/clients/clients-context'
+import { useAccountLanguage } from '@/features/i18n/account-language'
 
 export default function AuthenticatedLayout() {
   const { auth } = useClients()
@@ -19,6 +20,15 @@ export default function AuthenticatedLayout() {
     rememberIntendedRoute(pathname)
     return <Redirect href="/sign-in" />
   }
+
+  return <SignedIn />
+}
+
+// Only once signed in does the account have a language for the app to follow, or to take the app's.
+function SignedIn() {
+  const { api } = useClients()
+
+  useAccountLanguage(api)
 
   return <Stack screenOptions={{ headerShown: false }} />
 }

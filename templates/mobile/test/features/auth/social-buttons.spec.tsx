@@ -2,6 +2,7 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin' // prum
 import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
 import { memoryTokenStore } from '@test/support/memory-token-store'
+import { messages } from '@test/support/messages'
 import { createTestQueryClient } from '@test/support/query-client'
 import { render, screen, userEvent, waitFor } from '@testing-library/react-native'
 import * as AppleAuthentication from 'expo-apple-authentication' // prumo:apple
@@ -25,7 +26,8 @@ jest.mock('expo-linking', () => ({
 }))
 
 // Whichever provider the project kept: each button runs the same trip.
-const firstProvider = () => screen.getAllByRole('button', { name: /^Continue with / })[0] as never
+// Whichever provider the project has: their buttons are the only ones the component shows.
+const firstProvider = () => screen.getAllByRole('button')[0] as never
 
 const TOKENS = { accessToken: 'access-1', refreshToken: 'refresh-1', expiresIn: 900 }
 
@@ -103,7 +105,7 @@ describe('SocialButtons through the browser', () => {
       .mockResolvedValueOnce({ type: 'success', url: 'acme://social?code=used' })
     await user.press(firstProvider())
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/did not complete/)
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.auth.social.failed)
     expect(onSignedIn).not.toHaveBeenCalled()
   })
 })
@@ -126,7 +128,7 @@ describe('SocialButtons with a provider’s own sheet', () => {
       },
     })
 
-    await userEvent.setup().press(screen.getByRole('button', { name: 'Continue with Apple' }))
+    await userEvent.setup().press(screen.getByRole('button', { name: messages.auth.social.apple }))
 
     await waitFor(() => expect(onSignedIn).toHaveBeenCalled())
     expect(AppleAuthentication.signInAsync).toHaveBeenCalledWith(
@@ -145,7 +147,7 @@ describe('SocialButtons with a provider’s own sheet', () => {
       'POST /api/auth/social/apple/nonce': () => json(200, { trip: 'trip-1', nonce: 'nonce-1' }),
     })
 
-    await userEvent.setup().press(screen.getByRole('button', { name: 'Continue with Apple' }))
+    await userEvent.setup().press(screen.getByRole('button', { name: messages.auth.social.apple }))
 
     await waitFor(() => expect(AppleAuthentication.signInAsync).toHaveBeenCalled())
     expect(screen.queryByRole('alert')).toBeNull()
@@ -169,7 +171,7 @@ describe('SocialButtons with a provider’s own sheet', () => {
       },
     })
 
-    await userEvent.setup().press(screen.getByRole('button', { name: 'Continue with Google' }))
+    await userEvent.setup().press(screen.getByRole('button', { name: messages.auth.social.google }))
 
     await waitFor(() => expect(onSignedIn).toHaveBeenCalled())
     expect(GoogleSignin.configure).toHaveBeenCalledWith({

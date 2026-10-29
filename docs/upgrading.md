@@ -96,6 +96,11 @@ three of its own.
 | `src/i18n/`, `src/features/i18n/`, `src/features/clients/`, every island and component | web on Astro | New. `I18nProvider` takes the page's language through `island()`'s `locale`; `useMessages`, `useLocalePath`, `rich`, `withLanguage`; `choice.ts` keeps the choice; the switcher is an Astro component, no island |
 | `.env.example`, `src/config.ts` | web on Astro | `PUBLIC_SITE_URL`, the app's own address |
 | `.prumo/web-astro/languages.md`, `rendering.md`, `structure.md` | web on Astro | The pages under `[locale]`, the redirect pages, the switcher |
+| `src/i18n/`, `src/features/i18n/`, `src/app/_layout.tsx`, `src/app/(app)/_layout.tsx`, every screen and component | mobile | New. `I18nProvider` (the app's choice, the account's, the phone's, the base), `useMessages`, `rich`, `withLanguage`; the switcher on sign-in and the profile; `useAccountLanguage` once signed in |
+| `package.json`, `app.config.ts` | mobile | `expo-localization` 57.0.2, and its plugin with the project's `supportedLocales`, for the per-app language of iOS and Android 13+ |
+| `src/features/forms/server-errors.ts`, `src/features/profile/profile-form.tsx` | mobile | `applyServerError(…, messages)`; no Locale field |
+| `jest.config.js`, `test/support/localization.ts`, `test/support/mmkv.ts`, `test/support/messages.ts`, every spec | mobile | Tests run in the base language, with the phone naming none and MMKV in memory |
+| `.prumo/mobile/languages.md` | mobile | New |
 
 Why: making an app speak a second language means finding every word written into its code. Every project now starts
 with its words in messages, so a language is added as a file and its translation.

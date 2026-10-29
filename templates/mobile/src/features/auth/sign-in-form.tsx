@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { useMessages } from '@/i18n/i18n'
 
 const schema = z.object({
   email: z.email(),
@@ -24,6 +25,7 @@ export function SignInForm({
   auth: Pick<AuthClient, 'signIn' | 'getSession'>
   onSignedIn: () => void
 }) {
+  const messages = useMessages()
   const queryClient = useQueryClient()
   const router = useRouter() // prumo:email
   const form = useForm<SignInValues>({
@@ -46,7 +48,7 @@ export function SignInForm({
       }
 
       // prumo:end-email
-      applyServerError(error, ['email', 'password'], form.setError)
+      applyServerError(error, ['email', 'password'], form.setError, messages)
       return
     }
 
@@ -62,7 +64,7 @@ export function SignInForm({
         name="email"
         render={({ field }) => (
           <Field
-            label="Email"
+            label={messages.auth.email}
             autoCapitalize="none"
             autoComplete="email"
             keyboardType="email-address"
@@ -78,7 +80,7 @@ export function SignInForm({
         name="password"
         render={({ field }) => (
           <Field
-            label="Password"
+            label={messages.auth.signIn.password}
             secureTextEntry
             autoComplete="current-password"
             value={field.value}
@@ -88,16 +90,20 @@ export function SignInForm({
           />
         )}
       />
-      <Button label="Sign in" disabled={isSubmitting} onPress={form.handleSubmit(onSubmit)} />
+      <Button
+        label={messages.auth.signIn.submit}
+        disabled={isSubmitting}
+        onPress={form.handleSubmit(onSubmit)}
+      />
       <View className="flex-row gap-1">
-        <Text className="text-sm text-neutral-500">No account?</Text>
+        <Text className="text-sm text-neutral-500">{messages.auth.signIn.noAccount}</Text>
         <Link href="/sign-up" className="text-sm text-neutral-900">
-          Sign up
+          {messages.auth.signIn.signUp}
         </Link>
       </View>
       {/* prumo:email */}
       <Link href="/forgot-password" className="text-sm text-neutral-900">
-        Forgot your password?
+        {messages.auth.signIn.forgot}
       </Link>
       {/* prumo:end-email */}
     </View>

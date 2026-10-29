@@ -9,11 +9,17 @@ import { config } from '@/config'
 import { secureTokenStore } from '@/features/auth/token-store'
 import { ClientsProvider, useClients } from '@/features/clients/clients-context'
 import { QUERY_CACHE_MAX_AGE, queryPersister } from '@/features/storage/query-persister'
+import { I18nProvider, withLanguage } from '@/i18n/i18n'
 
 SplashScreen.preventAutoHideAsync()
 
 function createClients() {
-  const auth = createAuthClient({ baseUrl: config.apiUrl, fetch, tokens: secureTokenStore })
+  // Every request names the language the screen speaks (withLanguage).
+  const auth = createAuthClient({
+    baseUrl: config.apiUrl,
+    fetch: withLanguage(fetch),
+    tokens: secureTokenStore,
+  })
   // Through the auth client, so every request carries the bearer and an expired one is refreshed and repeated.
   const api = createClient({ baseUrl: config.apiUrl, fetch: auth.fetch })
 
@@ -47,7 +53,9 @@ export default function RootLayout() {
       persistOptions={{ persister: queryPersister, maxAge: QUERY_CACHE_MAX_AGE }}
     >
       <ClientsProvider clients={clients}>
-        <Navigation />
+        <I18nProvider>
+          <Navigation />
+        </I18nProvider>
       </ClientsProvider>
     </PersistQueryClientProvider>
   )
