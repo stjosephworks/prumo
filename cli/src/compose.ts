@@ -60,9 +60,12 @@ function dependencySections(pkg: PackageJson): Dependencies[] {
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true, recursive: true })
 
-  return entries
-    .filter((entry) => entry.isFile() && /\.tsx?$/.test(entry.name))
-    .map((entry) => join(entry.parentPath, entry.name))
+  return (
+    entries
+      // An Astro page imports what an island does, so it is rewritten too.
+      .filter((entry) => entry.isFile() && /\.(tsx?|astro)$/.test(entry.name))
+      .map((entry) => join(entry.parentPath, entry.name))
+  )
 }
 
 async function rewriteText(path: string, change: (text: string) => string): Promise<void> {
