@@ -32,7 +32,7 @@ describe('SocialButtons', () => {
   it('says why a provider sign-in came back without a session', async () => {
     renderApp('/sign-in?error=provider_email_unverified', signedOut)
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('not verified with the provider')
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.auth.social.emailUnverified)
   })
 
   // prumo:apple

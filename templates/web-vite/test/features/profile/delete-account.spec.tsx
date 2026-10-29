@@ -50,7 +50,7 @@ describe('deleting the account', () => {
     await visitor.click(
       await screen.findByRole('button', { name: messages.profile.deletion.delete }),
     )
-    expect(screen.getByRole('alert')).toHaveTextContent('It cannot be undone')
+    expect(screen.getByRole('alert')).toHaveTextContent(messages.profile.deletion.warning)
     await visitor.click(screen.getByRole('button', { name: messages.profile.deletion.confirm }))
 
     expect(

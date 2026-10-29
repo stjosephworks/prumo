@@ -67,7 +67,7 @@ describe('ConsentForm', () => {
         json(200, { ...view, redirectHost: 'localhost:33418', redirectsToThisDevice: true }),
     })
 
-    expect(await screen.findByRole('note')).toHaveTextContent('a program on this device')
+    expect(await screen.findByRole('note')).toHaveTextContent(messages.consent.device)
   })
 
   it('says so when the request has expired', async () => {
@@ -76,7 +76,7 @@ describe('ConsentForm', () => {
         json(404, { title: 'Not Found', status: 404 }, 'application/problem+json'),
     })
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('expired')
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.consent.expired)
   })
 })
 
