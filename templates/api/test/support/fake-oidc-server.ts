@@ -11,6 +11,7 @@ export async function fakeOidcServer({ pkce }: { pkce: boolean }) {
   const jwk = { ...(await exportJWK(publicKey)), kid: 'k1', alg: 'RS256', use: 'sig' }
   const grants = new Map<string, Grant>()
   const tokenRequests: URLSearchParams[] = []
+  const revocations: URLSearchParams[] = []
   let issuer = ''
 
   const server: Server = createServer(async (request, response) => {
@@ -25,6 +26,7 @@ export async function fakeOidcServer({ pkce }: { pkce: boolean }) {
         issuer,
         authorization_endpoint: `${issuer}/authorize`,
         token_endpoint: `${issuer}/token`,
+        revocation_endpoint: `${issuer}/revoke`,
         jwks_uri: `${issuer}/jwks`,
         response_types_supported: ['code'],
         subject_types_supported: ['public'],
@@ -32,6 +34,14 @@ export async function fakeOidcServer({ pkce }: { pkce: boolean }) {
         token_endpoint_auth_methods_supported: ['client_secret_post'],
         ...(pkce && { code_challenge_methods_supported: ['S256'] }),
       })
+    }
+
+    if (url.pathname === '/revoke') {
+      let body = ''
+      for await (const chunk of request) body += chunk
+      revocations.push(new URLSearchParams(body))
+      response.writeHead(200)
+      return response.end()
     }
 
     if (url.pathname === '/jwks') {
@@ -59,7 +69,10 @@ export async function fakeOidcServer({ pkce }: { pkce: boolean }) {
 
       grants.delete(form.get('code') ?? '')
 
-      const idToken = await new SignJWT({ nonce: grant.nonce, ...grant.claims })
+      const idToken = await new SignJWT({
+        ...(grant.nonce !== '' && { nonce: grant.nonce }),
+        ...grant.claims,
+      })
         .setProtectedHeader({ alg: 'RS256', kid: 'k1' })
         .setIssuer(issuer)
         .setAudience(form.get('client_id') ?? '')
@@ -67,7 +80,12 @@ export async function fakeOidcServer({ pkce }: { pkce: boolean }) {
         .setExpirationTime('5m')
         .sign(privateKey)
 
-      return json(200, { access_token: 'access', token_type: 'Bearer', id_token: idToken })
+      return json(200, {
+        access_token: 'access',
+        refresh_token: 'refresh',
+        token_type: 'Bearer',
+        id_token: idToken,
+      })
     }
 
     json(404, {})
@@ -79,6 +97,7 @@ export async function fakeOidcServer({ pkce }: { pkce: boolean }) {
   return {
     issuer: new URL(issuer),
     tokenRequests,
+    revocations,
     // What the provider would do after the user signs in: remember the request and hand back a code.
     authorize(authorizationUrl: string, claims: Record<string, unknown>): string {
       const params = new URL(authorizationUrl).searchParams
@@ -89,6 +108,23 @@ export async function fakeOidcServer({ pkce }: { pkce: boolean }) {
         challenge: params.get('code_challenge'),
         claims,
       })
+      return code
+    },
+    // What a provider's own sheet on a phone hands the app: an ID token signed by the provider, for the app's id.
+    mint(claims: Record<string, unknown>, audience: string, as = issuer): Promise<string> {
+      return new SignJWT(claims)
+        .setProtectedHeader({ alg: 'RS256', kid: 'k1' })
+        .setIssuer(as)
+        .setAudience(audience)
+        .setIssuedAt()
+        .setExpirationTime('5m')
+        .sign(privateKey)
+    },
+    // The code a sheet hands the app beside the token, which the token endpoint trades with no redirect.
+    code(claims: Record<string, unknown>): string {
+      const code = crypto.randomUUID()
+
+      grants.set(code, { nonce: '', challenge: null, claims })
       return code
     },
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),

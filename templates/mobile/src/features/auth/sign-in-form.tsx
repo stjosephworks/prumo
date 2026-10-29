@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
-import { useRouter } from 'expo-router' // prumo:email
+import { Link, useRouter } from 'expo-router'
 import { Controller, useForm } from 'react-hook-form'
-import { View } from 'react-native'
+import { Text, View } from 'react-native'
 import { z } from 'zod'
 import { type AuthClient, sessionQuery } from '@/api-contract'
 import { Button } from '@/components/ui/button'
@@ -89,6 +89,17 @@ export function SignInForm({
         )}
       />
       <Button label="Sign in" disabled={isSubmitting} onPress={form.handleSubmit(onSubmit)} />
+      <View className="flex-row gap-1">
+        <Text className="text-sm text-neutral-500">No account?</Text>
+        <Link href="/sign-up" className="text-sm text-neutral-900">
+          Sign up
+        </Link>
+      </View>
+      {/* prumo:email */}
+      <Link href="/forgot-password" className="text-sm text-neutral-900">
+        Forgot your password?
+      </Link>
+      {/* prumo:end-email */}
     </View>
   )
 }

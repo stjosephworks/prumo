@@ -1,12 +1,12 @@
 import { testEnv } from '@test/support/setup'
-import { ORIGIN, PASSWORD, testApp } from '@test/support/test-app'
+import { ORIGIN, testApp } from '@test/support/test-app'
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const BEARER = { 'x-auth-transport': 'bearer' }
 
 let app: FastifyInstance
-let signUp: Awaited<ReturnType<typeof testApp>>['signUp']
+let signIn: Awaited<ReturnType<typeof testApp>>['signIn']
 
 function cookiesOf(response: LightMyRequestResponse): Record<string, string> {
   return Object.fromEntries(response.cookies.map((cookie) => [cookie.name, cookie.value]))
@@ -17,7 +17,7 @@ function setCookie(response: LightMyRequestResponse, name: string) {
 }
 
 beforeEach(async () => {
-  ;({ app, signUp } = await testApp())
+  ;({ app, signIn } = await testApp())
 })
 
 afterEach(async () => {
@@ -26,7 +26,7 @@ afterEach(async () => {
 
 describe('auth controller, on the web', () => {
   it('starts a session in httpOnly cookies, the refresh one sent only to its route', async () => {
-    const { response } = await signUp()
+    const { response } = await signIn()
 
     expect(response.body).toBe('')
     expect(setCookie(response, 'access_token')).toMatchObject({
@@ -41,7 +41,7 @@ describe('auth controller, on the web', () => {
   })
 
   it('reads the session from the cookie, refreshes it, and signs out', async () => {
-    const { access_token, refresh_token } = cookiesOf((await signUp()).response)
+    const { access_token, refresh_token } = cookiesOf((await signIn()).response)
 
     const session = await app.inject({
       url: '/api/auth/session',
@@ -73,7 +73,7 @@ describe('auth controller, on the web', () => {
   })
 
   it('refuses a request that leans on a cookie from another origin, or from none', async () => {
-    const cookie = `access_token=${cookiesOf((await signUp()).response).access_token}`
+    const cookie = `access_token=${cookiesOf((await signIn()).response).access_token}`
 
     for (const headers of [{ cookie, origin: 'https://evil.example' }, { cookie }]) {
       const response = await app.inject({ method: 'POST', url: '/api/auth/sign-out', headers })
@@ -88,7 +88,7 @@ describe('auth controller, with several web apps', () => {
   it('lets each of them lean on its cookie, and tells the browser so', async () => {
     const backoffice = 'http://localhost:5174'
     const several = await testApp({ env: { ...testEnv(), WEB_ORIGIN: [ORIGIN, backoffice] } })
-    const cookie = `access_token=${cookiesOf((await several.signUp()).response).access_token}`
+    const cookie = `access_token=${cookiesOf((await several.signIn()).response).access_token}`
     const signedOut = await several.app.inject({
       method: 'POST',
       url: '/api/auth/sign-out',
@@ -109,7 +109,7 @@ describe('auth controller, with several web apps', () => {
 
 describe('auth controller, for a native client', () => {
   it('hands the tokens over in the body, and accepts them as a bearer', async () => {
-    const { response } = await signUp({ bearer: true })
+    const { response } = await signIn({ bearer: true })
     const tokens = response.json()
 
     expect(response.cookies).toEqual([])
@@ -133,60 +133,5 @@ describe('auth controller, for a native client', () => {
     })
     expect(refreshed.statusCode).toBe(200)
     expect(refreshed.json().refreshToken).not.toBe(tokens.refreshToken)
-  })
-})
-
-describe('auth controller, refusing', () => {
-  it('answers a wrong password with 401 and a taken email with 409, as problem+json', async () => {
-    const { email } = await signUp({ bearer: true })
-
-    const wrong = await app.inject({
-      method: 'POST',
-      url: '/api/auth/sign-in',
-      headers: BEARER,
-      payload: { email, password: 'wrong-password' },
-    })
-    const taken = await app.inject({
-      method: 'POST',
-      url: '/api/auth/sign-up',
-      headers: BEARER,
-      payload: { name: 'Ana', email, password: PASSWORD },
-    })
-
-    expect(wrong.statusCode).toBe(401)
-    expect(wrong.json()).toMatchObject({ detail: 'Invalid email or password' })
-    expect(taken.statusCode).toBe(409)
-    expect(taken.headers['content-type']).toContain('application/problem+json')
-  })
-
-  it('names the fields a sign-up gets wrong', async () => {
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/auth/sign-up',
-      headers: BEARER,
-      payload: { name: '', email: 'not-an-email', password: 'short' },
-    })
-
-    expect(response.statusCode).toBe(400)
-    expect(Object.keys(response.json().errors).sort()).toEqual(['email', 'name', 'password'])
-  })
-
-  it('slows down repeated sign-in attempts from one address', async () => {
-    const attempt = () =>
-      app.inject({
-        method: 'POST',
-        url: '/api/auth/sign-in',
-        headers: BEARER,
-        payload: { email: 'nobody@example.com', password: 'whatever' },
-      })
-
-    for (let i = 0; i < 10; i += 1) {
-      expect((await attempt()).statusCode).toBe(401)
-    }
-
-    const limited = await attempt()
-
-    expect(limited.statusCode).toBe(429)
-    expect(limited.headers['content-type']).toContain('application/problem+json')
   })
 })

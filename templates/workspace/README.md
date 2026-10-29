@@ -29,8 +29,8 @@ app to another port. Ctrl+C stops every app it started, and the ports it used ar
 
 If the workspace holds `api` and its database is not set up yet, `pnpm dev` offers to create the database first.
 
-If the workspace holds `web`, open `http://localhost:5173`: you are sent to sign in, and **Sign up** creates an
-account and takes you to your profile. Each app's README says what it needs before it starts.
+If the workspace holds `web`, open `http://localhost:5173`: you are sent to sign in, and once in you land on your
+profile. Each app's README says what it needs before it starts.
 <!-- prumo:email -->
 
 Signing up first asks for the 6-digit code that confirms the email. No mail is sent yet: the API writes it to its

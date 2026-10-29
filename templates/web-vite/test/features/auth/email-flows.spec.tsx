@@ -1,5 +1,6 @@
 import { fakeTransport, json } from '@test/support/fake-transport'
 import { renderApp } from '@test/support/render-app'
+import { withPassword } from '@test/support/with-password'
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
@@ -63,6 +64,26 @@ describe('email verification on the web', () => {
     expect(await screen.findByRole('heading', { name: 'Your profile' })).toBeInTheDocument()
   })
 
+  it('counts down to the next code when one was sent moments ago', async () => {
+    const visitor = userEvent.setup()
+    const { transport } = app({
+      'POST /api/auth/email/verification': () =>
+        new Response(
+          JSON.stringify({ status: 429, title: 'Too Many Requests', code: 'too_many_codes' }),
+          {
+            status: 429,
+            headers: { 'content-type': 'application/problem+json', 'retry-after': '42' },
+          },
+        ),
+    })
+
+    renderApp(`/verify-email?email=${user.email}`, transport)
+
+    await visitor.click(await screen.findByRole('button', { name: 'Send a new code' }))
+
+    expect(await screen.findByRole('button', { name: 'Send a new code in 42s' })).toBeDisabled()
+  })
+
   it('sends an unconfirmed account that signs in to the code page', async () => {
     const visitor = userEvent.setup()
     const { transport } = app({
@@ -71,6 +92,7 @@ describe('email verification on the web', () => {
 
     renderApp('/sign-in', transport)
 
+    await withPassword(visitor)
     await visitor.type(await screen.findByLabelText('Email'), user.email)
     await visitor.type(screen.getByLabelText('Password'), 'correct-horse-battery')
     await visitor.click(screen.getByRole('button', { name: 'Sign in' }))
@@ -107,6 +129,7 @@ describe('password reset on the web', () => {
 
     renderApp('/sign-in', transport)
 
+    await withPassword(visitor)
     await visitor.click(await screen.findByRole('link', { name: 'Forgot your password?' }))
     await screen.findByRole('heading', { name: 'Reset your password' })
     await visitor.type(screen.getByLabelText('Email'), user.email)

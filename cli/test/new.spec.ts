@@ -21,6 +21,7 @@ const flags = (overrides: Partial<Flags>): Flags => ({
   singleTenant: false,
   mcp: false,
   noMcp: false,
+  signIn: undefined,
   email: false,
   noEmail: false,
   social: undefined,
@@ -31,29 +32,48 @@ const flags = (overrides: Partial<Flags>): Flags => ({
 describe('resolveAnswers outside a terminal', () => {
   it('refuses a missing answer instead of guessing it', async () => {
     await expect(resolveAnswers(flags({}), undefined)).rejects.toThrow('Missing --types')
-    await expect(resolveAnswers(flags({ types: 'api', alone: true }), undefined)).rejects.toThrow(
-      '--multi-tenant',
-    )
+    await expect(
+      resolveAnswers(flags({ signIn: 'password', types: 'api', alone: true }), undefined),
+    ).rejects.toThrow('--multi-tenant')
   })
 
   it('refuses a single type without --alone or --monorepo, and lays it out as told', async () => {
     const rest = { singleTenant: true, noEmail: true }
 
-    await expect(resolveAnswers(flags({ types: 'api', ...rest }), undefined)).rejects.toMatchObject(
-      { code: 'needs_input', message: expect.stringContaining('Missing --alone or --monorepo') },
-    )
+    await expect(
+      resolveAnswers(flags({ signIn: 'password', types: 'api', ...rest }), undefined),
+    ).rejects.toMatchObject({
+      code: 'needs_input',
+      message: expect.stringContaining('Missing --alone or --monorepo'),
+    })
     expect(
-      (await resolveAnswers(flags({ types: 'api', alone: true, ...rest }), undefined)).architecture,
+      (
+        await resolveAnswers(
+          flags({ signIn: 'password', types: 'api', alone: true, ...rest }),
+          undefined,
+        )
+      ).architecture,
     ).toBe('alone')
     expect(
-      (await resolveAnswers(flags({ types: 'api', monorepo: true, ...rest }), undefined))
-        .architecture,
+      (
+        await resolveAnswers(
+          flags({ signIn: 'password', types: 'api', monorepo: true, ...rest }),
+          undefined,
+        )
+      ).architecture,
     ).toBe('monorepo')
   })
 
   it('makes a workspace of several types and refuses --alone for them', async () => {
     const answers = await resolveAnswers(
-      flags({ types: 'api,web', singleTenant: true, noMcp: true, noEmail: true, noSocial: true }),
+      flags({
+        signIn: 'password',
+        types: 'api,web',
+        singleTenant: true,
+        noMcp: true,
+        noEmail: true,
+        noSocial: true,
+      }),
       undefined,
     )
 
@@ -61,6 +81,7 @@ describe('resolveAnswers outside a terminal', () => {
     await expect(
       resolveAnswers(
         flags({
+          signIn: 'password',
           types: 'api,web',
           alone: true,
           singleTenant: true,
@@ -75,17 +96,20 @@ describe('resolveAnswers outside a terminal', () => {
 
   it('asks about MCP only when there is an api and a web to authorize through', async () => {
     await expect(
-      resolveAnswers(flags({ types: 'api,web', singleTenant: true }), undefined),
+      resolveAnswers(
+        flags({ signIn: 'password', types: 'api,web', singleTenant: true }),
+        undefined,
+      ),
     ).rejects.toThrow('--mcp or --no-mcp')
     await expect(
       resolveAnswers(
-        flags({ types: 'api', alone: true, singleTenant: true, mcp: true }),
+        flags({ signIn: 'password', types: 'api', alone: true, singleTenant: true, mcp: true }),
         undefined,
       ),
     ).rejects.toThrow('--mcp needs both api and web')
 
     const answers = await resolveAnswers(
-      flags({ types: 'api', alone: true, singleTenant: true, noEmail: true }),
+      flags({ signIn: 'password', types: 'api', alone: true, singleTenant: true, noEmail: true }),
       undefined,
     )
 
@@ -101,7 +125,7 @@ describe('resolveAnswers outside a terminal', () => {
     expect(
       (
         await resolveAnswers(
-          flags({ types: 'api,web', apps: ['blog=web:next'], ...rest }),
+          flags({ signIn: 'password', types: 'api,web', apps: ['blog=web:next'], ...rest }),
           undefined,
         )
       ).apps,
@@ -119,7 +143,13 @@ describe('resolveAnswers outside a terminal', () => {
   })
 
   it('reads the providers from --social and refuses what it cannot honour', async () => {
-    const web = { types: 'api,web', singleTenant: true, noMcp: true, noEmail: true }
+    const web = {
+      types: 'api,web',
+      signIn: 'password',
+      singleTenant: true,
+      noMcp: true,
+      noEmail: true,
+    }
     const answers = await resolveAnswers(flags({ ...web, social: 'apple, google' }), undefined)
 
     expect(answers.social).toEqual(['apple', 'google'])
@@ -137,7 +167,14 @@ describe('resolveAnswers outside a terminal', () => {
     )
     await expect(
       resolveAnswers(
-        flags({ types: 'api', alone: true, singleTenant: true, noEmail: true, social: 'google' }),
+        flags({
+          signIn: 'password',
+          types: 'api',
+          alone: true,
+          singleTenant: true,
+          noEmail: true,
+          social: 'google',
+        }),
         undefined,
       ),
     ).rejects.toThrow('--social needs api, and web or mobile')
@@ -169,7 +206,7 @@ describe('resolveAnswers with apps named on purpose', () => {
 
   it('adds each --app after the types, and makes a workspace of them', async () => {
     const answers = await resolveAnswers(
-      flags({ types: 'api,web', apps: ['backoffice=web'], ...rest }),
+      flags({ signIn: 'password', types: 'api,web', apps: ['backoffice=web'], ...rest }),
       undefined,
     )
 
@@ -198,7 +235,10 @@ describe('resolveAnswers with apps named on purpose', () => {
       resolveAnswers(flags({ apps: ['admin=web'], alone: true, ...rest }), undefined),
     ).rejects.toThrow('--app names an app inside a workspace')
     await expect(
-      resolveAnswers(flags({ types: 'api', apps: ['worker=api'], ...rest }), undefined),
+      resolveAnswers(
+        flags({ signIn: 'password', types: 'api', apps: ['worker=api'], ...rest }),
+        undefined,
+      ),
     ).rejects.toMatchObject({ code: 'invalid_app', message: expect.stringContaining('one api') })
     await expect(
       resolveAnswers(flags({ types: 'web', apps: ['web=web'], ...rest }), undefined),
@@ -210,11 +250,78 @@ describe('resolveAnswers with apps named on purpose', () => {
 
   it('lets MCP authorize through a web app that was renamed', async () => {
     const answers = await resolveAnswers(
-      flags({ types: 'api', apps: ['admin=web'], ...rest, noMcp: false, mcp: true }),
+      flags({
+        signIn: 'password',
+        types: 'api',
+        apps: ['admin=web'],
+        ...rest,
+        noMcp: false,
+        mcp: true,
+      }),
       undefined,
     )
 
     expect(answers.mcp).toBe(true)
+  })
+})
+
+describe('resolveAnswers for how people sign in', () => {
+  const rest = { singleTenant: true, noMcp: true, noSocial: true }
+
+  it('reads the methods from --sign-in, any of them, and asks --email only with a password', async () => {
+    const both = await resolveAnswers(
+      flags({ types: 'api', alone: true, signIn: 'email-code, password', email: true, ...rest }),
+      undefined,
+    )
+    const byCode = await resolveAnswers(
+      flags({ types: 'api', alone: true, signIn: 'email-code', ...rest }),
+      undefined,
+    )
+
+    expect(both).toMatchObject({ signIn: ['email-code', 'password'], email: true })
+    expect(byCode).toMatchObject({ signIn: ['email-code'], email: false })
+  })
+
+  it('refuses no method, an unknown one, --email without a password, and --sign-in without an api', async () => {
+    const api = { types: 'api', alone: true, ...rest }
+
+    await expect(resolveAnswers(flags({ ...api, signIn: '' }), undefined)).rejects.toThrow(
+      'Unknown sign-in method: (none)',
+    )
+    await expect(
+      resolveAnswers(flags({ ...api, signIn: 'magic-link' }), undefined),
+    ).rejects.toThrow('Unknown sign-in method: magic-link')
+    await expect(
+      resolveAnswers(flags({ ...api, signIn: 'email-code', email: true }), undefined),
+    ).rejects.toThrow('it needs password in --sign-in')
+    await expect(
+      resolveAnswers(flags({ types: 'web', alone: true, signIn: 'password', ...rest }), undefined),
+    ).rejects.toThrow('--sign-in needs api')
+    await expect(resolveAnswers(flags(api), undefined)).rejects.toThrow('Missing --sign-in')
+  })
+
+  it('warns that texts go to the log and to US only, until both are set', async () => {
+    const answers = await resolveAnswers(
+      flags({ types: 'api', alone: true, signIn: 'phone-code', ...rest }),
+      undefined,
+    )
+
+    expect(answers.warnings).toEqual([expect.stringContaining('SMS_COUNTRIES')])
+  })
+
+  it('warns a passwordless mobile app that store review needs an agreed code', async () => {
+    const answers = await resolveAnswers(
+      flags({ types: 'api,mobile', signIn: 'email-code', ...rest }),
+      undefined,
+    )
+
+    expect(answers.warnings).toEqual([expect.stringContaining('REVIEW_SIGN_IN')])
+  })
+
+  it('keeps a project without an api on the password screens it has always had', async () => {
+    const answers = await resolveAnswers(flags({ types: 'web', alone: true, ...rest }), undefined)
+
+    expect(answers.signIn).toEqual(['password'])
   })
 })
 
@@ -250,6 +357,10 @@ describe('resolveAnswers in a terminal', () => {
         asked.push('mcp')
         return true
       },
+      signIn: async () => {
+        asked.push('signIn')
+        return ['password']
+      },
       email: async () => {
         asked.push('email')
         return true
@@ -269,7 +380,15 @@ describe('resolveAnswers in a terminal', () => {
 
     const answers = await resolveAnswers(flags({ name: undefined }), asker)
 
-    expect(asked).toEqual(['name', 'types', 'architecture', 'apps', 'multiTenant', 'email'])
+    expect(asked).toEqual([
+      'name',
+      'types',
+      'architecture',
+      'apps',
+      'multiTenant',
+      'signIn',
+      'email',
+    ])
     expect(answers).toEqual({
       name: 'from-prompt',
       types: ['api'],
@@ -277,6 +396,7 @@ describe('resolveAnswers in a terminal', () => {
       architecture: 'monorepo',
       multiTenant: true,
       mcp: false,
+      signIn: ['password'],
       email: true,
       social: [],
       target: resolve('from-prompt'),
@@ -291,7 +411,7 @@ describe('resolveAnswers in a terminal', () => {
     })
 
     const answers = await resolveAnswers(
-      flags({ singleTenant: true, noMcp: true, noEmail: true, noSocial: true }),
+      flags({ signIn: 'password', singleTenant: true, noMcp: true, noEmail: true, noSocial: true }),
       asker,
     )
 
@@ -370,9 +490,12 @@ describe('resolveAnswers in a terminal', () => {
       },
     })
 
-    await resolveAnswers(flags({ types: 'api', singleTenant: true }), apiOnly.asker)
+    await resolveAnswers(
+      flags({ signIn: 'password', types: 'api', singleTenant: true }),
+      apiOnly.asker,
+    )
     const answers = await resolveAnswers(
-      flags({ types: 'api,mobile', singleTenant: true }),
+      flags({ signIn: 'password', types: 'api,mobile', singleTenant: true }),
       withMobile.asker,
     )
 
@@ -386,7 +509,13 @@ describe('resolveAnswers in a terminal', () => {
     const { asker, asked } = scripted()
 
     const answers = await resolveAnswers(
-      flags({ types: 'api,mobile', singleTenant: true, noEmail: true, noSocial: true }),
+      flags({
+        signIn: 'password',
+        types: 'api,mobile',
+        singleTenant: true,
+        noEmail: true,
+        noSocial: true,
+      }),
       asker,
     )
 
@@ -417,6 +546,7 @@ describe('generate', () => {
         architecture: 'alone',
         multiTenant: false,
         mcp: false,
+        signIn: ['password'],
         email: false,
         social: [],
       },
@@ -436,6 +566,7 @@ describe('generate', () => {
       architecture: 'alone',
       multiTenant: false,
       mcp: false,
+      signIn: ['password'],
       email: false,
       social: [],
     })
@@ -473,6 +604,7 @@ describe('generate', () => {
           architecture: 'alone',
           multiTenant: false,
           mcp: false,
+          signIn: ['password'],
           email: false,
           social: [],
         },
@@ -504,6 +636,7 @@ describe('generate', () => {
         architecture: 'monorepo',
         multiTenant: true,
         mcp: false,
+        signIn: ['password'],
         email: false,
         social: [],
       },
@@ -565,6 +698,7 @@ describe('generate', () => {
         architecture: 'monorepo',
         multiTenant: false,
         mcp: true,
+        signIn: ['password'],
         email: false,
         social: ['google'],
       },
@@ -602,6 +736,7 @@ describe('generate', () => {
         architecture: 'alone',
         multiTenant: false,
         mcp: false,
+        signIn: ['password'],
         email: false,
         social: [],
       },
@@ -632,6 +767,7 @@ describe('generate', () => {
           architecture: 'alone',
           multiTenant: false,
           mcp: false,
+          signIn: ['password'],
           email: false,
           social: [],
         },
@@ -663,6 +799,7 @@ describe('generate when it fails', () => {
     architecture: 'alone' as const,
     multiTenant: false,
     mcp: false,
+    signIn: ['password' as const],
     email: false,
     social: [],
   }

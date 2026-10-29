@@ -1,5 +1,6 @@
 module.exports = {
   preset: 'jest-expo',
+  setupFiles: ['<rootDir>/test/support/google-sign-in.ts'], // prumo:google
   moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1', '^@test/(.*)$': '<rootDir>/test/$1' },
   // A first render brings React Native and Babel's transform with it, which costs seconds on a cold cache: inside a
   // workspace the contract is a package to transform too, and Jest's 5s default was crossed in CI while the same

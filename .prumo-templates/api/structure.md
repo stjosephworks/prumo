@@ -18,7 +18,7 @@ folders, each created with its first file:
 |---|---|---|
 | `entities/` | A plain class with the data and the behaviour of one entity | `<name>.entity.ts` |
 | `repositories/` | The port to persistence: an interface and its `Symbol` token, in one file | `<name>.repository.ts` |
-| `ports/` | Any other port, such as a password hasher or a token signer: an interface and its `Symbol` token | `<name>.port.ts` |
+| `ports/` | Any other port, such as a token signer: an interface and its `Symbol` token | `<name>.port.ts` |
 | `use-cases/` | One class per use case, with one `execute()` method | `<verb>-<noun>.use-case.ts` |
 | `dto/` | Zod schemas and their inferred types, input and output | `<name>.dto.ts` |
 | `errors/` | Classes extending `DomainError` | `<name>.error.ts` |
@@ -95,8 +95,8 @@ A module:
     domain/users/repositories/profile.repository.ts        interface + PROFILE_REPOSITORY
     domain/users/use-cases/update-profile.use-case.ts
     domain/users/dto/update-profile.dto.ts
-✅  domain/auth/ports/password-hasher.port.ts              interface + PASSWORD_HASHER
-❌  domain/auth/repositories/password-hasher.repository.ts  stores nothing
+✅  domain/auth/ports/access-tokens.port.ts              interface + ACCESS_TOKENS
+❌  domain/auth/repositories/access-tokens.repository.ts  stores nothing
 ❌  domain/users/users.service.ts                           every case in one class
 ❌  domain/users/profile.ts                                 no role suffix
 ```

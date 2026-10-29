@@ -82,6 +82,26 @@ describe('email verification on the web', () => {
     await waitFor(() => expect(navigate.to).toHaveBeenCalledWith(withEmail('/verify-email')))
   })
 
+  it('counts down to the next code when one was sent moments ago', async () => {
+    const visitor = userEvent.setup()
+    const { transport } = api({
+      'POST /api/auth/email/verification': () =>
+        new Response(
+          JSON.stringify({ status: 429, title: 'Too Many Requests', code: 'too_many_codes' }),
+          {
+            status: 429,
+            headers: { 'content-type': 'application/problem+json', 'retry-after': '42' },
+          },
+        ),
+    })
+
+    renderIsland(withEmail('/verify-email'), VerifyEmail, transport)
+
+    await visitor.click(await screen.findByRole('button', { name: 'Send a new code' }))
+
+    expect(await screen.findByRole('button', { name: 'Send a new code in 42s' })).toBeDisabled()
+  })
+
   it('shows a wrong code on the code field', async () => {
     const visitor = userEvent.setup()
     const { transport } = api({

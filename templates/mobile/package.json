@@ -16,11 +16,13 @@
   },
   "dependencies": {
     "@hookform/resolvers": "5.9.1",
+    "@react-native-google-signin/google-signin": "16.1.5",
     "@tanstack/query-sync-storage-persister": "5.102.8",
     "@tanstack/react-query": "5.102.8",
     "@tanstack/react-query-persist-client": "5.102.8",
     "class-variance-authority": "0.7.1",
     "expo": "57.0.22",
+    "expo-apple-authentication": "57.0.2",
     "expo-constants": "57.0.18",
     "expo-dev-client": "57.0.19",
     "expo-linking": "57.0.10",

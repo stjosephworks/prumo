@@ -7,7 +7,21 @@ import { setJsonc } from './jsonc.ts'
 // What a project may leave out. The templates ship with every one of them; a project that answered no receives the
 // template without it: these files deleted, these dependencies removed, and every line or block marked
 // `// prumo:<feature>` cut, READMEs included. A feature a template does not list has nothing to cut there.
-export const FEATURE_NAMES = ['mcp', 'email', 'social', 'google', 'apple'] as const
+export const FEATURE_NAMES = [
+  'mcp',
+  'password',
+  'email-code',
+  'phone-code',
+  'code-sign-in',
+  'codes',
+  'mail',
+  'sms',
+  'contact',
+  'email',
+  'social',
+  'google',
+  'apple',
+] as const
 
 export type Feature = (typeof FEATURE_NAMES)[number]
 
@@ -17,21 +31,35 @@ export const SOCIAL_PROVIDERS = ['google', 'apple'] as const
 
 export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number]
 
-export const NONE: Enabled = {
-  mcp: false,
-  email: false,
-  social: false,
-  google: false,
-  apple: false,
-}
+// How a person signs in: any of them, at least one.
+export const SIGN_IN_METHODS = ['password', 'email-code', 'phone-code'] as const
+
+export type SignInMethod = (typeof SIGN_IN_METHODS)[number]
+
+export const NONE: Enabled = Object.fromEntries(
+  FEATURE_NAMES.map((feature) => [feature, false]),
+) as Enabled
 
 export function enabledFor(answers: {
   mcp: boolean
+  signIn: SignInMethod[]
   email: boolean
   social: SocialProvider[]
 }): Enabled {
+  const emailCode = answers.signIn.includes('email-code')
+  const phoneCode = answers.signIn.includes('phone-code')
+
   return {
     mcp: answers.mcp,
+    password: answers.signIn.includes('password'),
+    'email-code': emailCode,
+    'phone-code': phoneCode,
+    // What more than one feature shares is enabled by any of them.
+    'code-sign-in': emailCode || phoneCode,
+    codes: answers.email || emailCode || phoneCode,
+    mail: answers.email || emailCode,
+    sms: phoneCode,
+    contact: answers.email || emailCode || phoneCode,
     email: answers.email,
     social: answers.social.length > 0,
     google: answers.social.includes('google'),
@@ -79,36 +107,112 @@ export const FEATURES: Record<Feature, Spec> = {
       'web-astro': [],
     },
   },
-  // Verification and password reset: a code sent through the Mailer port, its table in a migration of its own.
+  // A password: the account created with one and signed into with it, its column in a migration of its own.
+  password: {
+    files: {
+      api: [
+        'src/domain/auth/dto/sign-in.dto.ts',
+        'src/domain/auth/dto/sign-up.dto.ts',
+        'src/domain/auth/errors/invalid-credentials.error.ts',
+        'src/domain/auth/ports/password-hasher.port.ts',
+        'src/domain/auth/use-cases/sign-in.use-case.ts',
+        'src/domain/auth/use-cases/sign-up.use-case.ts',
+        'src/infra/auth/argon2-password-hasher.adapter.ts',
+        'src/infra/http/controllers/password.controller.ts',
+        'migrations/Migration20261005111546_add_user_password.ts',
+        'test/domain/auth/use-cases/sign-in.use-case.spec.ts',
+        'test/domain/auth/use-cases/sign-up.use-case.spec.ts',
+        'test/infra/auth/argon2-password-hasher.adapter.spec.ts',
+        'test/infra/http/controllers/password.controller.spec.ts',
+        'test/support/fakes/fake-password-hasher.ts',
+      ],
+      'web-vite': [
+        'src/features/auth/sign-in-form.tsx',
+        'src/features/auth/sign-up-form.tsx',
+        'src/routes/sign-up.tsx',
+        'test/features/auth/password.spec.tsx',
+        'test/support/with-password.ts',
+      ],
+      'web-next': [
+        'src/features/auth/sign-in-form.tsx',
+        'src/features/auth/sign-up-form.tsx',
+        'src/app/(auth)/sign-up',
+        'test/features/auth/password.spec.tsx',
+      ],
+      'web-astro': [
+        'src/features/auth/sign-in-form.tsx',
+        'src/features/auth/sign-up-form.tsx',
+        'src/pages/sign-up.astro',
+        'test/features/auth/password.spec.tsx',
+      ],
+      mobile: [
+        'src/features/auth/sign-in-form.tsx',
+        'src/features/auth/sign-up-form.tsx',
+        'src/app/(auth)/sign-up.tsx',
+        'test/features/auth/password.spec.tsx',
+      ],
+    },
+    dependencies: { api: ['@node-rs/argon2'] },
+  },
+  // One-time codes, whatever they are for: the table, its limits, and the keyed digest, in a migration of their own.
+  codes: {
+    files: {
+      api: [
+        'src/domain/auth/entities/one-time-code.entity.ts',
+        'src/domain/auth/ports/one-time-codes.port.ts',
+        'src/domain/auth/repositories/one-time-code.repository.ts',
+        'src/domain/auth/errors/invalid-code.error.ts',
+        'src/domain/auth/errors/too-many-codes.error.ts',
+        'src/domain/auth/use-cases/issue-code.use-case.ts',
+        'src/infra/codes',
+        'src/infra/di/codes.di.ts',
+        'src/infra/database/mikroorm/entities/one-time-code.schema.ts',
+        'src/infra/database/mikroorm/repositories/mikroorm-one-time-code.repository.ts',
+        'migrations/Migration20261005111549_create_one_time_code.ts',
+        'test/infra/codes',
+        'test/infra/database/mikroorm/repositories/mikroorm-one-time-code.repository.spec.ts',
+        'test/support/fakes/fake-one-time-codes.ts',
+        'test/support/fakes/in-memory-one-time-code.repository.ts',
+      ],
+      'web-vite': ['src/features/forms/use-cooldown.ts'],
+      'web-next': ['src/features/forms/use-cooldown.ts'],
+      'web-astro': ['src/features/forms/use-cooldown.ts'],
+      mobile: ['src/features/forms/use-cooldown.ts'],
+    },
+    dependencies: {},
+  },
+  // Mail: the Mailer port and the adapter that logs it, for whatever sends a code by email, and changing the email
+  // of an account, which is proved by one.
+  mail: {
+    files: {
+      api: [
+        'src/domain/auth/ports/mailer.port.ts',
+        'src/domain/auth/dto/email-request.dto.ts',
+        'src/domain/auth/dto/email-change.dto.ts',
+        'src/domain/auth/use-cases/request-email-change.use-case.ts',
+        'src/domain/auth/use-cases/change-email.use-case.ts',
+        'src/infra/email',
+        'src/infra/http/controllers/email-change.controller.ts',
+        'test/infra/http/controllers/email-change.controller.spec.ts',
+        'test/support/fakes/fake-mailer.ts',
+      ],
+    },
+    dependencies: {},
+  },
+  // Verification and password reset of a password account, by a code sent through the Mailer port.
   email: {
     files: {
       api: [
-        'src/domain/auth/entities/email-code.entity.ts',
-        'src/domain/auth/ports/mailer.port.ts',
-        'src/domain/auth/ports/one-time-codes.port.ts',
-        'src/domain/auth/repositories/email-code.repository.ts',
         'src/domain/auth/errors/email-not-verified.error.ts',
-        'src/domain/auth/errors/invalid-code.error.ts',
-        'src/domain/auth/dto/email-request.dto.ts',
         'src/domain/auth/dto/verify-email.dto.ts',
         'src/domain/auth/dto/reset-password.dto.ts',
-        'src/domain/auth/use-cases/issue-email-code.use-case.ts',
         'src/domain/auth/use-cases/request-email-verification.use-case.ts',
         'src/domain/auth/use-cases/verify-email.use-case.ts',
         'src/domain/auth/use-cases/request-password-reset.use-case.ts',
         'src/domain/auth/use-cases/reset-password.use-case.ts',
-        'src/infra/email',
-        'src/infra/di/email.di.ts',
         'src/infra/http/controllers/auth-email.controller.ts',
-        'src/infra/database/mikroorm/entities/email-code.schema.ts',
-        'src/infra/database/mikroorm/repositories/mikroorm-email-code.repository.ts',
-        'migrations/Migration20261005111549_create_email_code.ts',
         'test/domain/auth/use-cases/email.use-case.spec.ts',
-        'test/infra/email',
         'test/infra/http/controllers/auth-email.controller.spec.ts',
-        'test/support/fakes/fake-mailer.ts',
-        'test/support/fakes/fake-one-time-codes.ts',
-        'test/support/fakes/in-memory-email-code.repository.ts',
       ],
       'web-vite': [
         'src/features/auth/verify-email-form.tsx',
@@ -149,8 +253,95 @@ export const FEATURES: Record<Feature, Spec> = {
     },
     dependencies: {},
   },
+  // Sign-in by a code sent to an email address, which creates the account the first time.
+  'email-code': {
+    files: {
+      api: [
+        'src/domain/auth/dto/email-sign-in.dto.ts',
+        'src/domain/auth/use-cases/request-sign-in-code.use-case.ts',
+        'src/domain/auth/use-cases/sign-in-with-code.use-case.ts',
+        'src/infra/http/controllers/email-code.controller.ts',
+        'test/domain/auth/use-cases/email-code.use-case.spec.ts',
+        'test/infra/http/controllers/email-code.controller.spec.ts',
+      ],
+    },
+    dependencies: {},
+  },
+  // Sign-in by a code texted to a mobile number, read as E.164 and sent only to the countries in SMS_COUNTRIES.
+  'phone-code': {
+    files: {
+      api: [
+        'src/domain/auth/dto/phone-request.dto.ts',
+        'src/domain/auth/dto/phone-sign-in.dto.ts',
+        'src/domain/auth/errors/invalid-phone.error.ts',
+        'src/domain/auth/ports/phone-numbers.port.ts',
+        'src/domain/auth/use-cases/request-phone-code.use-case.ts',
+        'src/domain/auth/use-cases/sign-in-with-phone-code.use-case.ts',
+        'src/infra/sms',
+        'src/infra/http/controllers/phone-code.controller.ts',
+        'migrations/Migration20261005111548_add_user_phone.ts',
+        'test/domain/auth/use-cases/phone-code.use-case.spec.ts',
+        'test/infra/http/controllers/phone-code.controller.spec.ts',
+        'test/infra/sms',
+      ],
+    },
+    dependencies: { api: ['libphonenumber-js'] },
+  },
+  // Signing in by a code, whichever channels it goes by: the screens, and the agreed codes a store reviewer uses.
+  'code-sign-in': {
+    files: {
+      api: ['src/domain/auth/ports/review-sign-ins.port.ts', 'src/infra/review'],
+      'web-vite': ['src/features/auth/code-sign-in-form.tsx', 'test/features/auth/code.spec.tsx'],
+      'web-next': ['src/features/auth/code-sign-in-form.tsx', 'test/features/auth/code.spec.tsx'],
+      'web-astro': ['src/features/auth/code-sign-in-form.tsx', 'test/features/auth/code.spec.tsx'],
+      mobile: ['src/features/auth/code-sign-in-form.tsx', 'test/features/auth/code.spec.tsx'],
+    },
+    dependencies: {},
+  },
+  // Changing the email or the phone of an account, on the clients: whichever of the two the project sends codes by.
+  contact: {
+    files: {
+      'web-vite': [
+        'src/api-contract/contact.ts',
+        'src/features/profile/contact-form.tsx',
+        'test/features/profile/contact-form.spec.tsx',
+      ],
+      'web-next': [
+        'src/api-contract/contact.ts',
+        'src/features/profile/contact-form.tsx',
+        'test/features/profile/contact-form.spec.tsx',
+      ],
+      'web-astro': [
+        'src/api-contract/contact.ts',
+        'src/features/profile/contact-form.tsx',
+        'test/features/profile/contact-form.spec.tsx',
+      ],
+      mobile: [
+        'src/api-contract/contact.ts',
+        'src/features/profile/contact-form.tsx',
+        'test/features/profile/contact-form.spec.tsx',
+      ],
+    },
+    dependencies: {},
+  },
+  // Text messages: the TextMessages port and the adapter that logs it, and changing the phone of an account.
+  sms: {
+    files: {
+      api: [
+        'src/domain/auth/ports/text-messages.port.ts',
+        'src/domain/auth/dto/phone-change.dto.ts',
+        'src/domain/auth/use-cases/request-phone-change.use-case.ts',
+        'src/domain/auth/use-cases/change-phone.use-case.ts',
+        'src/infra/sms/log-text-messages.adapter.ts',
+        'src/infra/http/controllers/phone-change.controller.ts',
+        'test/infra/http/controllers/phone-change.controller.spec.ts',
+        'test/support/fakes/fake-text-messages.ts',
+      ],
+    },
+    dependencies: {},
+  },
   // Sign-in with a provider: the OpenID adapter, the trip there and back, and the identities it links, with their
-  // tables in a migration of their own. Google and Apple are cut by their markers alone.
+  // tables in a migration of their own. Google is cut by its markers alone.
   social: {
     files: {
       api: [
@@ -166,6 +357,7 @@ export const FEATURES: Record<Feature, Spec> = {
         'src/domain/auth/use-cases/start-social-sign-in.use-case.ts',
         'src/domain/auth/use-cases/complete-social-sign-in.use-case.ts',
         'src/domain/auth/use-cases/exchange-social-code.use-case.ts',
+        'src/domain/auth/use-cases/sign-in-with-id-token.use-case.ts',
         'src/infra/social',
         'src/infra/di/social.di.ts',
         'src/infra/http/controllers/social.controller.ts',
@@ -194,13 +386,31 @@ export const FEATURES: Record<Feature, Spec> = {
       ],
       mobile: [
         'src/features/auth/social-buttons.tsx',
+        'src/features/auth/native-sign-in.ts',
         'test/features/auth/social-buttons.spec.tsx',
       ],
     },
     dependencies: { api: ['openid-client'] },
   },
-  google: { files: {}, dependencies: {} },
-  apple: { files: {}, dependencies: {} },
+  // Google's own sheet in the mobile app, which Jest needs a stand-in for.
+  google: {
+    files: { mobile: ['test/support/google-sign-in.ts'] },
+    dependencies: { mobile: ['@react-native-google-signin/google-signin'] },
+  },
+  // Apple also confirms the deletion of an account that signs in with it, so the API can revoke the authorization,
+  // and its own sheet in the iOS app takes a nonce from the API.
+  apple: {
+    files: {
+      api: [
+        'src/domain/auth/errors/provider-confirmation-required.error.ts',
+        'src/domain/auth/use-cases/start-account-deletion.use-case.ts',
+        'src/domain/auth/use-cases/resume-account-deletion.use-case.ts',
+        'src/domain/auth/use-cases/issue-native-nonce.use-case.ts',
+        'src/domain/auth/use-cases/delete-account-with-id-token.use-case.ts',
+      ],
+    },
+    dependencies: { mobile: ['expo-apple-authentication'] },
+  },
 }
 
 export function cutFeature(text: string, feature: Feature, keep: boolean, file = 'a file'): string {
@@ -244,11 +454,16 @@ export function cutFeature(text: string, feature: Feature, keep: boolean, file =
   return kept.join('\n')
 }
 
+// A union whose members a feature cuts keeps one member a line in the template, which only this comment holds
+// against the formatter. A project has its features settled, so the comment goes and the formatter has its way.
+const KEEP_MEMBERS =
+  /^[ \t]*\/\/ biome-ignore format: one member a line, so cutting a feature cuts its own\n/gm
+
 export function cutFeatures(text: string, enabled: Enabled, file = 'a file'): string {
   return FEATURE_NAMES.reduce(
     (current, feature) => cutFeature(current, feature, enabled[feature], file),
     text,
-  )
+  ).replace(KEEP_MEMBERS, '')
 }
 
 async function sourceFiles(directory: string): Promise<string[]> {
@@ -277,6 +492,9 @@ export async function applyFeatures(
     // The settings a feature needs are cut with it, and so is what the README says about it.
     join(app, '.env.example'),
     join(app, 'README.md'),
+    // A mobile app's native plugins, and the stand-ins its tests need for them.
+    join(app, 'app.config.ts'),
+    join(app, 'jest.config.js'),
   ]
   const manifest = join(app, 'package.json')
   let pkg = await readFile(manifest, 'utf8')

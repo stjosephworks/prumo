@@ -16,6 +16,50 @@ const envSchema = z.object({
     .string()
     .transform((value) => value.split(',').map((origin) => origin.trim()))
     .pipe(z.tuple([origin], origin)),
+  // Who may name the client's address in X-Forwarded-For, which the rate limits and the logs read: nobody (false),
+  // whatever reaches the API (true, only where nothing but the platform's proxy can), or the proxies' IPs or CIDRs,
+  // comma-separated. Fastify refuses a hop count: a client that reaches the API directly could forge it.
+  TRUST_PROXY: z
+    .string()
+    .default('false')
+    .transform((value) =>
+      value === 'false' || value === 'true'
+        ? value === 'true'
+        : value.split(',').map((entry) => entry.trim()),
+    )
+    .pipe(
+      z.union([z.boolean(), z.array(z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()])).min(1)]),
+    ),
+  // prumo:phone-code
+  // The countries a sign-in text may go to, as ISO 3166 codes, comma-separated. Required: a paid text to anywhere is a
+  // bill an attacker runs up by asking for codes to numbers they pay for.
+  SMS_COUNTRIES: z
+    .string()
+    .transform((value) => value.split(',').map((code) => code.trim().toUpperCase()))
+    .pipe(z.array(z.string().regex(/^[A-Z]{2}$/)).min(1)),
+  // prumo:end-phone-code
+  // How long a session lives past its last refresh, in days. A product decision: a bank wants hours, a social app months.
+  SESSION_LIFETIME_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  // prumo:code-sign-in
+  // For store review only: `destination:code` pairs, comma-separated, each address signing in with its fixed code
+  // after asking for one, within the usual attempts. Unset, nobody can.
+  REVIEW_SIGN_IN: z
+    .string()
+    .optional()
+    .transform((value) =>
+      (value ?? '')
+        .split(',')
+        .map((pair) => pair.trim())
+        .filter((pair) => pair !== '')
+        .map((pair) => {
+          const at = pair.lastIndexOf(':')
+
+          return [pair.slice(0, at).trim().toLowerCase(), pair.slice(at + 1).trim()] as const
+        }),
+    )
+    .pipe(z.array(z.tuple([z.string().min(1), z.string().regex(/^\d{6}$/)])))
+    .transform((pairs) => new Map(pairs)),
+  // prumo:end-code-sign-in
   // prumo:social
   // Where a mobile app is sent back after signing in with a provider: its own scheme, as in app.json.
   MOBILE_APP_SCHEME: z
@@ -33,6 +77,8 @@ const envSchema = z.object({
   APPLE_KEY_ID: z.string().min(1).optional(),
   // The .p8 key's contents; on one line, with its line breaks written as \n.
   APPLE_PRIVATE_KEY: z.string().min(1).optional(),
+  // The iOS app's bundle identifier, which Apple's own sheet issues the app's tokens to.
+  APPLE_BUNDLE_ID: z.string().min(1).optional(),
   // prumo:end-apple
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']),
 })

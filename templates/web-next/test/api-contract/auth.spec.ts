@@ -1,6 +1,6 @@
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
 import { describe, expect, it } from 'vitest'
-import { createAuthClient, type TokenStore, type Tokens } from '@/api-contract'
+import { type AuthClient, createAuthClient, type TokenStore, type Tokens } from '@/api-contract'
 
 const TOKENS: Tokens = { accessToken: 'access-1', refreshToken: 'refresh-1', expiresIn: 900 }
 
@@ -16,7 +16,88 @@ function memoryStore(initial: Tokens | null = null): TokenStore & { current: Tok
   }
 }
 
+// A sign-in through the project's own way in, the first it has; the fake API answers each.
+const [signIn] = [
+  // prumo:email-code
+  (auth: AuthClient) => auth.signInWithCode({ email: 'ana@example.com', code: '123456' }),
+  // prumo:end-email-code
+  // prumo:phone-code
+  (auth: AuthClient) => auth.signInWithPhoneCode({ phone: '+14155552671', code: '123456' }),
+  // prumo:end-phone-code
+  // prumo:password
+  (auth: AuthClient) =>
+    auth.signIn({ email: 'ana@example.com', password: 'correct-horse-battery' }),
+  // prumo:end-password
+]
+
 describe('createAuthClient on the web', () => {
+  // prumo:email-code
+  it("sends the device's language and timezone with a code, for the account it may create", async () => {
+    let body: unknown
+    const auth = createAuthClient({
+      baseUrl: API_URL,
+      fetch: fakeTransport({
+        'POST /api/auth/email/sign-in': async (request) => {
+          body = await request.json()
+          return new Response(null, { status: 204 })
+        },
+      }),
+    })
+
+    await auth.signInWithCode({ email: 'ana@example.com', code: '123456' })
+
+    expect(body).toMatchObject({
+      locale: Intl.DateTimeFormat().resolvedOptions().locale,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })
+  })
+  // prumo:end-email-code
+
+  // prumo:phone-code
+  it("sends the device's language and timezone with a texted code, for the account it may create", async () => {
+    let body: unknown
+    const auth = createAuthClient({
+      baseUrl: API_URL,
+      fetch: fakeTransport({
+        'POST /api/auth/phone/sign-in': async (request) => {
+          body = await request.json()
+          return new Response(null, { status: 204 })
+        },
+      }),
+    })
+
+    await auth.signInWithPhoneCode({ phone: '+14155552671', code: '123456' })
+
+    expect(body).toMatchObject({
+      phone: '+14155552671',
+      locale: Intl.DateTimeFormat().resolvedOptions().locale,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })
+  })
+  // prumo:end-phone-code
+
+  // prumo:password
+  it("sends the device's language and timezone with a sign-up, for the new profile", async () => {
+    let body: unknown
+    const auth = createAuthClient({
+      baseUrl: API_URL,
+      fetch: fakeTransport({
+        'POST /api/auth/sign-up': async (request) => {
+          body = await request.json()
+          return json(201, { verificationRequired: false })
+        },
+      }),
+    })
+
+    await auth.signUp({ name: 'Ana', email: 'ana@example.com', password: 'correct-horse-battery' })
+
+    expect(body).toMatchObject({
+      locale: Intl.DateTimeFormat().resolvedOptions().locale,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })
+  })
+  // prumo:end-password
+
   it('refreshes once on a 401, repeats the request, and asks nothing of the body', async () => {
     const calls: string[] = []
     let valid = false
@@ -103,6 +184,10 @@ describe('createAuthClient for a native app', () => {
       fetch: fakeTransport({
         'POST /api/auth/sign-in': (request) =>
           request.headers.get('x-auth-transport') === 'bearer' ? json(200, TOKENS) : json(400, {}),
+        'POST /api/auth/email/sign-in': (request) =>
+          request.headers.get('x-auth-transport') === 'bearer' ? json(200, TOKENS) : json(400, {}),
+        'POST /api/auth/phone/sign-in': (request) =>
+          request.headers.get('x-auth-transport') === 'bearer' ? json(200, TOKENS) : json(400, {}),
         'GET /api/auth/session': (request) => {
           authorization = request.headers.get('authorization')
           return json(200, { user: { id: 'user-1', email: 'ana@example.com' } })
@@ -110,7 +195,7 @@ describe('createAuthClient for a native app', () => {
       }),
     })
 
-    await auth.signIn({ email: 'ana@example.com', password: 'correct-horse-battery' })
+    await signIn?.(auth)
     await auth.getSession()
 
     expect(tokens.current).toEqual(TOKENS)

@@ -26,6 +26,10 @@ export function testEnv(): Env {
     JWT_SECRET: 'test-secret-that-is-at-least-32-characters',
     API_URL: 'http://localhost:3000',
     WEB_ORIGIN: ['http://localhost:5173'],
+    TRUST_PROXY: false,
+    SESSION_LIFETIME_DAYS: 30,
+    SMS_COUNTRIES: ['US', 'BR'], // prumo:phone-code
+    REVIEW_SIGN_IN: new Map([['review@example.com', '424242']]), // prumo:code-sign-in
     LOG_LEVEL: 'error',
   }
 }

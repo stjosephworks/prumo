@@ -1,5 +1,5 @@
 ---
-import { SignIn } from '@/features/auth/sign-in-form'
+import { SignInWays } from '@/features/auth/sign-in-choice'
 import { SocialSignIn } from '@/features/auth/social-buttons' // prumo:social
 import Narrow from '@/layouts/narrow.astro'
 ---
@@ -9,5 +9,5 @@ import Narrow from '@/layouts/narrow.astro'
   {/* prumo:social */}
   <SocialSignIn client:only="react" />
   {/* prumo:end-social */}
-  <SignIn client:only="react" />
+  <SignInWays client:only="react" />
 </Narrow>

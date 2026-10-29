@@ -7,6 +7,11 @@ where the project uses such a service.
 
 **Never embed a secret.** A feature that needs one is performed by the API, and the app calls the API.
 
+<!-- prumo:google -->
+An OAuth client's id is public by nature, so Google's sheet reads its ids from `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` and
+`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`; the client's secret stays on the API.
+<!-- prumo:end-google -->
+
 Read configuration from `EXPO_PUBLIC_*` variables in **one** module that exports a typed object. Use
 static dot notation there. Nothing else in the app touches `process.env`.
 
