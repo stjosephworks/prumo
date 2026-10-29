@@ -16,6 +16,7 @@ import { DecideAuthorizationUseCase } from '@/domain/oauth/use-cases/decide-auth
 import { ExchangeCodeUseCase } from '@/domain/oauth/use-cases/exchange-code.use-case'
 import { FindAuthorizationUseCase } from '@/domain/oauth/use-cases/find-authorization.use-case'
 import { StartAuthorizationUseCase } from '@/domain/oauth/use-cases/start-authorization.use-case'
+import { messagesFor } from '@/i18n/messages'
 import { ENV, type Env } from '@/infra/config/env'
 import { currentUser } from '@/infra/http/hooks/auth.hook'
 import { SCOPES } from '@/infra/mcp/mcp.scopes'
@@ -74,7 +75,7 @@ export async function oauthController(fastify: FastifyInstance): Promise<void> {
     (_request, body, done) => done(null, Object.fromEntries(new URLSearchParams(body as string))),
   )
 
-  const scopesSupported = Object.keys(SCOPES)
+  const scopesSupported = [...SCOPES]
   const resourceMetadata = {
     resource,
     authorization_servers: [issuer],
@@ -169,9 +170,12 @@ export async function oauthController(fastify: FastifyInstance): Promise<void> {
         clientHost: new URL(authorization.clientId).host,
         redirectHost: redirect.host,
         redirectsToThisDevice: LOOPBACK.has(redirect.hostname),
-        scopes: authorization.scope
-          .split(' ')
-          .map((scope) => ({ scope, description: SCOPES[scope] ?? scope })),
+        // Worded in the language the request asks for, as everything the consent page shows.
+        scopes: authorization.scope.split(' ').map((scope) => ({
+          scope,
+          description:
+            (messagesFor(request.locale).scopes as Record<string, string>)[scope] ?? scope,
+        })),
       }
     },
   )

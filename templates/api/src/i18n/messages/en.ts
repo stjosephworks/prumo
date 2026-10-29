@@ -35,6 +35,13 @@ export const en = {
     deletionConfirmationExpired: 'This confirmation has expired. Start again.',
     // prumo:end-apple
   },
+  // prumo:mcp
+  // How the consent page words each scope an MCP client asks for.
+  scopes: {
+    'profile:read': 'Read your profile',
+    'profile:write': 'Change your display name, language and timezone',
+  },
+  // prumo:end-mcp
   // prumo:mail
   mail: {
     // prumo:email

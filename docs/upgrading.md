@@ -80,6 +80,7 @@ three of its own.
 | `profile.entity.ts`, `profile.schema.ts`, `migrations/…_create_user_profile_session.ts`, `update-profile.dto.ts`, `profile-response.dto.ts` | api | `LOCALES` comes from `src/i18n/locales.ts`; a new profile speaks the device's language as the project speaks it, else the base, which is also the column's default. `Profile.localeFor` is gone |
 | `link-identity.use-case.ts`, `complete-social-sign-in.use-case.ts`, `sign-in-with-id-token.use-case.ts` | api with social | An account created by a provider starts in the request's language |
 | `.prumo/api/languages.md` | api | New. The request's language, the errors, mail and texts, and the deploy the package needs |
+| `src/infra/mcp/mcp.scopes.ts`, `oauth.controller.ts`, `mcp.controller.ts` | api with MCP | `SCOPES` lists the scopes; how the consent page words each moves to `scopes` in the messages, in the request's language |
 
 Why: making an app speak a second language means finding every word written into its code. Every project now starts
 with its words in messages, so a language is added as a file and its translation.
