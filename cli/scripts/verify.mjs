@@ -461,7 +461,13 @@ async function verifyNext(app) {
   )?.[1]
   const build = step(`${app.name}: build`, () => run('pnpm', ['build'], site))
 
-  if (!/[┌└├]\s+○\s+\/(\s|$)/m.test(build)) {
+  // Every page is built once per language, under its language's address; the base's home stands for them all. A
+  // project written before 0.10.0 had no languages, and its home was `/`.
+  const base = config.languages?.[0]?.toLowerCase()
+  const home =
+    base === undefined ? /[┌└├]\s+○\s+\/(\s|$)/m : new RegExp(`[├└]\\s+●\\s+\\/${base}(\\s|$)`, 'm')
+
+  if (!home.test(build)) {
     throw new Error(`the home route is not static:\n${build}`)
   }
 

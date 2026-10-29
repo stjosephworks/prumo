@@ -87,6 +87,10 @@ three of its own.
 | `src/features/profile/profile-form.tsx` | web on Vite | No Locale field: the switcher sets the language, and the account follows |
 | `test/support/messages.ts`, `test/support/setup.ts`, every spec | web on Vite | Tests run in the base language and find elements by its messages |
 | `.prumo/client/languages.md`, `.prumo/web-vite/languages.md` | web | New |
+| `src/app/[locale]/`, the root layout, every page | web on Next | Every page moves under `[locale]`, built once per language; `generateMetadata` reads `messagesOfPage(params)`; the home page names its alternates. `src/app/layout.tsx` becomes `src/app/[locale]/layout.tsx` |
+| `src/proxy.ts` | web on Next | New. An address without a language goes to the chosen one (`locale` cookie), else `Accept-Language`, else the base |
+| `src/i18n/`, `src/features/i18n/`, `src/features/clients/clients.tsx`, every component | web on Next | New. `I18nProvider` takes the address's language; `useMessages`, `useLocalePath`, `rich` and `withLanguage`; every link and navigation through `useLocalePath` |
+| `.prumo/web-next/languages.md`, `.prumo/web-next/rendering.md`, `.prumo/web-next/structure.md` | web on Next | The routes under `[locale]`, the proxy, and the alternates |
 
 Why: making an app speak a second language means finding every word written into its code. Every project now starts
 with its words in messages, so a language is added as a file and its translation.

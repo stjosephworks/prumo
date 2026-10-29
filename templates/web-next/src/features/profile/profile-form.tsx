@@ -10,19 +10,20 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 import { Input } from '@/components/ui/input'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
-import { LOCALES } from '@/i18n/locales'
+import { useMessages } from '@/i18n/i18n'
 
+// The language is chosen where the screen's is, and the account follows it (features/i18n/account-language.ts).
 const schema = z.object({
   displayName: z.string().min(1).max(80),
-  locale: z.enum(LOCALES),
   timezone: z.string().min(1).max(64),
 })
 
 type ProfileValues = z.infer<typeof schema>
 
-const FIELDS = ['displayName', 'locale', 'timezone'] as const
+const FIELDS = ['displayName', 'timezone'] as const
 
 export function ProfileForm({ api, profile }: { api: ApiClient; profile: Profile }) {
+  const messages = useMessages()
   const queryClient = useQueryClient()
   const form = useForm<ProfileValues>({
     resolver: zodResolver(schema),
@@ -30,7 +31,6 @@ export function ProfileForm({ api, profile }: { api: ApiClient; profile: Profile
     reValidateMode: 'onChange',
     defaultValues: {
       displayName: profile.displayName,
-      locale: profile.locale,
       timezone: profile.timezone,
     },
   })
@@ -45,7 +45,7 @@ export function ProfileForm({ api, profile }: { api: ApiClient; profile: Profile
     try {
       await mutation.mutateAsync(values)
     } catch (error) {
-      applyServerError(error, FIELDS, form.setError)
+      applyServerError(error, FIELDS, form.setError, messages)
     }
   }
 
@@ -54,23 +54,18 @@ export function ProfileForm({ api, profile }: { api: ApiClient; profile: Profile
       <FormError errors={errors} />
       <FieldGroup>
         <Field data-invalid={errors.displayName !== undefined}>
-          <FieldLabel htmlFor="displayName">Display name</FieldLabel>
+          <FieldLabel htmlFor="displayName">{messages.profile.displayName}</FieldLabel>
           <Input id="displayName" {...form.register('displayName')} />
           <FieldError errors={[errors.displayName]} />
         </Field>
-        <Field data-invalid={errors.locale !== undefined}>
-          <FieldLabel htmlFor="locale">Locale</FieldLabel>
-          <Input id="locale" {...form.register('locale')} />
-          <FieldError errors={[errors.locale]} />
-        </Field>
         <Field data-invalid={errors.timezone !== undefined}>
-          <FieldLabel htmlFor="timezone">Timezone</FieldLabel>
+          <FieldLabel htmlFor="timezone">{messages.profile.timezone}</FieldLabel>
           <Input id="timezone" {...form.register('timezone')} />
           <FieldError errors={[errors.timezone]} />
         </Field>
       </FieldGroup>
       <Button type="submit" disabled={isSubmitting}>
-        Save
+        {messages.profile.save}
       </Button>
     </form>
   )

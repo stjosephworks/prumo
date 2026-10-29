@@ -97,7 +97,11 @@ export const FEATURES: Record<Feature, Spec> = {
         'src/routes/_authenticated/consent.tsx',
         'test/features/oauth',
       ],
-      'web-next': ['src/features/oauth', 'src/app/(signed-in)/consent', 'test/features/oauth'],
+      'web-next': [
+        'src/features/oauth',
+        'src/app/[locale]/(signed-in)/consent',
+        'test/features/oauth',
+      ],
       'web-astro': ['src/features/oauth', 'src/pages/consent.astro', 'test/features/oauth'],
     },
     dependencies: {
@@ -136,7 +140,7 @@ export const FEATURES: Record<Feature, Spec> = {
       'web-next': [
         'src/features/auth/sign-in-form.tsx',
         'src/features/auth/sign-up-form.tsx',
-        'src/app/(auth)/sign-up',
+        'src/app/[locale]/(auth)/sign-up',
         'test/features/auth/password.spec.tsx',
       ],
       'web-astro': [
@@ -227,9 +231,9 @@ export const FEATURES: Record<Feature, Spec> = {
         'src/features/auth/verify-email-form.tsx',
         'src/features/auth/forgot-password-form.tsx',
         'src/features/auth/reset-password-form.tsx',
-        'src/app/(auth)/verify-email',
-        'src/app/(auth)/forgot-password',
-        'src/app/(auth)/reset-password',
+        'src/app/[locale]/(auth)/verify-email',
+        'src/app/[locale]/(auth)/forgot-password',
+        'src/app/[locale]/(auth)/reset-password',
         'test/features/auth/email-flows.spec.tsx',
       ],
       'web-astro': [
