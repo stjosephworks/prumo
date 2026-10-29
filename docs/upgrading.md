@@ -66,6 +66,72 @@ three of its own.
 
 ## What changed, release by release
 
+### 0.9.0
+
+| File | Types | Change |
+|---|---|---|
+| `src/infra/config/env.ts`, `src/infra/http/app.ts`, `.env.example` | api | `TRUST_PROXY`, passed to Fastify's `trustProxy`: `false` by default, `true`, or the proxies' IPs and CIDRs |
+| `.prumo/api/config.md`, `.prumo/api/auth.md` | api | When to set `TRUST_PROXY`; the web and the API on one site |
+| `.prumo/social/sign-in.md` | api with Apple | Register the domains the API sends mail from with Apple |
+| `migrations/…_create_email_code.ts` → `…_create_one_time_code.ts`, and every file named `email-code` | api with email | `email_code` (per user) becomes `one_time_code` (per channel, destination and purpose), with the sending limits' columns. An existing project writes a migration that creates `one_time_code` and drops `email_code`: live codes are lost, and their owners ask for new ones |
+| `src/domain/shared/errors/domain-error.ts`, `src/infra/http/errors/error-handler.ts` | api | A `throttled` kind answers 429, with `Retry-After` when the error carries `retryAfter` |
+| `src/api-contract/api-error.ts`, `src/features/forms/server-errors.ts`, `src/features/forms/use-cooldown.ts`, `verify-email-form.tsx` | web, mobile | `ApiError.retryAfter`; a 429 says when to try again; the new-code button counts down |
+| `.prumo/email/codes.md`, `.prumo/email/mailer.md` | api with email | The limits, the sweep, and a failed send answering like a sent one |
+| `src/domain/users/entities/profile.entity.ts`, `create-profile.use-case.ts`, `sign-up.dto.ts`, `sign-up.use-case.ts` | api | A new profile starts in the device's `locale` and `timezone` when sign-up sends them; `Profile.localeFor` maps a tag to a supported locale |
+| `src/api-contract/auth.ts` | web, mobile | `signUp` sends the device's `locale` and `timezone` |
+| `.prumo/config.json` | every type | `signIn`, the ways in. A config without it was generated with `["password"]`, its `--sign-in` |
+| `migrations/…_create_user_profile_session.ts`, `migrations/…_add_user_password.ts` | api | `password_hash` moves to a migration of its own, cut without `password`. An existing project's database already has the column and needs nothing |
+| `src/domain/auth/entities/user.entity.ts`, `link-identity.use-case.ts` | api | `new User(email)`, then `changePassword`; `User.proveEmail` takes an unconfirmed account for whoever proved the inbox, for a provider and a code alike |
+| `src/infra/http/controllers/password.controller.ts`, `auth.controller.ts` | api with password | `sign-up` and `sign-in` move out of `auth.controller.ts` |
+| `src/infra/di/codes.di.ts`, `src/infra/codes/` | api with codes | `email.di.ts` becomes `codes.di.ts`; the HMAC adapter moves to `src/infra/codes/` |
+| `email-code.controller.ts`, `request-sign-in-code.use-case.ts`, `sign-in-with-code.use-case.ts`, `email-sign-in.dto.ts` | api with email-code | New. `POST /api/auth/email/code` and `email/sign-in`; the purpose `sign-in` joins the `one_time_code` CHECK |
+| `sign-in-choice.tsx`, `code-sign-in-form.tsx`, the sign-in route or screen | web, mobile | The sign-in page holds every way in, the code leading; the mobile `SignInForm` carries its own Sign up and Forgot links |
+| `src/api-contract/auth.ts` | web, mobile | `requestSignInCode` and `signInWithCode`; `signUp` and `signIn` only with a password |
+| `.prumo/api/auth.md`, `.prumo/email/codes.md`, `.prumo/social/sign-in.md` | api | A paragraph for each way in, cut from a project without it |
+| `migrations/…_add_user_phone.ts`, `user.entity.ts`, `user.schema.ts`, `user.repository.ts` | api with phone-code | `email` may be null, `phone` and `phone_verified_at`, and a CHECK that one of `email` and `phone` is set. `new User({ email })` or `new User({ phone })` |
+| `phone-code.controller.ts`, `request-phone-code.use-case.ts`, `sign-in-with-phone-code.use-case.ts`, `phone-*.dto.ts`, `invalid-phone.error.ts`, `phone-numbers.port.ts`, `src/infra/sms/` | api with phone-code | New. `POST /api/auth/phone/code` and `phone/sign-in`; `libphonenumber-js`; `SMS_COUNTRIES` in `env.ts` and `.env.example` |
+| `text-messages.port.ts`, `log-text-messages.adapter.ts` | api with phone-code | New. The `TextMessages` port and the adapter that logs each text in a line starting `[sms] to` |
+| `issue-code.use-case.ts` | api with codes | `execute({ channel, destination }, purpose, { deliver })`, mailing or texting by channel |
+| `session-response.dto.ts`, `auth.controller.ts`, `src/api-contract/auth.ts` | api, web, mobile with phone-code | The session's user carries `phone`, and an `email` that may be null |
+| `code-sign-in-form.tsx` | web, mobile | Asks for an email or a phone number, whichever the project signs in by, with a switch when it has both; the button reads Send me a code |
+| `.prumo/codes/`, `.prumo/email/codes.md`, `.prumo/phone/` | api | The rules every code keeps move from `email/codes.md` to the new `codes/codes.md`; `phone/` is new |
+| `session.entity.ts`, `require-recent-sign-in.use-case.ts`, `reauthentication-required.error.ts` | api | `Session.isRecentSignIn`: a sign-in of the last ten minutes, never by an OAuth client |
+| `one_time_code.user_id`, purposes `change-email` and `change-phone` | api with codes | A code that changes an account's address is bound to it |
+| `email-change.controller.ts`, `request-email-change.use-case.ts`, `change-email.use-case.ts` (and the `phone` ones) | api with email or phone codes | New. `POST /api/v1/users/me/email/code` and `/me/email` (and `/me/phone…`): a code to the new address if free, 204 either way, a notice to the old one |
+| `src/api-contract/client.ts`, `src/api-contract/contact.ts`, `src/features/profile/contact-form.tsx` | web, mobile | `ApiClient.post`, and a 204 read as nothing; the profile shows each address with a way to change it |
+| `review-sign-ins.port.ts`, `src/infra/review/`, `REVIEW_SIGN_IN` in `env.ts` and `.env.example` | api with a code sign-in | New. An agreed code a store reviewer enters at a named address, after asking for one there; `OneTimeCode.check` takes it as the sent one |
+| `session.entity.ts`, `refresh-session.use-case.ts`, `start-session.use-case.ts`, `auth.di.ts`, `env.ts`, `.env.example` | api | The previous refresh token, after the ten-second grace, rotates the session again instead of revoking it (`rotateFromPrevious`); `SESSION_LIFETIME_DAYS`, thirty by default, replaces `SESSION_LIFETIME_MS`, injected as `SESSION_LIFETIME` |
+| `delete-account.use-case.ts`, `delete-profile.use-case.ts`, `auth.controller.ts`, the user and profile repositories | api | New. `DELETE /api/auth/account` after a recent sign-in; the profile, then the user, whose rows the database removes with it |
+| `src/api-contract/auth.ts`, `src/features/profile/delete-account.tsx`, the profile page or screen | web, mobile | `deleteAccount()`, and a Delete account that asks twice |
+| `social-sign-in.entity.ts`, `social-sign-in.schema.ts`, `migrations/…_create_identity_social_sign_in.ts`, `identity-providers.port.ts`, `openid-identity-providers.adapter.ts`, `identity.repository.ts` | api with social | `social_sign_in.intent`, `sign-in` or `delete`; `IdentityProviders.revoke`, which revokes the token a code yields where the provider asks it (Apple); `IdentityRepository.findByUser`. An existing project writes a migration that adds `"intent" text not null default 'sign-in'` |
+| `start-account-deletion.use-case.ts`, `resume-account-deletion.use-case.ts`, `provider-confirmation-required.error.ts`, `delete-account.use-case.ts`, `complete-social-sign-in.use-case.ts`, `social.controller.ts` | api with Apple | New. Deleting an account that signs in with Apple answers 409 `provider_confirmation_required`; `POST` and `GET /api/auth/social/apple/deletion` take the browser to Apple, and the callback revokes the token and deletes the account |
+| `src/api-contract/auth.ts`, `delete-account.tsx`, `social-buttons.tsx`, the sign-in route | web, mobile with Apple | `accountDeletionUrl`; Continue with Apple when the deletion answers 409; Your account was deleted on the way back |
+| `.prumo/social/sign-in.md`, `.prumo/api/auth.md` | api with Apple | The deletion through Apple |
+| `identity-providers.port.ts`, `openid-identity-providers.adapter.ts`, `sign-in-with-id-token.use-case.ts`, `social.controller.ts` | api with social | `IdentityProviders.isNativeConfigured`, `verify` and `revokeNative`; `POST /api/auth/social/<provider>/token` signs in with the ID token a provider's own sheet gave the app, checked with `jose` |
+| `issue-native-nonce.use-case.ts`, `delete-account-with-id-token.use-case.ts`, `delete-account.use-case.ts`, `env.ts`, `.env.example` | api with Apple | New. `POST /api/auth/social/apple/nonce`, `apple/deletion/nonce` and `apple/deletion/token`; `APPLE_BUNDLE_ID`, the iOS app's bundle identifier, which Apple's sheet issues tokens to |
+| `src/api-contract/auth.ts` | web, mobile with social | `signInWithIdToken`; with Apple, `appleNonce` and `deleteAccountWithApple` |
+| `src/features/auth/native-sign-in.ts`, `social-buttons.tsx`, `delete-account.tsx`, `src/config.ts`, `app.config.ts`, `.env.example`, `package.json` | mobile with social | New. Apple's sheet on iOS (`expo-apple-authentication` 57.0.2, and its plugin); Google's sheet (`@react-native-google-signin/google-signin` 16.1.5) once `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` and `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` are set, its plugin added by `app.config.ts`; the browser otherwise |
+| `jest.config.js`, `test/support/google-sign-in.ts` | mobile with Google | New. A stand-in for Google's native module, loaded before every test |
+| `.prumo/social/sign-in.md`, `.prumo/mobile/config.md`, `.prumo/core/testing.md` | api, mobile with social | The sheets, their ids, and the stand-in |
+| `test/support/test-app.ts`, `test/support/fakes/auth-fakes.ts` | api | `signIn` and `signedIn` reach a session through the project's own way in; `signUpWithPassword` and `register` stay for the password's own specs |
+
+Why: behind a load balancer every client shared the balancer's address, so the rate limits put the whole world in
+one bucket of ten sign-ins a minute.
+
+Why, for the ways in: a project could not be generated without passwords, and a code that creates the account on
+first use is what many products want instead. A project that wants to add sign-in by code generates a reference with
+`--sign-in password,email-code` and carries the email-code files over.
+
+Why, for the sheets: a phone signs in with the account it already holds, without leaving the app. The browser stays
+for Apple on Android, and for Google until the app is registered with it.
+
+Why, for Apple's deletion: Apple asks an app with Sign in with Apple to revoke the user's tokens when it deletes the
+account. A fresh sign-in gives the token to revoke, so none is kept for the account's life.
+
+Why, for the codes: the per-IP limits let one address be sent a code every few seconds from many IPs, filling a
+mailbox; with a phone, every text costs money. And a code was keyed by its user, so none could exist before the
+account, which a sign-in by code needs.
+
 ### 0.8.2
 
 | File | Types | Change |

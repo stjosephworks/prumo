@@ -1,5 +1,5 @@
 import { inject, injectable } from 'tsyringe'
-import { Profile } from '@/domain/users/entities/profile.entity'
+import { type DevicePreferences, Profile } from '@/domain/users/entities/profile.entity'
 import {
   PROFILE_REPOSITORY,
   type ProfileRepository,
@@ -9,8 +9,12 @@ import {
 export class CreateProfileUseCase {
   constructor(@inject(PROFILE_REPOSITORY) private readonly profiles: ProfileRepository) {}
 
-  async execute(userId: string, displayName: string): Promise<Profile> {
-    const profile = new Profile(userId, displayName)
+  async execute(
+    userId: string,
+    displayName: string,
+    preferences: DevicePreferences = {},
+  ): Promise<Profile> {
+    const profile = new Profile(userId, displayName, preferences)
 
     await this.profiles.save(profile)
 

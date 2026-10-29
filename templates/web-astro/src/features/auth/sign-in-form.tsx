@@ -89,7 +89,7 @@ export function SignInForm({
 }
 
 // What the sign-in page renders: the form, with the address the visitor was turned away from.
-function SignInPart() {
+export function SignInPart() {
   const { auth } = useClients()
   const redirect = new URLSearchParams(window.location.search).get('redirect') ?? undefined
 

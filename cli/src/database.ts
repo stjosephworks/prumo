@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { appDirectory, appsOf, appsOfType } from './apps.ts'
 import type { Answers } from './context.ts'
+import type { SignInMethod } from './features.ts'
 import { CliError } from './output.ts'
 
 const SCRIPT = join('scripts', 'database.mjs')
@@ -27,7 +28,13 @@ export function findProjectRoot(from: string): string {
 export type Config = Omit<Answers, 'name'> & { prumo?: string }
 
 export function readConfig(root: string): Config {
-  return JSON.parse(readFileSync(join(root, '.prumo', 'config.json'), 'utf8')) as Config
+  const config = JSON.parse(readFileSync(join(root, '.prumo', 'config.json'), 'utf8')) as Omit<
+    Config,
+    'signIn'
+  > & { signIn?: SignInMethod[] }
+
+  // Written from 0.9.0; a project before it signed in with a password, and only that.
+  return { ...config, signIn: config.signIn ?? ['password'] }
 }
 
 // Where the API sits, or undefined when the project has none.

@@ -2,13 +2,33 @@ import { queryOptions } from '@tanstack/react-query'
 import { ApiError } from './api-error'
 import type { Transport } from './client'
 
-export type Session = { user: { id: string; email: string } }
+export type Session = {
+  user: {
+    id: string
+    // biome-ignore format: one member a line, so cutting a feature cuts its own
+    email:
+      | string
+      | null // prumo:phone-code
+    phone: string | null // prumo:phone-code
+  }
+}
 
 export type Tokens = { accessToken: string; refreshToken: string; expiresIn: number }
 
+// prumo:password
 export type SignUpRequest = { name: string; email: string; password: string }
 
 export type SignInRequest = { email: string; password: string }
+
+// prumo:end-password
+// prumo:email-code
+export type CodeSignInRequest = { email: string; code: string }
+
+// prumo:end-email-code
+// prumo:phone-code
+export type PhoneSignInRequest = { phone: string; code: string }
+
+// prumo:end-phone-code
 
 // prumo:email
 export type VerifyEmailRequest = { email: string; code: string }
@@ -30,6 +50,13 @@ export type TokenStore = {
 }
 
 export type AuthClient = ReturnType<typeof createAuthClient>
+
+// The device's language and timezone, sent when an account is created so its profile starts in them.
+function devicePreferences(): { locale: string; timezone: string } {
+  const { locale, timeZone } = Intl.DateTimeFormat().resolvedOptions()
+
+  return { locale, timezone: timeZone }
+}
 
 export function createAuthClient({
   baseUrl,
@@ -80,7 +107,7 @@ export function createAuthClient({
     return { verificationRequired: false }
   }
 
-  // prumo:email
+  // prumo:codes
   async function ask(path: string, body: unknown): Promise<void> {
     const response = await send(path, body)
 
@@ -89,7 +116,7 @@ export function createAuthClient({
     }
   }
 
-  // prumo:end-email
+  // prumo:end-codes
 
   let refreshing: Promise<boolean> | undefined
 
@@ -156,11 +183,29 @@ export function createAuthClient({
     fetch: authorized,
     refresh,
 
-    signUp: (request: SignUpRequest) => begin('/sign-up', request),
+    // prumo:password
+    signUp: (request: SignUpRequest) => begin('/sign-up', { ...request, ...devicePreferences() }),
 
     signIn: async (request: SignInRequest): Promise<void> => {
       await begin('/sign-in', request)
     },
+    // prumo:end-password
+    // prumo:email-code
+    // Sent to any address, with an account or not: the first code an address enters creates its account.
+    requestSignInCode: (email: string) => ask('/email/code', { email }),
+
+    signInWithCode: async (request: CodeSignInRequest): Promise<void> => {
+      await begin('/email/sign-in', { ...request, ...devicePreferences() })
+    },
+    // prumo:end-email-code
+    // prumo:phone-code
+    // Texted to any mobile number the API serves, as typed with its country code; the API reads it as E.164.
+    requestPhoneCode: (phone: string) => ask('/phone/code', { phone }),
+
+    signInWithPhoneCode: async (request: PhoneSignInRequest): Promise<void> => {
+      await begin('/phone/sign-in', { ...request, ...devicePreferences() })
+    },
+    // prumo:end-phone-code
 
     // prumo:email
     // Each answers alike for an unknown email, so a form can say "if the account exists, a code is on its way".
@@ -197,7 +242,82 @@ export function createAuthClient({
     exchangeSocialCode: async (code: string): Promise<void> => {
       await begin('/social/exchange', { code })
     },
+
+    // What a provider's own sign-in sheet on the phone gave the app, traded for the app's tokens. `trip` is the one
+    // whose nonce went to the sheet, where the provider takes one.
+    signInWithIdToken: async (
+      provider: SocialProvider,
+      credential: { idToken: string; trip?: string; name?: string },
+    ): Promise<void> => {
+      await begin(`/social/${provider}/token`, credential)
+    },
     // prumo:end-social
+
+    // prumo:apple
+    // Where to send the browser to delete an account that signs in with Apple: the API takes it to Apple, which
+    // revokes the account's authorization, and back to sign-in with `deleted=1`.
+    accountDeletionUrl: async (client: 'web' | 'mobile', origin?: string): Promise<string> => {
+      const response = await authorized(url('/social/apple/deletion'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ client, ...(origin !== undefined && { origin }) }),
+      })
+
+      if (!response.ok) {
+        throw await ApiError.fromResponse(response)
+      }
+
+      return ((await response.json()) as { url: string }).url
+    },
+
+    // A nonce for Apple's own sheet, which writes it into its token, and the trip to send back with that token. For a
+    // deletion, the trip is bound to the signed-in account.
+    appleNonce: async (
+      purpose: 'sign-in' | 'deletion' = 'sign-in',
+    ): Promise<{ trip: string; nonce: string }> => {
+      const response =
+        purpose === 'sign-in'
+          ? await send('/social/apple/nonce')
+          : await authorized(url('/social/apple/deletion/nonce'), { method: 'POST' })
+
+      if (!response.ok) {
+        throw await ApiError.fromResponse(response)
+      }
+
+      return (await response.json()) as { trip: string; nonce: string }
+    },
+
+    // Deletes the account from the app, once Apple's own sheet confirmed it on a trip from `appleNonce('deletion')`.
+    async deleteAccountWithApple(credential: {
+      trip: string
+      idToken: string
+      code: string
+    }): Promise<void> {
+      const response = await authorized(url('/social/apple/deletion/token'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(credential),
+      })
+
+      if (!response.ok) {
+        throw await ApiError.fromResponse(response)
+      }
+
+      await tokens?.write(null)
+    },
+    // prumo:end-apple
+
+    // Deletes the signed-in person's account. The API asks for a sign-in of moments ago, and refuses an older one
+    // with 403 `reauthentication_required`.
+    async deleteAccount(): Promise<void> {
+      const response = await authorized(url('/account'), { method: 'DELETE' })
+
+      if (!response.ok) {
+        throw await ApiError.fromResponse(response)
+      }
+
+      await tokens?.write(null)
+    },
 
     // The device forgets the tokens whether or not the request arrives: signing out locally is what was asked.
     async signOut(): Promise<void> {

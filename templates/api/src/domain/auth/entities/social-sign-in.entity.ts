@@ -10,6 +10,9 @@ export type SocialClient = 'web' | 'mobile'
 
 export type SocialSignInStatus = 'started' | 'signed-in' | 'exchanged'
 
+// A trip signs in, or, for a person deleting their account, proves once more that the provider's account is theirs.
+export type SocialIntent = 'sign-in' | 'delete'
+
 // One trip to a provider and back. Its id travels as OAuth's state; the browser that started it holds a secret the
 // callback must present, so a callback carrying someone else's code cannot sign this browser into their account.
 export class SocialSignIn {
@@ -21,6 +24,7 @@ export class SocialSignIn {
   codeVerifier: string | null = null
   nonce = ''
   status: SocialSignInStatus = 'started'
+  intent: SocialIntent = 'sign-in'
   userId: string | null = null
   exchangeHash: string | null = null
   expiresAt: Date
@@ -52,6 +56,12 @@ export class SocialSignIn {
 
   token(secret: string): string {
     return `${this.id}.${secret}`
+  }
+
+  // A trip on behalf of the signed-in account, to delete it: the provider's account must turn out to be its own.
+  forDeletion(userId: string): void {
+    this.intent = 'delete'
+    this.userId = userId
   }
 
   // What the provider's redirect requires back: the PKCE verifier, when the provider takes PKCE, and the nonce.

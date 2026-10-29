@@ -12,6 +12,10 @@ export class MikroOrmIdentityRepository implements IdentityRepository {
     return this.em.findOne(Identity, { provider, subject })
   }
 
+  findByUser(userId: string): Promise<Identity[]> {
+    return this.em.find(Identity, { userId })
+  }
+
   async save(identity: Identity): Promise<void> {
     await this.em.persist(identity).flush()
   }

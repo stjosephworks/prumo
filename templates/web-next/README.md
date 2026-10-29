@@ -28,9 +28,23 @@ it spawned, stops them, and frees the port. Anything it did not start is named a
 
 The home page is public: rendered once, at build time, and served as static HTML, which is what a search engine reads.
 A public page that needs data fetches it on the server, as nobody. **Sign in** leads to the signed-in area, which runs
-in the browser with the API's cookies, as the Vite app does: follow **Sign up** to create an account, and you land on
-your profile, which you can edit. The API must be running and migrated first, and trust this app's origin
-(`WEB_ORIGIN`), or the session check has nothing to answer it.
+in the browser with the API's cookies, as the Vite app does: once in, you land on your profile, which you can edit.
+The API must be running and migrated first, and trust this app's origin (`WEB_ORIGIN`), or the session check has
+nothing to answer it.
+<!-- prumo:email-code -->
+
+Enter your email, then the 6-digit code it receives: the first code creates the account. No mail is sent yet: the API
+writes it to its log, in a line starting `[mail] to`.
+<!-- prumo:end-email-code -->
+<!-- prumo:phone-code -->
+
+To sign in by phone, give a mobile number with its country code, as +1 415 555 2671: the code is written to the
+API's log, in a line starting `[sms] to`, and the first one creates the account.
+<!-- prumo:end-phone-code -->
+<!-- prumo:password -->
+
+Follow **Sign up** to create an account with a password instead.
+<!-- prumo:end-password -->
 <!-- prumo:email -->
 
 Signing up first asks for the 6-digit code that confirms the email. No mail is sent yet: the API writes it to its

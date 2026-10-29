@@ -67,6 +67,12 @@ for both, so no timer starts, and `retry: false` for queries, so a failure shows
 Query's testing guide gives. Vitest does not wait on the timer, and `web` uses the same helper so that one rule
 holds in both.
 
+<!-- prumo:google -->
+Google's sign-in package asks for its native module as soon as it is imported, which Jest has none of, so
+`jest.config.js` loads `test/support/google-sign-in.ts` before every mobile test: a stand-in that a test signing in
+with Google tells what to answer. The package's own Jest setup mocks a path the app does not import.
+<!-- prumo:end-google -->
+
 **`web` turns route code splitting off under Vitest**, in `vite.config.ts`. Split, a route's component is a module
 Vite transforms the first time a test renders it, inside the one second a `find*` query waits, and on a loaded CI
 runner the first page of a test file missed it. The wait is not the problem and is not raised: with the transform

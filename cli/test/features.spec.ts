@@ -123,6 +123,7 @@ describe('generate with and without MCP', () => {
         architecture: 'monorepo',
         multiTenant: false,
         mcp,
+        signIn: ['password'],
         email: false,
         social: [],
       },
@@ -149,7 +150,7 @@ describe('generate with and without MCP', () => {
     expect(existsSync(join(target, 'apps/api/src/infra/mcp'))).toBe(false)
     expect(existsSync(join(target, 'apps/api/src/domain/oauth'))).toBe(false)
     expect(existsSync(join(target, 'apps/web/src/routes/_authenticated/consent.tsx'))).toBe(false)
-    expect(await migrations(target)).toHaveLength(1)
+    expect(await migrations(target)).toHaveLength(2)
     expect(
       JSON.parse(await readFile(join(target, 'apps/api/migrations/package.json'), 'utf8')),
     ).toEqual({
@@ -175,7 +176,7 @@ describe('generate with and without MCP', () => {
     expect(text).not.toContain('prumo:')
     expect(text).toContain("from '@modelcontextprotocol/server'")
     expect(existsSync(join(target, 'apps/api/src/domain/oauth'))).toBe(true)
-    expect(await migrations(target)).toHaveLength(2)
+    expect(await migrations(target)).toHaveLength(3)
     expect(config.mcp).toBe(true)
     expect(existsSync(join(target, '.prumo/mcp/server.md'))).toBe(true)
     expect(await readmes(target)).toContain('`/api/mcp`')
@@ -241,6 +242,7 @@ describe('generate with social sign-in', () => {
         architecture: 'monorepo',
         multiTenant: false,
         mcp: false,
+        signIn: ['password'],
         email: false,
         social,
       },
@@ -270,7 +272,16 @@ describe('generate with social sign-in', () => {
     expect(adapter).not.toContain("case 'apple'")
     expect(buttons).toContain('Continue with Google')
     expect(buttons).not.toContain('Continue with Apple')
-    expect(await migrations(target)).toHaveLength(2)
+    expect(await migrations(target)).toHaveLength(3)
+
+    // The mobile app keeps Google's own sheet and its stand-in for tests, and nothing of Apple's.
+    const mobile = (path: string) => readFile(join(target, 'apps/mobile', path), 'utf8')
+
+    expect(await mobile('app.config.ts')).toContain('@react-native-google-signin/google-signin')
+    expect(await mobile('app.config.ts')).not.toMatch(/expo-apple-authentication|prumo:/)
+    expect(await mobile('jest.config.js')).toContain('google-sign-in.ts')
+    expect(await mobile('package.json')).not.toContain('expo-apple-authentication')
+    expect(await mobile('src/features/auth/native-sign-in.ts')).not.toContain('Apple')
   })
 
   it('leaves no mobile scheme without a mobile app, and nothing social without the answer', async () => {
@@ -303,7 +314,13 @@ describe('generate with email', () => {
 
   it('tells every README where the code is read, and the alone API too', async () => {
     root = await mkdtemp(join(tmpdir(), 'prumo-email-'))
-    const answers = { multiTenant: false, mcp: false, email: true, social: [] }
+    const answers = {
+      multiTenant: false,
+      mcp: false,
+      signIn: ['password' as const],
+      email: true,
+      social: [],
+    }
 
     await generate({
       templates,
@@ -337,5 +354,122 @@ describe('generate with email', () => {
       expect(text, readme).toContain('`[mail] to`')
       expect(text, readme).not.toMatch(/prumo:|\n\n\n/)
     }
+  })
+})
+
+describe('generate by how people sign in', () => {
+  let root: string
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true })
+  })
+
+  async function workspace(signIn: ('password' | 'email-code' | 'phone-code')[], email = false) {
+    root = await mkdtemp(join(tmpdir(), 'prumo-sign-in-'))
+    const target = join(root, 'acme')
+
+    await generate({
+      templates,
+      knowledge,
+      target,
+      install: false,
+      answers: {
+        name: 'acme',
+        types: ['api', 'web', 'mobile'],
+        architecture: 'monorepo',
+        multiTenant: false,
+        mcp: false,
+        signIn,
+        email,
+        social: [],
+      },
+    })
+
+    return target
+  }
+
+  async function sources(target: string): Promise<string> {
+    const entries = await readdir(join(target, 'apps'), { withFileTypes: true, recursive: true })
+    const texts = await Promise.all(
+      entries
+        .filter((entry) => entry.isFile() && /\.(tsx?|json|md)$/.test(entry.name))
+        .map((entry) => readFile(join(entry.parentPath, entry.name), 'utf8')),
+    )
+
+    return texts.join('\n')
+  }
+
+  it('leaves out every password, its column, its package and its screens, signing in by code', async () => {
+    const target = await workspace(['email-code'])
+    const text = await sources(target)
+
+    expect(
+      existsSync(join(target, 'apps/api/src/infra/http/controllers/password.controller.ts')),
+    ).toBe(false)
+    expect(
+      existsSync(join(target, 'apps/api/src/infra/http/controllers/email-code.controller.ts')),
+    ).toBe(true)
+    expect(existsSync(join(target, 'apps/web/src/routes/sign-up.tsx'))).toBe(false)
+    expect(existsSync(join(target, 'apps/web/src/features/auth/code-sign-in-form.tsx'))).toBe(true)
+    expect(existsSync(join(target, 'apps/mobile/src/app/(auth)/sign-up.tsx'))).toBe(false)
+    expect(await migrations(target)).not.toContainEqual(
+      expect.stringContaining('add_user_password'),
+    )
+    expect(text).not.toContain('prumo:')
+    expect(text).not.toContain('passwordHash')
+    expect(text).not.toContain('@node-rs/argon2')
+    expect(await readFile(join(target, '.prumo/api/auth.md'), 'utf8')).not.toMatch(/Argon2|prumo:/)
+    expect(await readFile(join(target, '.prumo/email/codes.md'), 'utf8')).not.toContain(
+      'reset-password',
+    )
+    expect(JSON.parse(await readFile(join(target, '.prumo/config.json'), 'utf8'))).toMatchObject({
+      signIn: ['email-code'],
+    })
+  })
+
+  it('leaves out every code without email-code or email, and the email area with them', async () => {
+    const target = await workspace(['password'])
+    const text = await sources(target)
+
+    expect(
+      existsSync(join(target, 'apps/api/src/domain/auth/entities/one-time-code.entity.ts')),
+    ).toBe(false)
+    expect(existsSync(join(target, 'apps/web/src/features/auth/code-sign-in-form.tsx'))).toBe(false)
+    expect(existsSync(join(target, 'apps/web/src/features/forms/use-cooldown.ts'))).toBe(false)
+    expect(existsSync(join(target, '.prumo/email'))).toBe(false)
+    expect(text).not.toContain('prumo:')
+    expect(text).not.toContain('one-time-code')
+  })
+
+  it('keeps both, the code leading on the sign-in page', async () => {
+    const target = await workspace(['password', 'email-code'], true)
+    const page = await readFile(join(target, 'apps/web/src/routes/sign-in.tsx'), 'utf8')
+
+    expect(page).toContain('code={<CodeSignInForm')
+    expect(page).toContain('password={<SignInForm')
+    expect(await readFile(join(target, '.prumo/email/codes.md'), 'utf8')).toMatch(
+      /reset-password[\s\S]*`sign-in`/,
+    )
+  })
+
+  it('signs in by phone alone: no mail, no email area, the codes and the phone kept', async () => {
+    const target = await workspace(['phone-code'])
+    const text = await sources(target)
+
+    expect(
+      existsSync(join(target, 'apps/api/src/infra/http/controllers/phone-code.controller.ts')),
+    ).toBe(true)
+    expect(existsSync(join(target, 'apps/api/src/domain/auth/ports/mailer.port.ts'))).toBe(false)
+    expect(existsSync(join(target, 'apps/web/src/features/auth/code-sign-in-form.tsx'))).toBe(true)
+    expect(await migrations(target)).toContainEqual(expect.stringContaining('add_user_phone'))
+    expect(existsSync(join(target, '.prumo/codes/codes.md'))).toBe(true)
+    expect(existsSync(join(target, '.prumo/phone/text-messages.md'))).toBe(true)
+    expect(existsSync(join(target, '.prumo/email'))).toBe(false)
+    expect(text).not.toContain('prumo:')
+    expect(text).not.toContain('biome-ignore format: one member a line')
+    expect(text).not.toContain('requestSignInCode')
+    expect(await readFile(join(target, 'apps/api/.env.example'), 'utf8')).toContain(
+      'SMS_COUNTRIES=US',
+    )
   })
 })

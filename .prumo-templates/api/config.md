@@ -18,6 +18,10 @@ Load `.env` outside production with Node's `process.loadEnvFile`, inside `loadEn
 
 Read `process.env` in exactly one place: `env.ts`.
 
+Set `TRUST_PROXY` to what stands in front of the API: `false`, the default, when nothing does; the load balancer's
+IPs or CIDRs, comma-separated, when one does; `true` only where nothing but the platform's proxy can reach the API.
+Fastify takes no hop count.
+
 ## Rationale
 
 Zod already validates every request, so the environment uses the same vocabulary. `Env` is inferred from the
@@ -41,6 +45,10 @@ point calls keeps one policy, including *never in production*.
 `node --watch` watches `.env` and restarts the API when it changes. `scripts/ports.mjs` writes a web app's new
 origin into `WEB_ORIGIN` when it moves the app, and a running API that kept the old list refuses that app.
 
+**`TRUST_PROXY` decides whose address `request.ip` is,** and the rate limits count by it. Behind a proxy, `false`
+puts every client in the proxy's one bucket. With no proxy, anything else lets a client write its own
+`X-Forwarded-For` and pick a fresh bucket for every request, which is why the default trusts nobody.
+
 ## Applies to
 
 `src/infra/config/env.ts` and every consumer of a setting.
@@ -58,6 +66,8 @@ origin into `WEB_ORIGIN` when it moves the app, and a running API that kept the 
 ## Enforcement
 
 **Boot.** The application does not start with an invalid environment.
+
+**Tests.** `app.spec.ts` proves that `X-Forwarded-For` is ignored by default and read behind a trusted proxy.
 
 **Review only.** That `.env.example` gained the variable someone added to the schema. A drifted example is
 caught the next time somebody clones, because boot names everything missing.

@@ -21,6 +21,7 @@ const STATUS_OF: Record<DomainErrorKind, number> = {
   invalid: 422,
   forbidden: 403,
   unauthorized: 401,
+  throttled: 429,
 }
 
 const TITLES: Record<number, string> = {
@@ -106,6 +107,10 @@ export function registerErrorHandler(app: FastifyInstance): void {
     }
 
     const code = error instanceof DomainError ? error.code : undefined
+
+    if (error instanceof DomainError && error.retryAfter !== undefined) {
+      reply.header('retry-after', String(error.retryAfter))
+    }
 
     return send(request, reply, {
       status,
