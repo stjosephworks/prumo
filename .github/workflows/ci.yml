@@ -60,7 +60,7 @@ jobs:
           npm install ${{ runner.temp }}/*.tgz
         working-directory: ${{ runner.temp }}
       - name: Generate from the installed package
-        run: ./node_modules/.bin/prumo new packaged --types api,web --single-tenant --no-mcp --no-email --no-social --skip-install
+        run: ./node_modules/.bin/prumo new packaged --types api,web --single-tenant --no-mcp --sign-in password --no-email --no-social --skip-install
         working-directory: ${{ runner.temp }}
       - name: Assert what npm is known to delete arrived anyway
         run: |
@@ -84,7 +84,7 @@ jobs:
           - name: an-api
             types: api
             architecture: alone
-            flags: --no-email
+            flags: --sign-in password --no-email
           - name: a-web
             types: web
             architecture: alone
@@ -102,18 +102,23 @@ jobs:
             types: api
             architecture: monorepo
             tenancy: --multi-tenant
-            flags: --email
+            flags: --sign-in password --email
           # The one project with MCP: every other one proves the templates run with it cut out.
           - name: everything
             types: api,web,mobile
             architecture: monorepo
-            flags: --app site=web:next --app press=web:astro --mcp --email --social google,apple
+            flags: --app site=web:next --app press=web:astro --mcp --sign-in password,email-code --email --social google,apple
+          # No password at all: a code by email or by text is the only way in beside the providers, on every client.
+          - name: by-code
+            types: api,web,mobile
+            architecture: monorepo
+            flags: --app site=web:next --app press=web:astro --no-mcp --sign-in email-code,phone-code --social google,apple
           # Apps named on purpose: a renamed api, and a second web on each framework, each verified, the api trusting
           # every one.
           - name: named-apps
             types: web
             architecture: monorepo
-            flags: --app server=api --app backoffice=web --app site=web:next --app blog=web:next --app press=web:astro --app guide=web:astro --no-mcp --email --social google
+            flags: --app server=api --app backoffice=web --app site=web:next --app blog=web:next --app press=web:astro --app guide=web:astro --no-mcp --sign-in password --email --social google
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -160,7 +165,7 @@ jobs:
       - run: pnpm build
         working-directory: cli
       - name: Generate on the floor
-        run: node ${{ github.workspace }}/cli/dist/cli.js new floor --types api,web --single-tenant --no-mcp --no-email --no-social
+        run: node ${{ github.workspace }}/cli/dist/cli.js new floor --types api,web --single-tenant --no-mcp --sign-in password --no-email --no-social
         working-directory: ${{ runner.temp }}
       - name: Verify on the floor
         run: >
@@ -219,7 +224,7 @@ jobs:
           npm install (Get-ChildItem *.tgz).FullName
         working-directory: ${{ runner.temp }}
       - name: Generate from the installed package
-        run: npx --no-install prumo new packaged --types api,web --single-tenant --no-mcp --no-email --no-social --skip-install
+        run: npx --no-install prumo new packaged --types api,web --single-tenant --no-mcp --sign-in password --no-email --no-social --skip-install
         working-directory: ${{ runner.temp }}
       - name: Assert what npm is known to delete arrived anyway
         run: |
@@ -255,7 +260,7 @@ jobs:
           - name: an-api
             types: api
             architecture: alone
-            flags: --email
+            flags: --sign-in password --email
           # Every client in one workspace, which is the deepest tree `pnpm dev` starts.
           - name: clients
             types: web,mobile

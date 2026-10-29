@@ -16,9 +16,8 @@ import {
   TRANSACTION_MANAGER,
   type TransactionManager,
 } from '@/domain/shared/transactions/transaction-manager'
+import { DISPLAY_NAME_MAX, Profile } from '@/domain/users/entities/profile.entity'
 import { CreateProfileUseCase } from '@/domain/users/use-cases/create-profile.use-case'
-
-const DISPLAY_NAME_MAX = 80
 
 @injectable()
 export class LinkIdentityUseCase {
@@ -47,11 +46,9 @@ export class LinkIdentityUseCase {
       const existing = await this.users.findByEmail(User.normalizeEmail(profile.email))
 
       if (existing !== null) {
-        // Nobody had shown this inbox was theirs, and the provider just did: whoever chose the password, possibly
-        // to wait for the real owner, loses it and every session it opened.
-        if (existing.emailVerifiedAt === null) {
-          existing.removePassword()
-          existing.verifyEmail(now)
+        // Nobody had shown this inbox was theirs, and the provider just did: the account is the inbox's owner's now,
+        // and whatever whoever registered the address first had opened, possibly to wait for them, ends.
+        if (existing.proveEmail(now)) {
           await this.users.save(existing)
           await this.sessions.revokeAllFor(existing.id, now)
         }
@@ -61,13 +58,13 @@ export class LinkIdentityUseCase {
         return existing.id
       }
 
-      const user = new User(profile.email, null)
+      const user = new User({ email: profile.email })
 
       user.verifyEmail(now)
       await this.users.save(user)
       await this.createProfile.execute(
         user.id,
-        (profile.name ?? profile.email.split('@')[0] ?? profile.email).slice(0, DISPLAY_NAME_MAX),
+        (profile.name ?? Profile.nameFor(profile.email)).slice(0, DISPLAY_NAME_MAX),
       )
       await this.identities.save(new Identity(user.id, provider, profile.subject))
 

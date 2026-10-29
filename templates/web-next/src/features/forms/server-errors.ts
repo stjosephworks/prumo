@@ -27,7 +27,8 @@ export function applyServerError<T extends FieldValues>(
   if (unmatched.length > 0 || Object.keys(error.errors).length === 0) {
     const detail = unmatched.length > 0 ? unmatched.join(' ') : (error.detail ?? error.title)
     const reference = error.requestId === undefined ? '' : ` (${error.requestId})`
+    const wait = error.retryAfter === undefined ? '' : ` Try again in ${error.retryAfter} seconds.`
 
-    setError(FORM_ERROR as Path<T>, { type: 'server', message: `${detail}${reference}` })
+    setError(FORM_ERROR as Path<T>, { type: 'server', message: `${detail}${wait}${reference}` })
   }
 }

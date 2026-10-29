@@ -5,7 +5,7 @@ export class Migration20261005111550_create_identity_social_sign_in extends Migr
   override name = 'Migration20261005111550_create_identity_social_sign_in';
 
   override up(): void | Promise<void> {
-    this.addSql(`create table "social_sign_in" ("id" uuid not null default uuidv7(), "provider" text not null, "client" text not null, "return_to" text not null, "browser_hash" text not null, "code_verifier" text null, "nonce" text not null, "status" text not null, "user_id" uuid null, "exchange_hash" text null, "expires_at" timestamptz not null, "created_at" timestamptz not null default now(), "updated_at" timestamptz not null default now(), primary key ("id"));`);
+    this.addSql(`create table "social_sign_in" ("id" uuid not null default uuidv7(), "provider" text not null, "client" text not null, "return_to" text not null, "browser_hash" text not null, "code_verifier" text null, "nonce" text not null, "status" text not null, "intent" text not null default 'sign-in', "user_id" uuid null, "exchange_hash" text null, "expires_at" timestamptz not null, "created_at" timestamptz not null default now(), "updated_at" timestamptz not null default now(), primary key ("id"));`);
     this.addSql(`create index "social_sign_in_user_id_index" on "social_sign_in" ("user_id");`);
 
     this.addSql(`create table "identity" ("id" uuid not null default uuidv7(), "user_id" uuid not null, "provider" text not null, "subject" text not null, "created_at" timestamptz not null default now(), "updated_at" timestamptz not null default now(), primary key ("id"));`);

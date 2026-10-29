@@ -64,6 +64,27 @@ describe('email verification on mobile', () => {
   })
 })
 
+describe('a new code on mobile', () => {
+  it('counts down to the next code when one was sent moments ago', async () => {
+    const user = userEvent.setup()
+
+    await renderAt('/verify-email?email=ana@example.com', {
+      'POST /api/auth/email/verification': () =>
+        new Response(
+          JSON.stringify({ status: 429, title: 'Too Many Requests', code: 'too_many_codes' }),
+          {
+            status: 429,
+            headers: { 'content-type': 'application/problem+json', 'retry-after': '42' },
+          },
+        ),
+    })
+
+    await user.press(screen.getByRole('button', { name: 'Send a new code' }))
+
+    expect(await screen.findByRole('button', { name: 'Send a new code in 42s' })).toBeDisabled()
+  })
+})
+
 describe('password reset on mobile', () => {
   it('goes from forgot to reset and in', async () => {
     const user = userEvent.setup()
