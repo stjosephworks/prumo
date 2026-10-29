@@ -7,7 +7,7 @@ Organise by feature. Put what is reused across routes in `features/<name>/`.
 Keep a route's content in its own `page.tsx` or `layout.tsx`, alongside its `generateMetadata` and
 `generateStaticParams`. **Do not push a page's content into a feature.**
 
-Group routes by who they are for: `app/(auth)/` for sign-in and its neighbours, `app/(signed-in)/` for what needs a
+Group routes by who they are for: `app/[locale]/(auth)/` for sign-in and its neighbours, `app/[locale]/(signed-in)/` for what needs a
 session, and the public pages at the top. A feature a page renders interactively exports the small client component
 the page uses, beside the form or list it wraps, reading the clients from `useClients()` and the search params from
 `useSearchParams()`.

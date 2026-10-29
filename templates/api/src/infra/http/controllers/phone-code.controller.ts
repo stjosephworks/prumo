@@ -19,7 +19,9 @@ export async function phoneCodeController(fastify: FastifyInstance): Promise<voi
     '/phone/code',
     { config: { public: true, ...ATTEMPTS }, schema: { tags: ['auth'], body: phoneRequestSchema } },
     async (request, reply) => {
-      await app.container.resolve(RequestPhoneCodeUseCase).execute(request.body.phone)
+      await app.container
+        .resolve(RequestPhoneCodeUseCase)
+        .execute(request.body.phone, request.locale)
 
       return reply.code(204).send()
     },
@@ -35,7 +37,9 @@ export async function phoneCodeController(fastify: FastifyInstance): Promise<voi
       deliver(
         request,
         reply,
-        await app.container.resolve(SignInWithPhoneCodeUseCase).execute(request.body),
+        await app.container
+          .resolve(SignInWithPhoneCodeUseCase)
+          .execute({ ...request.body, locale: request.body.locale ?? request.locale }),
         200,
       ),
   )

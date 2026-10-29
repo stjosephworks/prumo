@@ -20,7 +20,9 @@ import {
   copyApp,
   copyTemplate,
   extractContract,
+  extractI18n,
   joinContract,
+  joinI18n,
   rootDevPrefix,
   takeBuildApprovals,
 } from './compose.ts'
@@ -37,6 +39,7 @@ import {
   writeLocalEnv,
 } from './generate.ts'
 import { readJsonc, setJsonc } from './jsonc.ts'
+import { applyLanguages } from './languages.ts'
 import { schemeFor } from './names.ts'
 import { CliError } from './output.ts'
 import { cliVersion } from './version.ts'
@@ -233,6 +236,7 @@ async function write({
   journal.creates(directory)
   await copyApp(templates, root, app)
   await applyFeatures(directory, templateOf(app), enabledFor(answers))
+  await applyLanguages(directory, answers.languages)
 
   // The first port of its template that no app of the workspace holds, as each one's .env says today.
   const { key, from } = PORTS[templateOf(app)]
@@ -269,6 +273,20 @@ async function write({
       await copyTemplate(join(templates, 'workspace', 'packages', 'api-contract'), contract)
       await extractContract(root, [app])
       written.push(contract)
+    }
+  }
+
+  // The workspace's languages are its package's; a workspace whose apps spoke none yet gets the package now.
+  if (existsSync(join(directory, 'src', 'i18n', 'locales.ts'))) {
+    const i18n = join(root, 'packages', 'i18n')
+
+    if (existsSync(i18n)) {
+      await joinI18n(root, directory)
+    } else {
+      journal.creates(i18n)
+      await copyTemplate(join(templates, 'workspace', 'packages', 'i18n'), i18n)
+      await extractI18n(root, [app])
+      written.push(i18n)
     }
   }
 

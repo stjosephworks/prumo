@@ -25,8 +25,6 @@ export {
 } from './contact'
 // prumo:end-contact
 export {
-  LOCALES,
-  type Locale,
   type Profile,
   profileQuery,
   type UpdateProfileRequest,

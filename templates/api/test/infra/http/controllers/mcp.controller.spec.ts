@@ -7,6 +7,8 @@ import type { FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { InvalidClientError } from '@/domain/oauth/errors/invalid-client.error'
 import { CLIENT_METADATA, type ClientMetadata } from '@/domain/oauth/ports/client-metadata.port'
+import { BASE_LOCALE } from '@/i18n/locales'
+import { messagesFor } from '@/i18n/messages'
 import { TOOL_SCOPES } from '@/infra/mcp/mcp.scopes'
 import { mcpResource } from '@/infra/mcp/mcp.server'
 
@@ -175,8 +177,8 @@ describe('authorization', () => {
       redirectsToThisDevice: false,
       // Asked for nothing, so offered everything, each scope worded for a person.
       scopes: [
-        { scope: 'profile:read', description: 'Read your profile' },
-        { scope: 'profile:write', description: 'Change your display name, language and timezone' },
+        { scope: 'profile:read', description: messagesFor(BASE_LOCALE).scopes['profile:read'] },
+        { scope: 'profile:write', description: messagesFor(BASE_LOCALE).scopes['profile:write'] },
       ],
     })
     expect(`${redirect.origin}${redirect.pathname}`).toBe(REDIRECT)

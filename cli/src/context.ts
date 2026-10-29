@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { type App, appsOf, templateOf } from './apps.ts'
 import type { AppType } from './compose.ts'
 import { cutFeatures, enabledFor, type SignInMethod, type SocialProvider } from './features.ts'
+import type { Language } from './languages.ts'
 import { cliVersion } from './version.ts'
 
 export type Answers = {
@@ -13,6 +14,8 @@ export type Answers = {
   apps?: App[]
   architecture: 'alone' | 'monorepo'
   multiTenant: boolean
+  // The languages the project speaks, its base first; from 0.10.0. Before it, English, written in each component.
+  languages: Language[]
   mcp: boolean
   // How a person signs in; from 0.9.0. Before it, a password and only that.
   signIn: SignInMethod[]
@@ -32,6 +35,8 @@ export function areasFor(answers: Answers): string[] {
 
   return [
     'core',
+    // Every project speaks its languages from messages, whatever its types.
+    'i18n',
     ...(has('api') ? ['api', 'database'] : []),
     ...(CLIENTS.some(has) ? ['client'] : []),
     ...(has('web') ? ['web'] : []),
@@ -91,6 +96,7 @@ async function writeConfig(prumo: string, answers: Answers): Promise<void> {
     apps: appsOf(answers),
     architecture: answers.architecture,
     multiTenant: answers.multiTenant,
+    languages: answers.languages,
     mcp: answers.mcp,
     signIn: answers.signIn,
     email: answers.email,

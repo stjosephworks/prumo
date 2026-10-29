@@ -18,7 +18,9 @@ export async function emailCodeController(fastify: FastifyInstance): Promise<voi
     '/email/code',
     { config: { public: true, ...ATTEMPTS }, schema: { tags: ['auth'], body: emailRequestSchema } },
     async (request, reply) => {
-      await app.container.resolve(RequestSignInCodeUseCase).execute(request.body.email)
+      await app.container
+        .resolve(RequestSignInCodeUseCase)
+        .execute(request.body.email, request.locale)
 
       return reply.code(204).send()
     },
@@ -34,7 +36,9 @@ export async function emailCodeController(fastify: FastifyInstance): Promise<voi
       deliver(
         request,
         reply,
-        await app.container.resolve(SignInWithCodeUseCase).execute(request.body),
+        await app.container
+          .resolve(SignInWithCodeUseCase)
+          .execute({ ...request.body, locale: request.body.locale ?? request.locale }),
         200,
       ),
   )

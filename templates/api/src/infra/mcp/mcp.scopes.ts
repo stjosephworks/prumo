@@ -1,11 +1,8 @@
 import { USER_TOOL_SCOPES } from './tools/users.tool'
 
-// Every scope this server offers, as the consent page words it. A module adds its read and write here, with its
-// tools' scopes below.
-export const SCOPES: Record<string, string> = {
-  'profile:read': 'Read your profile',
-  'profile:write': 'Change your display name, language and timezone',
-}
+// Every scope this server offers. A module adds its read and write here, with its tools' scopes below, and how the
+// consent page words each to `scopes` in every language's messages.
+export const SCOPES = ['profile:read', 'profile:write'] as const
 
 export const TOOL_SCOPES: Record<string, string> = { ...USER_TOOL_SCOPES }
 

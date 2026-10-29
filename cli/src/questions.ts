@@ -17,6 +17,7 @@ import {
   SOCIAL_PROVIDERS,
   type SocialProvider,
 } from './features.ts'
+import { type Language, parseLanguages } from './languages.ts'
 import { projectAt, targetProblem, validateProjectName } from './names.ts'
 import { CliError } from './output.ts'
 
@@ -28,6 +29,7 @@ export type Flags = {
   monorepo: boolean
   multiTenant: boolean
   singleTenant: boolean
+  languages: string | undefined
   mcp: boolean
   noMcp: boolean
   signIn: string | undefined
@@ -232,6 +234,17 @@ export async function resolveAnswers(
     missing('--multi-tenant or --single-tenant')
   }
 
+  // Every project speaks at least its base, whatever its types: the API's mail and errors, each client's screens.
+  let languages: Language[]
+
+  if (flags.languages !== undefined) {
+    languages = parseLanguages(flags.languages)
+  } else if (asker !== undefined) {
+    languages = await asker.languages()
+  } else {
+    missing('--languages <list>')
+  }
+
   // MCP authorizes through a sign-in and a consent page, which only a web app can serve.
   const mcpCapable = types.includes('api') && types.includes('web')
   let mcp = false
@@ -339,6 +352,7 @@ export async function resolveAnswers(
     apps,
     architecture,
     multiTenant,
+    languages,
     mcp,
     signIn,
     email,

@@ -21,7 +21,9 @@ export async function authEmailController(fastify: FastifyInstance): Promise<voi
     '/email/verification',
     { config: { public: true, ...ATTEMPTS }, schema: { tags: ['auth'], body: emailRequestSchema } },
     async (request, reply) => {
-      await app.container.resolve(RequestEmailVerificationUseCase).execute(request.body.email)
+      await app.container
+        .resolve(RequestEmailVerificationUseCase)
+        .execute(request.body.email, request.locale)
 
       return reply.code(204).send()
     },
@@ -46,7 +48,9 @@ export async function authEmailController(fastify: FastifyInstance): Promise<voi
     '/password/forgot',
     { config: { public: true, ...ATTEMPTS }, schema: { tags: ['auth'], body: emailRequestSchema } },
     async (request, reply) => {
-      await app.container.resolve(RequestPasswordResetUseCase).execute(request.body.email)
+      await app.container
+        .resolve(RequestPasswordResetUseCase)
+        .execute(request.body.email, request.locale)
 
       return reply.code(204).send()
     },

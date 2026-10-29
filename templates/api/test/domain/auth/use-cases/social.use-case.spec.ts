@@ -4,6 +4,7 @@ import { ProviderConfirmationRequiredError } from '@/domain/auth/errors/provider
 import { ProviderEmailUnverifiedError } from '@/domain/auth/errors/provider-email-unverified.error'
 import { ProviderNotConfiguredError } from '@/domain/auth/errors/provider-not-configured.error'
 import { SocialSignInFailedError } from '@/domain/auth/errors/social-sign-in-failed.error'
+import { BASE_LOCALE } from '@/i18n/locales'
 
 const ANA = { name: 'Ana', email: 'ana@example.com', password: 'correct-horse-battery' } // prumo:password
 const GOOGLE = {
@@ -87,6 +88,7 @@ describe('a social sign-in, start to session', () => {
       provider: 'google' as const,
       state,
       callbackUrl: new URL('http://localhost:3000/cb'),
+      locale: BASE_LOCALE,
       name: null,
     }
 
@@ -114,6 +116,7 @@ describe('a social sign-in, start to session', () => {
       state: new URL(url).searchParams.get('state') ?? '',
       browserToken,
       callbackUrl: new URL('http://localhost:3000/cb'),
+      locale: BASE_LOCALE,
       name: 'Ana',
     })
 
@@ -139,6 +142,7 @@ describe('a social sign-in, start to session', () => {
         state: new URL(url).searchParams.get('state') ?? '',
         browserToken,
         callbackUrl: new URL('http://localhost:3000/cb'),
+        locale: BASE_LOCALE,
         name: null,
       }),
     ).rejects.toBeInstanceOf(SocialSignInFailedError)
@@ -160,6 +164,7 @@ describe('signing in with a provider’s own sheet', () => {
       idToken: 'id-token',
       trip: null,
       name: null,
+      locale: BASE_LOCALE,
     })
 
     expect(tokens.refreshToken).toEqual(expect.any(String))
@@ -182,7 +187,13 @@ describe('signing in with Apple’s own sheet', () => {
     providers.next = APPLE
     const { trip, nonce } = await issueNonce.execute({ provider: 'apple' })
     const signIn = (sent = trip) =>
-      signInWithIdToken.execute({ provider: 'apple', idToken: 'id-token', trip: sent, name: 'Ana' })
+      signInWithIdToken.execute({
+        provider: 'apple',
+        idToken: 'id-token',
+        trip: sent,
+        name: 'Ana',
+        locale: BASE_LOCALE,
+      })
 
     await expect(signIn()).resolves.toBeDefined()
     expect(providers.lastNative).toEqual({ idToken: 'id-token', nonce, name: 'Ana' })
@@ -203,7 +214,6 @@ describe('signing in with Apple’s own sheet', () => {
 })
 
 describe('deleting an account that signs in with Apple', () => {
-
   // An account Apple created, signed in, whose owner asks to delete it.
   async function linked() {
     const fakes = socialFakes()
@@ -223,6 +233,7 @@ describe('deleting an account that signs in with Apple', () => {
       state: ticket.split('.')[0] ?? '',
       browserToken: ticket,
       callbackUrl: new URL('http://localhost:3000/cb'),
+      locale: BASE_LOCALE,
       name: null,
     })
   }

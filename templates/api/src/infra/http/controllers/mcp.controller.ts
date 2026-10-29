@@ -28,7 +28,7 @@ export async function mcpController(fastify: FastifyInstance): Promise<void> {
         // RFC 9728: the 401 names the document that says where to obtain a token, and the scopes worth asking for.
         reply.header(
           'www-authenticate',
-          `Bearer resource_metadata="${mcpResourceMetadataUrl(env)}", scope="${Object.keys(SCOPES).join(' ')}"${token === undefined ? '' : ', error="invalid_token"'}`,
+          `Bearer resource_metadata="${mcpResourceMetadataUrl(env)}", scope="${SCOPES.join(' ')}"${token === undefined ? '' : ', error="invalid_token"'}`,
         )
         throw new HttpError(401, 'Unauthorized')
       }

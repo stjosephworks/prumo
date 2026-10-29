@@ -4,8 +4,5 @@ import { DomainError } from '@/domain/shared/errors/domain-error'
 export class ReauthenticationRequiredError extends DomainError {
   readonly kind = 'forbidden'
   override readonly code = 'reauthentication_required'
-
-  constructor() {
-    super('Sign in again to do this')
-  }
+  override readonly text = 'reauthenticationRequired'
 }

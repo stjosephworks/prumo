@@ -3,6 +3,7 @@ import { User } from '@/domain/auth/entities/user.entity'
 import { USER_REPOSITORY, type UserRepository } from '@/domain/auth/repositories/user.repository'
 import { IssueCodeUseCase } from '@/domain/auth/use-cases/issue-code.use-case'
 import { RequireRecentSignInUseCase } from '@/domain/auth/use-cases/require-recent-sign-in.use-case'
+import type { Locale } from '@/i18n/locales'
 
 @injectable()
 export class RequestEmailChangeUseCase {
@@ -14,7 +15,7 @@ export class RequestEmailChangeUseCase {
 
   // Only an address nobody has gets the code, and the answer is the same either way: asking cannot be used to find
   // out who has an account, even by someone signed in.
-  async execute(userId: string, sessionId: string, email: string): Promise<void> {
+  async execute(userId: string, sessionId: string, email: string, locale: Locale): Promise<void> {
     await this.requireRecentSignIn.execute(sessionId)
 
     const address = User.normalizeEmail(email)
@@ -23,6 +24,7 @@ export class RequestEmailChangeUseCase {
     await this.issueCode.execute({ channel: 'email', destination: address }, 'change-email', {
       deliver: !taken,
       userId,
+      locale,
     })
   }
 }

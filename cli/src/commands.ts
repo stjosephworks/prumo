@@ -38,8 +38,17 @@ export const COMMANDS: CommandHelp[] = [
         description: 'Ship the multi-tenancy conventions; the code itself is not tenant-aware',
       },
       { flag: '--single-tenant', description: 'No multi-tenancy conventions' },
+      {
+        flag: '--languages <list>',
+        description:
+          'Comma-separated, the base first: en, pt-BR, es-419; another is added once the project exists',
+      },
       { flag: '--mcp', description: 'An MCP server on the api, authorized through the web' },
       { flag: '--no-mcp', description: 'No MCP server' },
+      {
+        flag: '--sign-in <list>',
+        description: 'With an api, comma-separated, one or more: password, email-code, phone-code',
+      },
       {
         flag: '--email',
         description:

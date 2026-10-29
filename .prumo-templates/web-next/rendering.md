@@ -11,7 +11,7 @@ Split every page by who it is for:
 
 - **A public page** fetches its data on the server, in a Server Component or the static generation function, and
   passes it to client components as props. Do not call the API from the browser to render it.
-- **The signed-in area** lives under `app/(signed-in)/`, whose layout holds `<SignedIn>`. Its pages render client
+- **The signed-in area** lives under `app/[locale]/(signed-in)/`, whose layout holds `<SignedIn>`. Its pages render client
   components that fetch in the browser, through TanStack Query and the API contract, with the clients from
   `useClients()`.
 
@@ -67,12 +67,12 @@ Where a fetch happens:
 ```
 ✅  // app/posts/page.tsx: a Server Component, public data
     const posts = await getPosts()
-✅  // features/orders/orders.tsx, rendered under app/(signed-in)/
+✅  // features/orders/orders.tsx, rendered under app/[locale]/(signed-in)/
     const { data } = useQuery(ordersQuery(api))
 ❌  // app/posts/page.tsx
     'use client'
     const { data } = useQuery(postsQuery())
-❌  // a Server Component under app/(signed-in)/: the server has no session
+❌  // a Server Component under app/[locale]/(signed-in)/: the server has no session
     const me = await api.get<Profile>('/users/me')
 ```
 

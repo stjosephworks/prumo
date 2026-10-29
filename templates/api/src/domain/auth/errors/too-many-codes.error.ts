@@ -4,10 +4,11 @@ import { DomainError } from '@/domain/shared/errors/domain-error'
 export class TooManyCodesError extends DomainError {
   readonly kind = 'throttled'
   override readonly code = 'too_many_codes'
+  override readonly text = 'tooManyCodes'
   override readonly retryAfter: number
 
   constructor(retryAfter: number) {
-    super('A code was sent to this address too recently')
+    super()
     this.retryAfter = retryAfter
   }
 }

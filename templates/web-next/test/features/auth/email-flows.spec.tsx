@@ -1,4 +1,5 @@
 import { fakeTransport, json } from '@test/support/fake-transport'
+import { at, messages } from '@test/support/messages'
 import { router } from '@test/support/navigation'
 import { renderAt } from '@test/support/render'
 import { screen, waitFor } from '@testing-library/react'
@@ -9,6 +10,7 @@ import { ResetPassword } from '@/features/auth/reset-password-form'
 import { SignIn } from '@/features/auth/sign-in-form'
 import { SignUp } from '@/features/auth/sign-up-form'
 import { VerifyEmail } from '@/features/auth/verify-email-form'
+import { format } from '@/i18n/locales'
 
 const user = { id: 'user-1', email: 'ana@example.com' }
 
@@ -42,12 +44,15 @@ describe('email verification on the web', () => {
 
     renderAt('/sign-up', <SignUp />, transport)
 
-    await visitor.type(await screen.findByLabelText('Name'), 'Ana')
-    await visitor.type(screen.getByLabelText('Email'), user.email)
-    await visitor.type(screen.getByLabelText('Password'), 'correct-horse-battery')
-    await visitor.click(screen.getByRole('button', { name: 'Create account' }))
+    await visitor.type(await screen.findByLabelText(messages.auth.signUp.name), 'Ana')
+    await visitor.type(screen.getByLabelText(messages.auth.email), user.email)
+    await visitor.type(
+      screen.getByLabelText(messages.auth.signIn.password),
+      'correct-horse-battery',
+    )
+    await visitor.click(screen.getByRole('button', { name: messages.auth.signUp.submit }))
 
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith(withEmail('/verify-email')))
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(withEmail(at('/verify-email'))))
   })
 
   it('takes the account into the app once the code is entered', async () => {
@@ -61,10 +66,10 @@ describe('email verification on the web', () => {
 
     renderAt(withEmail('/verify-email'), <VerifyEmail />, transport)
 
-    await visitor.type(await screen.findByLabelText('Code'), '123456')
-    await visitor.click(screen.getByRole('button', { name: 'Confirm email' }))
+    await visitor.type(await screen.findByLabelText(messages.forms.code), '123456')
+    await visitor.click(screen.getByRole('button', { name: messages.auth.verifyEmail.submit }))
 
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/account'))
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(at('/account')))
   })
 
   it('sends an unconfirmed account that signs in to the code page', async () => {
@@ -75,11 +80,14 @@ describe('email verification on the web', () => {
 
     renderAt('/sign-in', <SignIn />, transport)
 
-    await visitor.type(await screen.findByLabelText('Email'), user.email)
-    await visitor.type(screen.getByLabelText('Password'), 'correct-horse-battery')
-    await visitor.click(screen.getByRole('button', { name: 'Sign in' }))
+    await visitor.type(await screen.findByLabelText(messages.auth.email), user.email)
+    await visitor.type(
+      screen.getByLabelText(messages.auth.signIn.password),
+      'correct-horse-battery',
+    )
+    await visitor.click(screen.getByRole('button', { name: messages.auth.signIn.submit }))
 
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith(withEmail('/verify-email')))
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(withEmail(at('/verify-email'))))
   })
 
   it('counts down to the next code when one was sent moments ago', async () => {
@@ -97,9 +105,13 @@ describe('email verification on the web', () => {
 
     renderAt(withEmail('/verify-email'), <VerifyEmail />, transport)
 
-    await visitor.click(await screen.findByRole('button', { name: 'Send a new code' }))
+    await visitor.click(await screen.findByRole('button', { name: messages.forms.sendNewCode }))
 
-    expect(await screen.findByRole('button', { name: 'Send a new code in 42s' })).toBeDisabled()
+    expect(
+      await screen.findByRole('button', {
+        name: format(messages.forms.sendNewCodeIn, { seconds: 42 }),
+      }),
+    ).toBeDisabled()
   })
 
   it('shows a wrong code on the code field', async () => {
@@ -111,8 +123,8 @@ describe('email verification on the web', () => {
 
     renderAt(withEmail('/verify-email'), <VerifyEmail />, transport)
 
-    await visitor.type(await screen.findByLabelText('Code'), '000000')
-    await visitor.click(screen.getByRole('button', { name: 'Confirm email' }))
+    await visitor.type(await screen.findByLabelText(messages.forms.code), '000000')
+    await visitor.click(screen.getByRole('button', { name: messages.auth.verifyEmail.submit }))
 
     expect(await screen.findByText(/The code is wrong or has expired/)).toBeInTheDocument()
   })
@@ -125,10 +137,10 @@ describe('password reset on the web', () => {
 
     renderAt('/forgot-password', <ForgotPassword />, transport)
 
-    await visitor.type(await screen.findByLabelText('Email'), user.email)
-    await visitor.click(screen.getByRole('button', { name: 'Send a reset code' }))
+    await visitor.type(await screen.findByLabelText(messages.auth.email), user.email)
+    await visitor.click(screen.getByRole('button', { name: messages.auth.forgotPassword.submit }))
 
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith(withEmail('/reset-password')))
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(withEmail(at('/reset-password'))))
   })
 
   it('goes from reset into the app', async () => {
@@ -142,10 +154,13 @@ describe('password reset on the web', () => {
 
     renderAt(withEmail('/reset-password'), <ResetPassword />, transport)
 
-    await visitor.type(await screen.findByLabelText('Code'), '123456')
-    await visitor.type(screen.getByLabelText('New password'), 'another-good-password')
-    await visitor.click(screen.getByRole('button', { name: 'Set the new password' }))
+    await visitor.type(await screen.findByLabelText(messages.forms.code), '123456')
+    await visitor.type(
+      screen.getByLabelText(messages.auth.resetPassword.password),
+      'another-good-password',
+    )
+    await visitor.click(screen.getByRole('button', { name: messages.auth.resetPassword.submit }))
 
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/account'))
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(at('/account')))
   })
 })

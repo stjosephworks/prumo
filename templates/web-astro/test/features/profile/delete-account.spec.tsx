@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { Profile } from '@/api-contract'
 import { Account } from '@/features/profile/account'
+import { BASE_LOCALE } from '@/i18n/locales'
 import { navigate } from '@/lib/navigate'
 
 const user = { id: 'user-1', email: 'ana@example.com' }
@@ -13,7 +14,7 @@ const profile: Profile = {
   id: 'profile-1',
   userId: user.id,
   displayName: 'Ana',
-  locale: 'en',
+  locale: BASE_LOCALE,
   timezone: 'UTC',
   createdAt: '2026-09-14T12:57:24.057Z',
   updatedAt: '2026-09-14T12:57:24.057Z',

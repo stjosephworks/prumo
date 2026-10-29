@@ -58,7 +58,7 @@ export class DeleteAccountWithIdTokenUseCase {
       !started.isStarted(new Date()) ||
       started.browserHash !== this.opaque.digest(parsed.secret)
     ) {
-      throw new SocialSignInFailedError('This confirmation has expired. Start again.')
+      throw new SocialSignInFailedError('deletionConfirmationExpired')
     }
 
     const profile = await this.providers.verify(provider, {
@@ -70,9 +70,7 @@ export class DeleteAccountWithIdTokenUseCase {
 
     // Checked before revoking, so another account's authorization is never touched.
     if (identity?.userId !== userId) {
-      throw new SocialSignInFailedError(
-        'That is not the account being deleted. Nothing was deleted.',
-      )
+      throw new SocialSignInFailedError('notTheAccountBeingDeleted')
     }
 
     await this.providers.revokeNative(provider, code)

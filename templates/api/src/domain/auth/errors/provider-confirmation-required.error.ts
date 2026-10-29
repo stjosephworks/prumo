@@ -5,8 +5,11 @@ import { DomainError } from '@/domain/shared/errors/domain-error'
 export class ProviderConfirmationRequiredError extends DomainError {
   readonly kind = 'conflict'
   override readonly code = 'provider_confirmation_required'
+  override readonly text = 'providerConfirmationRequired'
+  override readonly values: { provider: string }
 
   constructor(readonly provider: ProviderName) {
-    super(`Confirm with ${provider} to delete this account`)
+    super()
+    this.values = { provider }
   }
 }

@@ -4,6 +4,7 @@ import { CodeSignInForm } from '@/features/auth/code-sign-in-form' // prumo:code
 import { SignInChoice } from '@/features/auth/sign-in-choice'
 import { SignInForm } from '@/features/auth/sign-in-form' // prumo:password
 import { SocialButtons } from '@/features/auth/social-buttons' // prumo:social
+import { useMessages } from '@/i18n/i18n'
 
 export const Route = createFileRoute('/sign-in')({
   validateSearch: z.object({
@@ -18,10 +19,11 @@ export const Route = createFileRoute('/sign-in')({
 function SignInPage() {
   const { auth } = Route.useRouteContext()
   const search = Route.useSearch()
+  const messages = useMessages()
 
   return (
     <>
-      <h1 className="text-2xl font-semibold">Sign in</h1>
+      <h1 className="text-2xl font-semibold">{messages.auth.signIn.title}</h1>
       {/* prumo:social */}
       <SocialButtons
         auth={auth}

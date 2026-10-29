@@ -27,6 +27,7 @@ import { socialController } from '@/infra/http/controllers/social.controller' //
 import { usersController } from '@/infra/http/controllers/users.controller'
 import { registerErrorHandler } from '@/infra/http/errors/error-handler'
 import { registerAuthHook } from '@/infra/http/hooks/auth.hook'
+import { registerLocale } from '@/infra/http/hooks/locale.hook'
 import { registerOriginCheck } from '@/infra/http/hooks/origin.hook'
 import { registerRequestContext } from '@/infra/http/hooks/request-context.hook'
 
@@ -85,6 +86,8 @@ export async function buildApp(container: DependencyContainer): Promise<FastifyI
   registerErrorHandler(app)
   requireResponseSchemas(app)
   registerRequestContext(app, container.resolve(EntityManager))
+  // Before anything that may refuse the request, so the refusal is written in its language.
+  registerLocale(app)
 
   await app.register(cors, {
     origin: env.WEB_ORIGIN,

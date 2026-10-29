@@ -28,7 +28,9 @@ export async function passwordController(fastify: FastifyInstance): Promise<void
       },
     },
     async (request, reply) => {
-      const tokens = await app.container.resolve(SignUpUseCase).execute(request.body)
+      const tokens = await app.container
+        .resolve(SignUpUseCase)
+        .execute({ ...request.body, locale: request.body.locale ?? request.locale })
 
       // No session until the address is confirmed: the client asks for the code next.
       if (tokens === null) {
