@@ -1,10 +1,16 @@
 import type { AuthClient } from '@/api-contract'
 import { buttonVariants } from '@/components/ui/button'
+import { useMessages } from '@/i18n/i18n'
+import type { Messages } from '@/i18n/messages'
 
-// What the API sends back to sign-in when a provider sign-in does not complete.
-const FAILURES: Record<string, string> = {
-  provider_email_unverified: 'That account’s email is not verified with the provider.',
-  provider_not_configured: 'That sign-in is not set up yet.',
+// What the API sends back to sign-in when a provider sign-in does not complete, by its code.
+function failureOf(error: string, messages: Messages): string {
+  const failures: Record<string, string> = {
+    provider_email_unverified: messages.auth.social.emailUnverified,
+    provider_not_configured: messages.auth.social.notConfigured,
+  }
+
+  return failures[error] ?? messages.auth.social.failed
 }
 
 // Plain links: the browser leaves for the provider and comes back signed in, with no script holding a token.
@@ -19,18 +25,20 @@ export function SocialButtons({
   error: string | undefined
   deleted?: boolean // prumo:apple
 }) {
+  const messages = useMessages()
+
   return (
     <div className="flex flex-col gap-3">
       {/* prumo:apple */}
       {deleted && (
         <p role="status" className="text-sm text-muted-foreground">
-          Your account was deleted.
+          {messages.auth.social.deleted}
         </p>
       )}
       {/* prumo:end-apple */}
       {error !== undefined && (
         <p role="alert" className="text-sm text-destructive">
-          {FAILURES[error] ?? 'The sign-in did not complete. Try again.'}
+          {failureOf(error, messages)}
         </p>
       )}
       {/* prumo:google */}
@@ -38,7 +46,7 @@ export function SocialButtons({
         href={auth.socialSignInUrl('google', 'web', returnTo, window.location.origin)}
         className={buttonVariants({ variant: 'outline' })}
       >
-        Continue with Google
+        {messages.auth.social.google}
       </a>
       {/* prumo:end-google */}
       {/* prumo:apple */}
@@ -46,7 +54,7 @@ export function SocialButtons({
         href={auth.socialSignInUrl('apple', 'web', returnTo, window.location.origin)}
         className={buttonVariants({ variant: 'outline' })}
       >
-        Continue with Apple
+        {messages.auth.social.apple}
       </a>
       {/* prumo:end-apple */}
     </div>

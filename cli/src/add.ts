@@ -281,7 +281,7 @@ async function write({
     const i18n = join(root, 'packages', 'i18n')
 
     if (existsSync(i18n)) {
-      await joinI18n(directory)
+      await joinI18n(root, directory)
     } else {
       journal.creates(i18n)
       await copyTemplate(join(templates, 'workspace', 'packages', 'i18n'), i18n)

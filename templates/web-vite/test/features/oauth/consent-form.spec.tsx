@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
+import { messages } from '@test/support/messages'
 import { createTestQueryClient } from '@test/support/query-client'
 import { renderApp } from '@test/support/render-app'
 import { signInThroughPage } from '@test/support/sign-in-through-page'
@@ -50,11 +51,11 @@ describe('ConsentForm', () => {
 
     expect(await screen.findByText('Claude')).toBeInTheDocument()
     expect(screen.getByText(/claude\.example\.com\)/)).toBeInTheDocument()
-    expect(screen.getByRole('list', { name: 'What it will be able to do' })).toHaveTextContent(
+    expect(screen.getByRole('list', { name: messages.consent.abilities })).toHaveTextContent(
       'Read your profile',
     )
 
-    await visitor.click(screen.getByRole('button', { name: 'Allow' }))
+    await visitor.click(screen.getByRole('button', { name: messages.consent.allow }))
 
     expect(decision).toEqual({ accept: true })
     expect(leave).toHaveBeenCalledWith('https://claude.example.com/callback?code=c')
@@ -113,7 +114,7 @@ describe('the consent route', () => {
 
     await signInThroughPage(visitor, 'ana@example.com')
 
-    expect(await screen.findByRole('heading', { name: 'Allow access' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: messages.consent.title })).toBeInTheDocument()
     expect(await screen.findByText('Claude')).toBeInTheDocument()
   })
 })

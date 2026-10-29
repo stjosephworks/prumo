@@ -264,6 +264,7 @@ describe('generate with social sign-in', () => {
       join(target, 'apps/web/src/features/auth/social-buttons.tsx'),
       'utf8',
     )
+    const webMessages = await readFile(join(target, 'apps/web/src/i18n/messages/en.ts'), 'utf8')
 
     expect(await readmes(target)).toContain('/api/auth/social/<provider>')
     expect(await readmes(target)).not.toMatch(/prumo:|\[mail\] to/)
@@ -272,8 +273,10 @@ describe('generate with social sign-in', () => {
     expect(env).not.toContain('APPLE_')
     expect(adapter).toContain("case 'google'")
     expect(adapter).not.toContain("case 'apple'")
-    expect(buttons).toContain('Continue with Google')
-    expect(buttons).not.toContain('Continue with Apple')
+    expect(buttons).toContain('messages.auth.social.google')
+    expect(buttons).not.toContain('messages.auth.social.apple')
+    expect(webMessages).toContain('Continue with Google')
+    expect(webMessages).not.toContain('Continue with Apple')
     expect(await migrations(target)).toHaveLength(3)
 
     // The mobile app keeps Google's own sheet and its stand-in for tests, and nothing of Apple's.

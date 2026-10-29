@@ -4,12 +4,13 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { type ApiClient, LOCALES, type Profile, profileQuery, updateProfile } from '@/api-contract'
+import { type ApiClient, type Profile, profileQuery, updateProfile } from '@/api-contract'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { LOCALES } from '@/i18n/locales'
 
 const schema = z.object({
   displayName: z.string().min(1).max(80),

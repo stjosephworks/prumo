@@ -2,8 +2,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import type { AuthClient } from '@/api-contract'
 import { Button } from '@/components/ui/button'
+import { useMessages } from '@/i18n/i18n'
 
 export function SignOutButton({ auth }: { auth: Pick<AuthClient, 'signOut'> }) {
+  const messages = useMessages()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -22,7 +24,7 @@ export function SignOutButton({ auth }: { auth: Pick<AuthClient, 'signOut'> }) {
 
   return (
     <Button type="button" variant="outline" onClick={signOut}>
-      Sign out
+      {messages.auth.signOut}
     </Button>
   )
 }

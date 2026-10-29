@@ -1,4 +1,5 @@
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
+import { messages } from '@test/support/messages'
 import { renderApp } from '@test/support/render-app'
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
@@ -13,8 +14,8 @@ describe('SocialButtons', () => {
     renderApp('/sign-in?redirect=%2Forders', signedOut)
 
     for (const name of [
-      'Continue with Google', // prumo:google
-      'Continue with Apple', // prumo:apple
+      messages.auth.social.google, // prumo:google
+      messages.auth.social.apple, // prumo:apple
     ]) {
       const link = await screen.findByRole('link', { name })
       const href = new URL(link.getAttribute('href') ?? '')
@@ -38,7 +39,7 @@ describe('SocialButtons', () => {
   it('says the account was deleted, when Apple brought the person back from deleting it', async () => {
     renderApp('/sign-in?deleted=1', signedOut)
 
-    expect(await screen.findByRole('status')).toHaveTextContent('Your account was deleted.')
+    expect(await screen.findByRole('status')).toHaveTextContent(messages.auth.social.deleted)
   })
   // prumo:end-apple
 })

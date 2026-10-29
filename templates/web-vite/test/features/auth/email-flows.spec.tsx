@@ -1,10 +1,12 @@
 import { fakeTransport, json } from '@test/support/fake-transport'
+import { messages } from '@test/support/messages'
 import { renderApp } from '@test/support/render-app'
 import { withPassword } from '@test/support/with-password'
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { Profile } from '@/api-contract'
+import { BASE_LOCALE, format } from '@/i18n/locales'
 
 const user = { id: 'user-1', email: 'ana@example.com' }
 
@@ -12,7 +14,7 @@ const profile: Profile = {
   id: 'profile-1',
   userId: user.id,
   displayName: 'Ana',
-  locale: 'en',
+  locale: BASE_LOCALE,
   timezone: 'UTC',
   createdAt: '2026-09-14T12:57:24.057Z',
   updatedAt: '2026-09-14T12:57:24.057Z',
@@ -51,17 +53,22 @@ describe('email verification on the web', () => {
 
     renderApp('/sign-up', transport)
 
-    await visitor.type(await screen.findByLabelText('Name'), 'Ana')
-    await visitor.type(screen.getByLabelText('Email'), user.email)
-    await visitor.type(screen.getByLabelText('Password'), 'correct-horse-battery')
-    await visitor.click(screen.getByRole('button', { name: 'Create account' }))
+    await visitor.type(await screen.findByLabelText(messages.auth.signUp.name), 'Ana')
+    await visitor.type(screen.getByLabelText(messages.auth.email), user.email)
+    await visitor.type(
+      screen.getByLabelText(messages.auth.signIn.password),
+      'correct-horse-battery',
+    )
+    await visitor.click(screen.getByRole('button', { name: messages.auth.signUp.submit }))
 
-    expect(await screen.findByRole('heading', { name: 'Confirm your email' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: messages.auth.verifyEmail.title }),
+    ).toBeInTheDocument()
 
-    await visitor.type(screen.getByLabelText('Code'), '123456')
-    await visitor.click(screen.getByRole('button', { name: 'Confirm email' }))
+    await visitor.type(screen.getByLabelText(messages.forms.code), '123456')
+    await visitor.click(screen.getByRole('button', { name: messages.auth.verifyEmail.submit }))
 
-    expect(await screen.findByRole('heading', { name: 'Your profile' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: messages.profile.title })).toBeInTheDocument()
   })
 
   it('counts down to the next code when one was sent moments ago', async () => {
@@ -79,9 +86,13 @@ describe('email verification on the web', () => {
 
     renderApp(`/verify-email?email=${user.email}`, transport)
 
-    await visitor.click(await screen.findByRole('button', { name: 'Send a new code' }))
+    await visitor.click(await screen.findByRole('button', { name: messages.forms.sendNewCode }))
 
-    expect(await screen.findByRole('button', { name: 'Send a new code in 42s' })).toBeDisabled()
+    expect(
+      await screen.findByRole('button', {
+        name: format(messages.forms.sendNewCodeIn, { seconds: 42 }),
+      }),
+    ).toBeDisabled()
   })
 
   it('sends an unconfirmed account that signs in to the code page', async () => {
@@ -93,11 +104,16 @@ describe('email verification on the web', () => {
     renderApp('/sign-in', transport)
 
     await withPassword(visitor)
-    await visitor.type(await screen.findByLabelText('Email'), user.email)
-    await visitor.type(screen.getByLabelText('Password'), 'correct-horse-battery')
-    await visitor.click(screen.getByRole('button', { name: 'Sign in' }))
+    await visitor.type(await screen.findByLabelText(messages.auth.email), user.email)
+    await visitor.type(
+      screen.getByLabelText(messages.auth.signIn.password),
+      'correct-horse-battery',
+    )
+    await visitor.click(screen.getByRole('button', { name: messages.auth.signIn.submit }))
 
-    expect(await screen.findByRole('heading', { name: 'Confirm your email' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: messages.auth.verifyEmail.title }),
+    ).toBeInTheDocument()
   })
 
   it('shows a wrong code on the code field', async () => {
@@ -109,8 +125,8 @@ describe('email verification on the web', () => {
 
     renderApp(`/verify-email?email=${user.email}`, transport)
 
-    await visitor.type(await screen.findByLabelText('Code'), '000000')
-    await visitor.click(screen.getByRole('button', { name: 'Confirm email' }))
+    await visitor.type(await screen.findByLabelText(messages.forms.code), '000000')
+    await visitor.click(screen.getByRole('button', { name: messages.auth.verifyEmail.submit }))
 
     expect(await screen.findByText(/The code is wrong or has expired/)).toBeInTheDocument()
   })
@@ -130,15 +146,18 @@ describe('password reset on the web', () => {
     renderApp('/sign-in', transport)
 
     await withPassword(visitor)
-    await visitor.click(await screen.findByRole('link', { name: 'Forgot your password?' }))
-    await screen.findByRole('heading', { name: 'Reset your password' })
-    await visitor.type(screen.getByLabelText('Email'), user.email)
-    await visitor.click(screen.getByRole('button', { name: 'Send a reset code' }))
-    await screen.findByRole('heading', { name: 'Choose a new password' })
-    await visitor.type(screen.getByLabelText('Code'), '123456')
-    await visitor.type(screen.getByLabelText('New password'), 'another-good-password')
-    await visitor.click(screen.getByRole('button', { name: 'Set the new password' }))
+    await visitor.click(await screen.findByRole('link', { name: messages.auth.signIn.forgot }))
+    await screen.findByRole('heading', { name: messages.auth.forgotPassword.title })
+    await visitor.type(screen.getByLabelText(messages.auth.email), user.email)
+    await visitor.click(screen.getByRole('button', { name: messages.auth.forgotPassword.submit }))
+    await screen.findByRole('heading', { name: messages.auth.resetPassword.title })
+    await visitor.type(screen.getByLabelText(messages.forms.code), '123456')
+    await visitor.type(
+      screen.getByLabelText(messages.auth.resetPassword.password),
+      'another-good-password',
+    )
+    await visitor.click(screen.getByRole('button', { name: messages.auth.resetPassword.submit }))
 
-    expect(await screen.findByRole('heading', { name: 'Your profile' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: messages.profile.title })).toBeInTheDocument()
   })
 })

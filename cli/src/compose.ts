@@ -204,6 +204,17 @@ export async function extractI18n(target: string, apps: App[]): Promise<void> {
   for (const app of speaking) {
     await importI18n(app)
   }
+
+  await importI18nInContract(target)
+}
+
+// The shared contract names the profile's language by the same list.
+async function importI18nInContract(target: string): Promise<void> {
+  const contract = join(target, 'packages', 'api-contract')
+
+  if (existsSync(contract)) {
+    await importI18n(contract)
+  }
 }
 
 async function importI18n(app: string): Promise<void> {
@@ -218,12 +229,15 @@ async function importI18n(app: string): Promise<void> {
   )
 }
 
-// An app added to a workspace speaks its languages from its package, and drops the template's copy.
-export async function joinI18n(app: string): Promise<void> {
+// An app added to a workspace speaks its languages from its package, and drops the template's copy; so does a contract
+// the app just brought.
+export async function joinI18n(target: string, app: string): Promise<void> {
   if (existsSync(join(app, LOCALES_FILE))) {
     await rm(join(app, LOCALES_FILE))
     await importI18n(app)
   }
+
+  await importI18nInContract(target)
 }
 
 function setEnvLine(text: string, key: string, value: string, file: string): string {

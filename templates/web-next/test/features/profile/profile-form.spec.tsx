@@ -6,12 +6,13 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { createClient, type Profile } from '@/api-contract'
 import { ProfileForm } from '@/features/profile/profile-form'
+import { BASE_LOCALE } from '@/i18n/locales'
 
 const profile: Profile = {
   id: '01a09ffe-635c-77e5-9aeb-d3e9d1a7ee24',
   userId: 'ef51f640-611b-4b9a-a188-510c455539eb',
   displayName: 'Ana',
-  locale: 'en',
+  locale: BASE_LOCALE,
   timezone: 'UTC',
   createdAt: '2026-09-14T12:57:24.057Z',
   updatedAt: '2026-09-14T12:57:24.057Z',

@@ -9,6 +9,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 import { Input } from '@/components/ui/input'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { useMessages } from '@/i18n/i18n'
 
 const schema = z.object({
   email: z.email(),
@@ -24,6 +25,7 @@ export function SignInForm({
   auth: Pick<AuthClient, 'signIn' | 'getSession'>
   redirect: string | undefined
 }) {
+  const messages = useMessages()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const form = useForm<SignInValues>({
@@ -46,7 +48,7 @@ export function SignInForm({
       }
 
       // prumo:end-email
-      applyServerError(error, ['email', 'password'], form.setError)
+      applyServerError(error, ['email', 'password'], form.setError, messages)
       return
     }
 
@@ -61,12 +63,12 @@ export function SignInForm({
       <FormError errors={errors} />
       <FieldGroup>
         <Field data-invalid={errors.email !== undefined}>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <FieldLabel htmlFor="email">{messages.auth.email}</FieldLabel>
           <Input id="email" type="email" autoComplete="email" {...form.register('email')} />
           <FieldError errors={[errors.email]} />
         </Field>
         <Field data-invalid={errors.password !== undefined}>
-          <FieldLabel htmlFor="password">Password</FieldLabel>
+          <FieldLabel htmlFor="password">{messages.auth.signIn.password}</FieldLabel>
           <Input
             id="password"
             type="password"
@@ -77,14 +79,14 @@ export function SignInForm({
         </Field>
       </FieldGroup>
       <Button type="submit" disabled={isSubmitting}>
-        Sign in
+        {messages.auth.signIn.submit}
       </Button>
       <p className="text-sm text-muted-foreground">
-        No account? <Link to="/sign-up">Sign up</Link>
+        {messages.auth.signIn.noAccount} <Link to="/sign-up">{messages.auth.signIn.signUp}</Link>
       </p>
       {/* prumo:email */}
       <p className="text-sm text-muted-foreground">
-        <Link to="/forgot-password">Forgot your password?</Link>
+        <Link to="/forgot-password">{messages.auth.signIn.forgot}</Link>
       </p>
       {/* prumo:end-email */}
     </form>

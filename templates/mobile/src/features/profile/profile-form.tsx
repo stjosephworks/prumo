@@ -3,11 +3,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Controller, useForm } from 'react-hook-form'
 import { View } from 'react-native'
 import { z } from 'zod'
-import { type ApiClient, LOCALES, type Profile, profileQuery, updateProfile } from '@/api-contract'
+import { type ApiClient, type Profile, profileQuery, updateProfile } from '@/api-contract'
 import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { LOCALES } from '@/i18n/locales'
 
 const schema = z.object({
   displayName: z.string().min(1).max(80),

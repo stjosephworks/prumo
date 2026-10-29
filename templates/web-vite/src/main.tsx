@@ -3,10 +3,13 @@ import { QueryClient } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createAuthClient, createClient, type Transport } from '@/api-contract'
+import { withLanguage } from '@/i18n/i18n'
 import { App } from './app'
 import { config } from './config'
 
-const transport: Transport = (input, init) => fetch(input, { ...init, credentials: 'include' })
+const transport: Transport = withLanguage((input, init) =>
+  fetch(input, { ...init, credentials: 'include' }),
+)
 
 const auth = createAuthClient({ baseUrl: config.VITE_API_URL, fetch: transport })
 
