@@ -239,7 +239,7 @@ async function write({
   await applyLanguages(directory, answers.languages)
 
   // The first port of its template that no app of the workspace holds, as each one's .env says today.
-  const { key, from } = PORTS[templateOf(app)]
+  const { key, from, site } = PORTS[templateOf(app)]
   const held = new Set<number>()
 
   for (const other of apps) {
@@ -253,7 +253,11 @@ async function write({
     port += 1
   }
 
-  await rewrite(join(directory, '.env.example'), (text) => withEnvLine(text, key, String(port)))
+  await rewrite(join(directory, '.env.example'), (text) => {
+    const withPort = withEnvLine(text, key, String(port))
+
+    return site === undefined ? withPort : withEnvLine(withPort, site, `http://localhost:${port}`)
+  })
 
   if (templateOf(app) === 'web-next') {
     await rewrite(join(directory, 'package.json'), (text) => {

@@ -9,6 +9,7 @@ import { useClients } from '@/features/clients/clients'
 import { island } from '@/features/clients/island'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { useLocalePath, useMessages } from '@/i18n/i18n'
 import { navigate } from '@/lib/navigate'
 
 const schema = z.object({
@@ -25,6 +26,8 @@ export function SignInForm({
   auth: Pick<AuthClient, 'signIn'>
   redirect: string | undefined
 }) {
+  const messages = useMessages()
+  const localePath = useLocalePath()
   const form = useForm<SignInValues>({
     resolver: zodResolver(schema),
     mode: 'onTouched',
@@ -40,17 +43,19 @@ export function SignInForm({
       // prumo:email
       // The password was right and the email is not confirmed yet: the code page offers a new code.
       if ((error as { code?: string }).code === 'email_not_verified') {
-        navigate.to(`/verify-email?${new URLSearchParams({ email: values.email })}`)
+        navigate.to(
+          `${localePath('/verify-email')}?${new URLSearchParams({ email: values.email })}`,
+        )
         return
       }
 
       // prumo:end-email
-      applyServerError(error, ['email', 'password'], form.setError)
+      applyServerError(error, ['email', 'password'], form.setError, messages)
       return
     }
 
     // The next page is a new page load, with a cache of its own that asks for the session afresh.
-    navigate.to(redirect ?? '/account')
+    navigate.to(redirect ?? localePath('/account'))
   }
 
   return (
@@ -58,12 +63,12 @@ export function SignInForm({
       <FormError errors={errors} />
       <FieldGroup>
         <Field data-invalid={errors.email !== undefined}>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <FieldLabel htmlFor="email">{messages.auth.email}</FieldLabel>
           <Input id="email" type="email" autoComplete="email" {...form.register('email')} />
           <FieldError errors={[errors.email]} />
         </Field>
         <Field data-invalid={errors.password !== undefined}>
-          <FieldLabel htmlFor="password">Password</FieldLabel>
+          <FieldLabel htmlFor="password">{messages.auth.signIn.password}</FieldLabel>
           <Input
             id="password"
             type="password"
@@ -74,14 +79,15 @@ export function SignInForm({
         </Field>
       </FieldGroup>
       <Button type="submit" disabled={isSubmitting}>
-        Sign in
+        {messages.auth.signIn.submit}
       </Button>
       <p className="text-sm text-muted-foreground">
-        No account? <a href="/sign-up">Sign up</a>
+        {messages.auth.signIn.noAccount}{' '}
+        <a href={localePath('/sign-up')}>{messages.auth.signIn.signUp}</a>
       </p>
       {/* prumo:email */}
       <p className="text-sm text-muted-foreground">
-        <a href="/forgot-password">Forgot your password?</a>
+        <a href={localePath('/forgot-password')}>{messages.auth.signIn.forgot}</a>
       </p>
       {/* prumo:end-email */}
     </form>

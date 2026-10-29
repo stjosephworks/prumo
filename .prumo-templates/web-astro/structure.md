@@ -45,8 +45,8 @@ Every file under `src/`.
 Where a page lives:
 
 ```
-✅  src/pages/pricing.astro      → the content, its metadata and its islands
-❌  src/pages/pricing.astro      → renders <Pricing client:only="react" /> holding the whole page
+✅  src/pages/[locale]/pricing.astro      → the content, its metadata and its islands
+❌  src/pages/[locale]/pricing.astro      → renders <Pricing client:only="react" /> holding the whole page
 ```
 
 Shared code:

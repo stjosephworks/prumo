@@ -102,7 +102,12 @@ export const FEATURES: Record<Feature, Spec> = {
         'src/app/[locale]/(signed-in)/consent',
         'test/features/oauth',
       ],
-      'web-astro': ['src/features/oauth', 'src/pages/consent.astro', 'test/features/oauth'],
+      'web-astro': [
+        'src/features/oauth',
+        'src/pages/consent.astro',
+        'src/pages/[locale]/consent.astro',
+        'test/features/oauth',
+      ],
     },
     dependencies: {
       api: ['@modelcontextprotocol/client', '@modelcontextprotocol/server'],
@@ -146,7 +151,7 @@ export const FEATURES: Record<Feature, Spec> = {
       'web-astro': [
         'src/features/auth/sign-in-form.tsx',
         'src/features/auth/sign-up-form.tsx',
-        'src/pages/sign-up.astro',
+        'src/pages/[locale]/sign-up.astro',
         'test/features/auth/password.spec.tsx',
       ],
       mobile: [
@@ -240,9 +245,9 @@ export const FEATURES: Record<Feature, Spec> = {
         'src/features/auth/verify-email-form.tsx',
         'src/features/auth/forgot-password-form.tsx',
         'src/features/auth/reset-password-form.tsx',
-        'src/pages/verify-email.astro',
-        'src/pages/forgot-password.astro',
-        'src/pages/reset-password.astro',
+        'src/pages/[locale]/verify-email.astro',
+        'src/pages/[locale]/forgot-password.astro',
+        'src/pages/[locale]/reset-password.astro',
         'test/features/auth/email-flows.spec.tsx',
       ],
       mobile: [

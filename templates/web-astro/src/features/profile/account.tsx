@@ -6,15 +6,17 @@ import { island } from '@/features/clients/island'
 import { ContactForm } from '@/features/profile/contact-form' // prumo:contact
 import { DeleteAccount } from '@/features/profile/delete-account'
 import { ProfileForm } from '@/features/profile/profile-form'
+import { useMessages } from '@/i18n/i18n'
 
 function AccountPart() {
+  const messages = useMessages()
   const { api, auth } = useClients()
   const profile = useQuery(profileQuery(api))
 
   if (profile.data === undefined) {
     return profile.isError ? (
       <p role="alert" className="text-sm text-destructive">
-        Your profile could not be loaded.
+        {messages.profile.loadFailed}
       </p>
     ) : null
   }

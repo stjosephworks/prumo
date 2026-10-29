@@ -91,6 +91,11 @@ three of its own.
 | `src/proxy.ts` | web on Next | New. An address without a language goes to the chosen one (`locale` cookie), else `Accept-Language`, else the base |
 | `src/i18n/`, `src/features/i18n/`, `src/features/clients/clients.tsx`, every component | web on Next | New. `I18nProvider` takes the address's language; `useMessages`, `useLocalePath`, `rich` and `withLanguage`; every link and navigation through `useLocalePath` |
 | `.prumo/web-next/languages.md`, `.prumo/web-next/rendering.md`, `.prumo/web-next/structure.md` | web on Next | The routes under `[locale]`, the proxy, and the alternates |
+| `.env.example`, `src/config.ts`, the root layout | web on Next | `NEXT_PUBLIC_SITE_URL`, the app's own address, which `metadataBase` resolves the alternates and canonical against |
+| `src/pages/[locale]/`, `src/pages/index.astro`, `sign-in.astro`, `consent.astro`, `src/layouts/` | web on Astro | Every page moves under `[locale]`, built once per language; `/`, `/sign-in` and `/consent` become `language-redirect.astro` pages that send the browser to a language; the layout takes `locale`, sets `<html lang>`, and names the canonical and alternates whole |
+| `src/i18n/`, `src/features/i18n/`, `src/features/clients/`, every island and component | web on Astro | New. `I18nProvider` takes the page's language through `island()`'s `locale`; `useMessages`, `useLocalePath`, `rich`, `withLanguage`; `choice.ts` keeps the choice; the switcher is an Astro component, no island |
+| `.env.example`, `src/config.ts` | web on Astro | `PUBLIC_SITE_URL`, the app's own address |
+| `.prumo/web-astro/languages.md`, `rendering.md`, `structure.md` | web on Astro | The pages under `[locale]`, the redirect pages, the switcher |
 
 Why: making an app speak a second language means finding every word written into its code. Every project now starts
 with its words in messages, so a language is added as a file and its translation.

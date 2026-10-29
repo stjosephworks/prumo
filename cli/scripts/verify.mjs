@@ -435,7 +435,10 @@ async function verifyAstro(app) {
       `http://localhost:${webPort}/`,
       {},
       async () => {
-        const html = await (await fetch(`http://localhost:${webPort}/`)).text()
+        // `/` sends the browser to a language; the base's home stands for every language's.
+        const base = config.languages?.[0]?.toLowerCase()
+        const home = base === undefined ? '/' : `/${base}/`
+        const html = await (await fetch(`http://localhost:${webPort}${home}`)).text()
         if (!/<title>/.test(html) || !/<meta name="description"/.test(html)) {
           throw new Error('the served HTML carries no title or description')
         }

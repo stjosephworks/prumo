@@ -15,7 +15,9 @@ in the language chosen on this browser (the `locale` cookie the switcher writes)
 project speaks (`Accept-Language`), else the base. Switching moves to the same address in the new language.
 
 Give every public page its address in every language, as `alternates.languages` in its metadata, keyed by
-`LOCALE_INFO[locale].hreflang`. A page under `(auth)` or `(signed-in)` is never indexed, and needs none.
+`LOCALE_INFO[locale].hreflang`, and its `canonical`. The root layout's `metadataBase` is `NEXT_PUBLIC_SITE_URL`, the
+app's own address, so both come out whole, as search engines require. A page under `(auth)` or `(signed-in)` is
+never indexed, and needs none.
 
 ## Rationale
 

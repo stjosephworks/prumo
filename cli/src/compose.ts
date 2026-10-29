@@ -254,7 +254,7 @@ function setEnvLine(text: string, key: string, value: string, file: string): str
 // every web app, the first one first.
 async function placePorts(target: string, apps: App[]): Promise<void> {
   for (const app of apps) {
-    const { key, from } = PORTS[templateOf(app)]
+    const { key, from, site } = PORTS[templateOf(app)]
     const port = portOf(apps, app)
     const directory = join(target, 'apps', app.name)
 
@@ -263,7 +263,13 @@ async function placePorts(target: string, apps: App[]): Promise<void> {
     }
 
     const example = join(directory, '.env.example')
-    await rewriteText(example, (text) => setEnvLine(text, key, String(port), example))
+    await rewriteText(example, (text) => {
+      const withPort = setEnvLine(text, key, String(port), example)
+
+      return site === undefined
+        ? withPort
+        : setEnvLine(withPort, site, `http://localhost:${port}`, example)
+    })
 
     if (templateOf(app) === 'web-next') {
       await rewriteText(join(directory, 'package.json'), (text) => {

@@ -1,9 +1,6 @@
 ---
-import { Consent } from '@/features/oauth/consent-form'
-import Narrow from '@/layouts/narrow.astro'
+// The API sends an MCP client's person here, without a language.
+import LanguageRedirect from '@/layouts/language-redirect.astro'
 ---
 
-<Narrow title="Allow access">
-  <h1 class="text-2xl font-semibold">Allow access</h1>
-  <Consent client:only="react" />
-</Narrow>
+<LanguageRedirect />
