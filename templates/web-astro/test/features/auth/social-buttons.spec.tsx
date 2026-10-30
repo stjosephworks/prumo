@@ -1,4 +1,5 @@
 import { API_URL, fakeTransport } from '@test/support/fake-transport'
+import { messages } from '@test/support/messages'
 import { renderIsland } from '@test/support/render'
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
@@ -9,8 +10,8 @@ describe('SocialSignIn', () => {
     renderIsland('/sign-in?redirect=%2Forders', SocialSignIn, fakeTransport({}))
 
     for (const name of [
-      'Continue with Google', // prumo:google
-      'Continue with Apple', // prumo:apple
+      messages.auth.social.google, // prumo:google
+      messages.auth.social.apple, // prumo:apple
     ]) {
       const link = await screen.findByRole('link', { name })
       const href = new URL(link.getAttribute('href') ?? '')
@@ -27,14 +28,14 @@ describe('SocialSignIn', () => {
   it('says why a provider sign-in came back without a session', async () => {
     renderIsland('/sign-in?error=provider_email_unverified', SocialSignIn, fakeTransport({}))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('not verified with the provider')
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.auth.social.emailUnverified)
   })
 
   // prumo:apple
   it('says the account was deleted, when Apple brought the person back from deleting it', async () => {
     renderIsland('/sign-in?deleted=1', SocialSignIn, fakeTransport({}))
 
-    expect(await screen.findByRole('status')).toHaveTextContent('Your account was deleted.')
+    expect(await screen.findByRole('status')).toHaveTextContent(messages.auth.social.deleted)
   })
   // prumo:end-apple
 })

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { LOCALES } from '@/domain/users/entities/profile.entity'
+import { LOCALES } from '@/i18n/locales'
 
 export const profileResponseSchema = z.object({
   id: z.uuid(),

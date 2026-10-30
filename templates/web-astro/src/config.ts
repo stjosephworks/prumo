@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 const schema = z.object({
   PUBLIC_API_URL: z.url(),
+  PUBLIC_SITE_URL: z.url(),
 })
 
 // Astro exposes to the browser only what starts with PUBLIC_.

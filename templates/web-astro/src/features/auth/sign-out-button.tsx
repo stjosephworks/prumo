@@ -1,8 +1,11 @@
 import type { AuthClient } from '@/api-contract'
 import { Button } from '@/components/ui/button'
+import { useLocalePath, useMessages } from '@/i18n/i18n'
 import { navigate } from '@/lib/navigate'
 
 export function SignOutButton({ auth }: { auth: Pick<AuthClient, 'signOut'> }) {
+  const messages = useMessages()
+  const localePath = useLocalePath()
   async function signOut() {
     try {
       await auth.signOut()
@@ -12,12 +15,12 @@ export function SignOutButton({ auth }: { auth: Pick<AuthClient, 'signOut'> }) {
     }
 
     // A new page load, so nothing of whoever was signed in stays in memory.
-    navigate.to('/sign-in')
+    navigate.to(localePath('/sign-in'))
   }
 
   return (
     <Button type="button" variant="outline" onClick={signOut}>
-      Sign out
+      {messages.auth.signOut}
     </Button>
   )
 }

@@ -20,6 +20,7 @@ import {
   TRANSACTION_MANAGER,
   type TransactionManager,
 } from '@/domain/shared/transactions/transaction-manager'
+import type { Locale } from '@/i18n/locales'
 
 export type IdTokenSignIn = {
   provider: ProviderName
@@ -27,6 +28,10 @@ export type IdTokenSignIn = {
   // The trip whose nonce went into the token, where the provider took one.
   trip: string | null
   name: string | null
+  // prumo:multi-language
+  // The language the app asked in, which an account created here starts in.
+  locale: Locale
+  // prumo:end-multi-language
 }
 
 // A provider's own sheet on the phone signed the person in: the token it gave the app is checked, the identity is
@@ -42,14 +47,14 @@ export class SignInWithIdTokenUseCase {
     private readonly startSession: StartSessionUseCase,
   ) {}
 
-  async execute({ provider, idToken, trip, name }: IdTokenSignIn): Promise<SessionTokens> {
+  async execute({ provider, idToken, trip, name, locale }: IdTokenSignIn): Promise<SessionTokens> {
     const started = trip === null ? null : await this.started(provider, trip)
     const profile = await this.providers.verify(provider, {
       idToken,
       nonce: started?.nonce ?? null,
       name,
     })
-    const userId = await this.linkIdentity.execute(provider, profile)
+    const userId = await this.linkIdentity.execute(provider, profile, { locale })
 
     if (started !== null) {
       await this.transactions.run(async () => {

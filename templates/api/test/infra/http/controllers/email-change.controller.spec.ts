@@ -5,6 +5,8 @@ import { testApp } from '@test/support/test-app'
 import type { FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RECENT_SIGN_IN_MS } from '@/domain/auth/entities/session.entity'
+import { BASE_LOCALE } from '@/i18n/locales'
+import { messagesFor } from '@/i18n/messages'
 
 let app: FastifyInstance
 let signIn: Awaited<ReturnType<typeof testApp>>['signIn']
@@ -46,8 +48,9 @@ describe('changing the email', () => {
     expect(changed.json().user.email).toBe('new@example.com')
 
     if (previous !== null) {
+      // In the account's language, which a fresh account speaks as the base. // prumo:multi-language
       expect(mailer.sent.findLast((mail) => mail.to === previous)?.subject).toBe(
-        'The email of your account was changed',
+        messagesFor(BASE_LOCALE).mail.emailChanged.subject,
       )
     }
   })

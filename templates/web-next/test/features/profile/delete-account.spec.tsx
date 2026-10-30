@@ -1,4 +1,5 @@
 import { fakeTransport, json } from '@test/support/fake-transport'
+import { at, messages } from '@test/support/messages'
 import { router } from '@test/support/navigation'
 import { renderAt } from '@test/support/render'
 import { screen, waitFor } from '@testing-library/react'
@@ -6,6 +7,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { Profile } from '@/api-contract'
 import { Account } from '@/features/profile/account'
+import { BASE_LOCALE } from '@/i18n/locales'
 
 const user = { id: 'user-1', email: 'ana@example.com' }
 
@@ -13,7 +15,7 @@ const profile: Profile = {
   id: 'profile-1',
   userId: user.id,
   displayName: 'Ana',
-  locale: 'en',
+  locale: BASE_LOCALE,
   timezone: 'UTC',
   createdAt: '2026-09-14T12:57:24.057Z',
   updatedAt: '2026-09-14T12:57:24.057Z',
@@ -48,11 +50,13 @@ describe('deleting the account', () => {
       app(() => new Response(null, { status: 204 })),
     )
 
-    await visitor.click(await screen.findByRole('button', { name: 'Delete account' }))
-    expect(screen.getByRole('alert')).toHaveTextContent('It cannot be undone')
-    await visitor.click(screen.getByRole('button', { name: 'Delete my account' }))
+    await visitor.click(
+      await screen.findByRole('button', { name: messages.profile.deletion.delete }),
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent(messages.profile.deletion.warning)
+    await visitor.click(screen.getByRole('button', { name: messages.profile.deletion.confirm }))
 
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/sign-in'))
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(at('/sign-in')))
   })
 
   it('asks for a fresh sign-in when the last one is too old', async () => {
@@ -70,10 +74,14 @@ describe('deleting the account', () => {
       ),
     )
 
-    await visitor.click(await screen.findByRole('button', { name: 'Delete account' }))
-    await visitor.click(screen.getByRole('button', { name: 'Delete my account' }))
+    await visitor.click(
+      await screen.findByRole('button', { name: messages.profile.deletion.delete }),
+    )
+    await visitor.click(screen.getByRole('button', { name: messages.profile.deletion.confirm }))
 
-    expect(await screen.findByRole('button', { name: 'Sign in again' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('button', { name: messages.forms.signInAgain }),
+    ).toBeInTheDocument()
   })
 
   // prumo:apple
@@ -100,9 +108,13 @@ describe('deleting the account', () => {
       ),
     )
 
-    await visitor.click(await screen.findByRole('button', { name: 'Delete account' }))
-    await visitor.click(screen.getByRole('button', { name: 'Delete my account' }))
-    await visitor.click(await screen.findByRole('button', { name: 'Continue with Apple' }))
+    await visitor.click(
+      await screen.findByRole('button', { name: messages.profile.deletion.delete }),
+    )
+    await visitor.click(screen.getByRole('button', { name: messages.profile.deletion.confirm }))
+    await visitor.click(
+      await screen.findByRole('button', { name: messages.profile.deletion.continueWithApple }),
+    )
 
     await waitFor(() => expect(asked).toEqual(['web']))
   })

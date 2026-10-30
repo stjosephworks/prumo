@@ -2,12 +2,15 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ApiError, type AuthClient } from '@/api-contract'
 import { Button } from '@/components/ui/button'
+import { useLocalePath, useMessages } from '@/i18n/i18n'
 import { navigate } from '@/lib/navigate'
 
 type Step = 'idle' | 'confirming' | 'stale' | 'apple' | 'failed'
 
 // Deleting the account, which cannot be undone, so it asks twice; a sign-in older than ten minutes is asked again.
 export function DeleteAccount({ auth }: { auth: AuthClient }) {
+  const messages = useMessages()
+  const localePath = useLocalePath()
   const queryClient = useQueryClient()
   const [step, setStep] = useState<Step>('idle')
   const [deleting, setDeleting] = useState(false)
@@ -37,23 +40,25 @@ export function DeleteAccount({ auth }: { auth: AuthClient }) {
 
     // Nothing about the person is left to show, here or to the next one on this tab.
     queryClient.clear()
-    navigate.to('/sign-in')
+    navigate.to(localePath('/sign-in'))
   }
 
   async function signInAgain() {
     await auth.signOut().catch(() => undefined)
     queryClient.clear()
-    navigate.to('/sign-in?redirect=%2Faccount')
+    navigate.to(
+      `${localePath('/sign-in')}?${new URLSearchParams({ redirect: localePath('/account') })}`,
+    )
   }
 
   if (step === 'stale') {
     return (
       <div className="flex flex-col gap-3">
         <p role="status" className="text-sm text-muted-foreground">
-          To delete your account, sign in again first.
+          {messages.profile.deletion.stale}
         </p>
         <Button type="button" onClick={signInAgain}>
-          Sign in again
+          {messages.forms.signInAgain}
         </Button>
       </div>
     )
@@ -73,10 +78,10 @@ export function DeleteAccount({ auth }: { auth: AuthClient }) {
     return (
       <div className="flex flex-col gap-3">
         <p role="status" className="text-sm text-muted-foreground">
-          Your account signs in with Apple. Confirm with Apple to delete it.
+          {messages.profile.deletion.apple}
         </p>
         <Button type="button" variant="destructive" onClick={continueWithApple}>
-          Continue with Apple
+          {messages.profile.deletion.continueWithApple}
         </Button>
       </div>
     )
@@ -86,7 +91,7 @@ export function DeleteAccount({ auth }: { auth: AuthClient }) {
   if (step === 'idle') {
     return (
       <Button type="button" variant="destructive" onClick={() => setStep('confirming')}>
-        Delete account
+        {messages.profile.deletion.delete}
       </Button>
     )
   }
@@ -94,15 +99,13 @@ export function DeleteAccount({ auth }: { auth: AuthClient }) {
   return (
     <div className="flex flex-col gap-3">
       <p role="alert" className="text-sm">
-        {step === 'failed'
-          ? 'Your account could not be deleted. Try again.'
-          : 'This deletes your account and everything in it. It cannot be undone.'}
+        {step === 'failed' ? messages.profile.deletion.failed : messages.profile.deletion.warning}
       </p>
       <Button type="button" variant="destructive" disabled={deleting} onClick={deleteAccount}>
-        Delete my account
+        {messages.profile.deletion.confirm}
       </Button>
       <Button type="button" variant="link" onClick={() => setStep('idle')}>
-        Keep my account
+        {messages.profile.deletion.keep}
       </Button>
     </div>
   )

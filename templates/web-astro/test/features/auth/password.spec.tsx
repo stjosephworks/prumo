@@ -1,4 +1,5 @@
 import { fakeTransport, json } from '@test/support/fake-transport'
+import { messages } from '@test/support/messages'
 import { renderIsland } from '@test/support/render'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -25,11 +26,11 @@ describe('SignIn', () => {
       }),
     )
 
-    await visitor.type(await screen.findByLabelText('Email'), user.email)
-    await visitor.type(screen.getByLabelText('Password'), 'wrong-password')
-    await visitor.click(screen.getByRole('button', { name: 'Sign in' }))
+    await visitor.type(await screen.findByLabelText(messages.auth.email), user.email)
+    await visitor.type(screen.getByLabelText(messages.auth.signIn.password), 'wrong-password')
+    await visitor.click(screen.getByRole('button', { name: messages.auth.signIn.submit }))
 
-    const form = screen.getByRole('button', { name: 'Sign in' }).closest('form')
+    const form = screen.getByRole('button', { name: messages.auth.signIn.submit }).closest('form')
 
     expect(form).not.toBeNull()
     expect(
@@ -54,9 +55,12 @@ describe('SignIn', () => {
       }),
     )
 
-    await visitor.type(await screen.findByLabelText('Email'), user.email)
-    await visitor.type(screen.getByLabelText('Password'), 'correct-horse-battery')
-    await visitor.click(screen.getByRole('button', { name: 'Sign in' }))
+    await visitor.type(await screen.findByLabelText(messages.auth.email), user.email)
+    await visitor.type(
+      screen.getByLabelText(messages.auth.signIn.password),
+      'correct-horse-battery',
+    )
+    await visitor.click(screen.getByRole('button', { name: messages.auth.signIn.submit }))
 
     await waitFor(() => expect(navigate.to).toHaveBeenCalledWith('/consent?request=abc'))
   })

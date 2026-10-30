@@ -2,6 +2,16 @@ import type { ConfigContext, ExpoConfig } from 'expo/config'
 
 const REQUIRED = ['EXPO_PUBLIC_API_URL'] as const
 
+// prumo:multi-language
+// The languages iOS and Android 13+ offer for this app in their own settings: the project's, as src/i18n/locales.ts
+// lists them.
+const SUPPORTED_LOCALES = [
+  'en', // prumo:en
+  'pt-BR', // prumo:pt-BR
+  'es-419', // prumo:es-419
+]
+// prumo:end-multi-language
+
 // prumo:google
 // Google's own sheet needs the app registered with Google, and its iOS client's id, reversed, as a URL scheme of the
 // app. Until both ids are set, the plugin stays out and Google signs in through the browser.
@@ -30,15 +40,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   return {
     ...config,
-    // prumo:social
     plugins: [
       ...(config.plugins ?? []),
+      ['expo-localization', { supportedLocales: SUPPORTED_LOCALES }], // prumo:multi-language
       // prumo:apple
       // Sign in with Apple, as an entitlement of the iOS app.
       'expo-apple-authentication',
       // prumo:end-apple
       ...googleSignIn(), // prumo:google
     ],
-    // prumo:end-social
   } as ExpoConfig
 }

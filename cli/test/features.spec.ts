@@ -122,6 +122,8 @@ describe('generate with and without MCP', () => {
         types: ['api', 'web'],
         architecture: 'monorepo',
         multiTenant: false,
+        multiLanguage: true,
+        languages: ['en'],
         mcp,
         signIn: ['password'],
         email: false,
@@ -241,6 +243,8 @@ describe('generate with social sign-in', () => {
         types,
         architecture: 'monorepo',
         multiTenant: false,
+        multiLanguage: true,
+        languages: ['en'],
         mcp: false,
         signIn: ['password'],
         email: false,
@@ -262,6 +266,7 @@ describe('generate with social sign-in', () => {
       join(target, 'apps/web/src/features/auth/social-buttons.tsx'),
       'utf8',
     )
+    const webMessages = await readFile(join(target, 'apps/web/src/i18n/messages/en.ts'), 'utf8')
 
     expect(await readmes(target)).toContain('/api/auth/social/<provider>')
     expect(await readmes(target)).not.toMatch(/prumo:|\[mail\] to/)
@@ -270,8 +275,10 @@ describe('generate with social sign-in', () => {
     expect(env).not.toContain('APPLE_')
     expect(adapter).toContain("case 'google'")
     expect(adapter).not.toContain("case 'apple'")
-    expect(buttons).toContain('Continue with Google')
-    expect(buttons).not.toContain('Continue with Apple')
+    expect(buttons).toContain('messages.auth.social.google')
+    expect(buttons).not.toContain('messages.auth.social.apple')
+    expect(webMessages).toContain('Continue with Google')
+    expect(webMessages).not.toContain('Continue with Apple')
     expect(await migrations(target)).toHaveLength(3)
 
     // The mobile app keeps Google's own sheet and its stand-in for tests, and nothing of Apple's.
@@ -316,6 +323,8 @@ describe('generate with email', () => {
     root = await mkdtemp(join(tmpdir(), 'prumo-email-'))
     const answers = {
       multiTenant: false,
+      multiLanguage: true,
+      languages: ['en' as const],
       mcp: false,
       signIn: ['password' as const],
       email: true,
@@ -378,6 +387,8 @@ describe('generate by how people sign in', () => {
         types: ['api', 'web', 'mobile'],
         architecture: 'monorepo',
         multiTenant: false,
+        multiLanguage: true,
+        languages: ['en'],
         mcp: false,
         signIn,
         email,

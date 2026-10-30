@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { useMessages } from '@/i18n/i18n'
 
 const schema = z.object({
   name: z.string().min(1).max(80),
@@ -25,6 +26,7 @@ export function SignUpForm({
   auth: Pick<AuthClient, 'signUp' | 'getSession'>
   onSignedUp: () => void
 }) {
+  const messages = useMessages()
   const queryClient = useQueryClient()
   const router = useRouter() // prumo:email
   const form = useForm<SignUpValues>({
@@ -37,7 +39,7 @@ export function SignUpForm({
 
   async function onSubmit(values: SignUpValues) {
     const result = await auth.signUp(values).catch((error: unknown) => {
-      applyServerError(error, ['name', 'email', 'password'], form.setError)
+      applyServerError(error, ['name', 'email', 'password'], form.setError, messages)
       return undefined
     })
 
@@ -65,7 +67,7 @@ export function SignUpForm({
         name="name"
         render={({ field }) => (
           <Field
-            label="Name"
+            label={messages.auth.signUp.name}
             autoComplete="name"
             value={field.value}
             onChangeText={field.onChange}
@@ -79,7 +81,7 @@ export function SignUpForm({
         name="email"
         render={({ field }) => (
           <Field
-            label="Email"
+            label={messages.auth.email}
             autoCapitalize="none"
             autoComplete="email"
             keyboardType="email-address"
@@ -95,7 +97,7 @@ export function SignUpForm({
         name="password"
         render={({ field }) => (
           <Field
-            label="Password"
+            label={messages.auth.signIn.password}
             secureTextEntry
             autoComplete="new-password"
             value={field.value}
@@ -106,7 +108,7 @@ export function SignUpForm({
         )}
       />
       <Button
-        label="Create account"
+        label={messages.auth.signUp.submit}
         disabled={isSubmitting}
         onPress={form.handleSubmit(onSubmit)}
       />

@@ -63,8 +63,8 @@ Schema as the source of the type:
 Mapping the response:
 
 ```
-✅  for (const [field, messages] of Object.entries(err.errors))
-      isKnown(field) ? setError(field, …) : addFormError(messages)
+✅  for (const [field, texts] of Object.entries(err.errors))
+      isKnown(field) ? setError(field, …) : addFormError(texts)
 ❌  for (const field of Object.keys(form.getValues()))
       if (err.errors[field]) setError(field, …)     // unknown fields vanish
 ```

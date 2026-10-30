@@ -107,7 +107,19 @@ describe('prumo', () => {
     root = await mkdtemp(join(tmpdir(), 'prumo-cli-'))
 
     const result = prumo(
-      ['new', 'acme', '--types', 'web', '--alone', '--single-tenant', '--skip-install', '--json'],
+      [
+        'new',
+        'acme',
+        '--types',
+        'web',
+        '--alone',
+        '--single-tenant',
+        '--single-language',
+        '--languages',
+        'en',
+        '--skip-install',
+        '--json',
+      ],
       root,
     )
 
@@ -170,6 +182,7 @@ describe('prumo', () => {
         ],
         architecture: 'monorepo',
         multiTenant: false,
+        multiLanguage: true,
       }),
     )
     await cp(join(templates, 'api/scripts'), join(api, 'scripts'), { recursive: true })

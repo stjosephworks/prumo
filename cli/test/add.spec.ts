@@ -33,6 +33,8 @@ describe('prumo add', () => {
         types: ['api', 'web'],
         architecture: 'monorepo',
         multiTenant: false,
+        multiLanguage: true,
+        languages: ['en'],
         mcp: false,
         signIn: ['password'],
         email: false,
@@ -92,15 +94,30 @@ describe('prumo add', () => {
   it('brings the areas a new type needs, and leaves the ones the team holds as they are', async () => {
     const target = await workspace()
     const edited = join(target, '.prumo/core/naming.md')
+    const rules = join(target, '.context/INDEX.md')
     await writeFile(edited, '# Naming\n\nOurs now.\n')
+    await writeFile(rules, '# Project rules\n\n- [billing.md](billing.md): Billing\n')
 
     const added = await add(target, 'mobile')
 
     expect(added.areas).toEqual(['mobile'])
     expect(await read(edited)).toBe('# Naming\n\nOurs now.\n')
+    expect(await read(rules)).toBe('# Project rules\n\n- [billing.md](billing.md): Billing\n')
     expect(await read(join(target, '.prumo/INDEX.md'))).toContain('[mobile/')
     expect((await json(join(target, 'apps/mobile/app.json'))).expo.scheme).toBe('acme')
     expect(await read(join(target, 'AGENTS.md'))).toContain('# acme')
+  })
+
+  it('writes a new app of a workspace of one language in that language, with no languages of its own', async () => {
+    const target = await workspace({ multiLanguage: false, languages: ['es-419'] })
+
+    await add(target, 'web', 'portal')
+
+    expect(existsSync(join(target, 'apps/portal/src/i18n'))).toBe(false)
+    expect(existsSync(join(target, 'packages/i18n'))).toBe(false)
+    expect(await read(join(target, 'apps/portal/src/features/auth/sign-in-form.tsx'))).toContain(
+      'Contraseña',
+    )
   })
 
   it('gives a workspace without one an api that trusts its web apps and sets its database up first', async () => {

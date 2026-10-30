@@ -10,10 +10,14 @@ import { Field } from '@/components/ui/field'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
 import { useCooldown } from '@/features/forms/use-cooldown'
+import { useMessages } from '@/i18n/i18n'
+import { format } from '@/i18n/locales'
+import type { Messages } from '@/i18n/messages'
 
-const schema = z.object({ code: z.string().regex(/^\d{6}$/, 'Enter the 6 digits from the email') })
+const schemaOf = (messages: Messages) =>
+  z.object({ code: z.string().regex(/^\d{6}$/, messages.auth.verifyEmail.sixDigits) })
 
-type VerifyEmailValues = z.infer<typeof schema>
+type VerifyEmailValues = z.infer<ReturnType<typeof schemaOf>>
 
 export function VerifyEmailForm({
   auth,
@@ -24,11 +28,12 @@ export function VerifyEmailForm({
   email: string
   onVerified: () => void
 }) {
+  const messages = useMessages()
   const queryClient = useQueryClient()
   const [resent, setResent] = useState(false)
   const [wait, startWait] = useCooldown()
   const form = useForm<VerifyEmailValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schemaOf(messages)),
     mode: 'onTouched',
     defaultValues: { code: '' },
   })
@@ -38,7 +43,7 @@ export function VerifyEmailForm({
     try {
       await auth.verifyEmail({ email, code: values.code })
     } catch (error) {
-      applyServerError(error, ['code'], form.setError)
+      applyServerError(error, ['code'], form.setError, messages)
       return
     }
 
@@ -65,14 +70,16 @@ export function VerifyEmailForm({
 
   return (
     <View className="gap-6">
-      <Text className="text-sm text-neutral-500">We sent a 6-digit code to {email}.</Text>
+      <Text className="text-sm text-neutral-500">
+        {format(messages.auth.verifyEmail.sentTo, { email })}
+      </Text>
       <FormError errors={errors} />
       <Controller
         control={form.control}
         name="code"
         render={({ field }) => (
           <Field
-            label="Code"
+            label={messages.forms.code}
             keyboardType="number-pad"
             autoComplete="one-time-code"
             textContentType="oneTimeCode"
@@ -83,16 +90,24 @@ export function VerifyEmailForm({
           />
         )}
       />
-      <Button label="Confirm email" disabled={isSubmitting} onPress={form.handleSubmit(onSubmit)} />
       <Button
-        label={wait > 0 ? `Send a new code in ${wait}s` : 'Send a new code'}
+        label={messages.auth.verifyEmail.submit}
+        disabled={isSubmitting}
+        onPress={form.handleSubmit(onSubmit)}
+      />
+      <Button
+        label={
+          wait > 0
+            ? format(messages.forms.sendNewCodeIn, { seconds: wait })
+            : messages.forms.sendNewCode
+        }
         variant="outline"
         disabled={wait > 0}
         onPress={resend}
       />
       {resent ? (
         <Text accessibilityRole="text" className="text-sm text-neutral-500">
-          A new code is on its way. The previous one no longer works.
+          {messages.forms.newCodeSent}
         </Text>
       ) : null}
     </View>

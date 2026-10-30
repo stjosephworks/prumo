@@ -3,23 +3,25 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Controller, useForm } from 'react-hook-form'
 import { View } from 'react-native'
 import { z } from 'zod'
-import { type ApiClient, LOCALES, type Profile, profileQuery, updateProfile } from '@/api-contract'
+import { type ApiClient, type Profile, profileQuery, updateProfile } from '@/api-contract'
 import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { useMessages } from '@/i18n/i18n'
 
+// The language is chosen where the screen's is, and the account follows it (features/i18n/account-language.ts). // prumo:multi-language
 const schema = z.object({
   displayName: z.string().min(1).max(80),
-  locale: z.enum(LOCALES),
   timezone: z.string().min(1).max(64),
 })
 
 type ProfileValues = z.infer<typeof schema>
 
-const FIELDS = ['displayName', 'locale', 'timezone'] as const
+const FIELDS = ['displayName', 'timezone'] as const
 
 export function ProfileForm({ api, profile }: { api: ApiClient; profile: Profile }) {
+  const messages = useMessages()
   const queryClient = useQueryClient()
   const form = useForm<ProfileValues>({
     resolver: zodResolver(schema),
@@ -27,7 +29,6 @@ export function ProfileForm({ api, profile }: { api: ApiClient; profile: Profile
     reValidateMode: 'onChange',
     defaultValues: {
       displayName: profile.displayName,
-      locale: profile.locale,
       timezone: profile.timezone,
     },
   })
@@ -42,7 +43,7 @@ export function ProfileForm({ api, profile }: { api: ApiClient; profile: Profile
     try {
       await mutation.mutateAsync(values)
     } catch (error) {
-      applyServerError(error, FIELDS, form.setError)
+      applyServerError(error, FIELDS, form.setError, messages)
     }
   }
 
@@ -54,7 +55,7 @@ export function ProfileForm({ api, profile }: { api: ApiClient; profile: Profile
         name="displayName"
         render={({ field }) => (
           <Field
-            label="Display name"
+            label={messages.profile.displayName}
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
@@ -64,24 +65,10 @@ export function ProfileForm({ api, profile }: { api: ApiClient; profile: Profile
       />
       <Controller
         control={form.control}
-        name="locale"
-        render={({ field }) => (
-          <Field
-            label="Locale"
-            autoCapitalize="none"
-            value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
-            error={errors.locale?.message}
-          />
-        )}
-      />
-      <Controller
-        control={form.control}
         name="timezone"
         render={({ field }) => (
           <Field
-            label="Timezone"
+            label={messages.profile.timezone}
             autoCapitalize="none"
             value={field.value}
             onChangeText={field.onChange}
@@ -90,7 +77,11 @@ export function ProfileForm({ api, profile }: { api: ApiClient; profile: Profile
           />
         )}
       />
-      <Button label="Save" disabled={isSubmitting} onPress={form.handleSubmit(onSubmit)} />
+      <Button
+        label={messages.profile.save}
+        disabled={isSubmitting}
+        onPress={form.handleSubmit(onSubmit)}
+      />
     </View>
   )
 }

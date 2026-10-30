@@ -11,12 +11,15 @@ import { Input } from '@/components/ui/input'
 import { useClients } from '@/features/clients/clients'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { useLocalePath, useMessages } from '@/i18n/i18n'
 
 const schema = z.object({ email: z.email() })
 
 type ForgotPasswordValues = z.infer<typeof schema>
 
 export function ForgotPasswordForm({ auth }: { auth: Pick<AuthClient, 'requestPasswordReset'> }) {
+  const messages = useMessages()
+  const localePath = useLocalePath()
   const router = useRouter()
   const form = useForm<ForgotPasswordValues>({
     resolver: zodResolver(schema),
@@ -29,12 +32,12 @@ export function ForgotPasswordForm({ auth }: { auth: Pick<AuthClient, 'requestPa
     try {
       await auth.requestPasswordReset(values.email)
     } catch (error) {
-      applyServerError(error, ['email'], form.setError)
+      applyServerError(error, ['email'], form.setError, messages)
       return
     }
 
     // The API answers alike whether the account exists, so the next page cannot tell either.
-    router.push(`/reset-password?${new URLSearchParams({ email: values.email })}`)
+    router.push(`${localePath('/reset-password')}?${new URLSearchParams({ email: values.email })}`)
   }
 
   return (
@@ -42,13 +45,13 @@ export function ForgotPasswordForm({ auth }: { auth: Pick<AuthClient, 'requestPa
       <FormError errors={errors} />
       <FieldGroup>
         <Field data-invalid={errors.email !== undefined}>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <FieldLabel htmlFor="email">{messages.auth.email}</FieldLabel>
           <Input id="email" type="email" autoComplete="email" {...form.register('email')} />
           <FieldError errors={[errors.email]} />
         </Field>
       </FieldGroup>
       <Button type="submit" disabled={isSubmitting}>
-        Send a reset code
+        {messages.auth.forgotPassword.submit}
       </Button>
     </form>
   )

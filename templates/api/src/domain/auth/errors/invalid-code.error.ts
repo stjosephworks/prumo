@@ -4,8 +4,5 @@ import { DomainError } from '@/domain/shared/errors/domain-error'
 export class InvalidCodeError extends DomainError {
   readonly kind = 'invalid'
   override readonly code = 'invalid_code'
-
-  constructor() {
-    super('The code is wrong or has expired')
-  }
+  override readonly text = 'invalidCode'
 }

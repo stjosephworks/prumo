@@ -1,4 +1,5 @@
 import { fakeTransport, json } from '@test/support/fake-transport'
+import { messages } from '@test/support/messages'
 import { renderApp } from '@test/support/render-app'
 import { signInThroughPage } from '@test/support/sign-in-through-page'
 import { withPassword } from '@test/support/with-password' // prumo:password
@@ -6,6 +7,7 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { Profile } from '@/api-contract'
+import { BASE_LOCALE } from '@/i18n/locales'
 
 const user = { id: 'user-1', email: 'ana@example.com' }
 
@@ -23,7 +25,7 @@ const profile: Profile = {
   id: 'profile-1',
   userId: user.id,
   displayName: 'Ana',
-  locale: 'en',
+  locale: BASE_LOCALE,
   timezone: 'UTC',
   createdAt: '2026-09-14T12:57:24.057Z',
   updatedAt: '2026-09-14T12:57:24.057Z',
@@ -33,7 +35,9 @@ describe('App', () => {
   it('sends a visitor without a session to sign in', async () => {
     renderApp('/', fakeTransport(signedOut))
 
-    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: messages.auth.signIn.title }),
+    ).toBeInTheDocument()
   })
 
   // The protected route reads the session through ensureQueryData, which keeps a cached null. Found in a real browser:
@@ -67,7 +71,7 @@ describe('App', () => {
 
     await signInThroughPage(visitor, user.email)
 
-    expect(await screen.findByRole('heading', { name: 'Your profile' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: messages.profile.title })).toBeInTheDocument()
   })
 
   // prumo:password
@@ -90,13 +94,16 @@ describe('App', () => {
     )
 
     await withPassword(visitor)
-    await visitor.click(await screen.findByRole('link', { name: 'Sign up' }))
-    await visitor.type(await screen.findByLabelText('Name'), 'Ana')
-    await visitor.type(screen.getByLabelText('Email'), user.email)
-    await visitor.type(screen.getByLabelText('Password'), 'correct-horse-battery')
-    await visitor.click(screen.getByRole('button', { name: 'Create account' }))
+    await visitor.click(await screen.findByRole('link', { name: messages.auth.signIn.signUp }))
+    await visitor.type(await screen.findByLabelText(messages.auth.signUp.name), 'Ana')
+    await visitor.type(screen.getByLabelText(messages.auth.email), user.email)
+    await visitor.type(
+      screen.getByLabelText(messages.auth.signIn.password),
+      'correct-horse-battery',
+    )
+    await visitor.click(screen.getByRole('button', { name: messages.auth.signUp.submit }))
 
-    expect(await screen.findByRole('heading', { name: 'Your profile' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: messages.profile.title })).toBeInTheDocument()
   })
   // prumo:end-password
 
@@ -139,13 +146,13 @@ describe('App', () => {
       }),
     )
 
-    expect(await screen.findByLabelText('Display name')).toHaveValue('Ana')
+    expect(await screen.findByLabelText(messages.profile.displayName)).toHaveValue('Ana')
 
-    await visitor.click(screen.getByRole('button', { name: 'Sign out' }))
+    await visitor.click(screen.getByRole('button', { name: messages.auth.signOut }))
     await signInThroughPage(visitor, people.bruno.user.email)
 
-    await screen.findByRole('heading', { name: 'Your profile' })
-    expect(screen.getByLabelText('Display name')).toHaveValue('Bruno')
+    await screen.findByRole('heading', { name: messages.profile.title })
+    expect(screen.getByLabelText(messages.profile.displayName)).toHaveValue('Bruno')
   })
 
   // Fifteen minutes in, the access cookie has expired: the next request is refused once, refreshed, and repeated.
@@ -164,7 +171,7 @@ describe('App', () => {
       }),
     )
 
-    expect(await screen.findByRole('heading', { name: 'Your profile' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: messages.profile.title })).toBeInTheDocument()
   })
 
   it('signs a visitor out of this tab even when the sign-out request never arrives', async () => {
@@ -181,8 +188,10 @@ describe('App', () => {
       }),
     )
 
-    await visitor.click(await screen.findByRole('button', { name: 'Sign out' }))
+    await visitor.click(await screen.findByRole('button', { name: messages.auth.signOut }))
 
-    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: messages.auth.signIn.title }),
+    ).toBeInTheDocument()
   })
 })

@@ -7,6 +7,7 @@ import { ApiError, type AuthClient } from '@/api-contract'
 import { Button } from '@/components/ui/button'
 import { appleSheet, hasAppleSheet } from '@/features/auth/native-sign-in' // prumo:apple
 import { clearUserData } from '@/features/storage/storage'
+import { useMessages } from '@/i18n/i18n'
 
 type Step = 'idle' | 'confirming' | 'stale' | 'apple' | 'failed'
 
@@ -19,6 +20,7 @@ export function DeleteAccount({
   auth: AuthClient
   onSignedOut: () => void
 }) {
+  const messages = useMessages()
   const queryClient = useQueryClient()
   const [step, setStep] = useState<Step>('idle')
   const [deleting, setDeleting] = useState(false)
@@ -64,10 +66,8 @@ export function DeleteAccount({
   if (step === 'stale') {
     return (
       <View className="gap-3">
-        <Text className="text-sm text-neutral-500">
-          To delete your account, sign in again first.
-        </Text>
-        <Button label="Sign in again" onPress={signInAgain} />
+        <Text className="text-sm text-neutral-500">{messages.profile.deletion.stale}</Text>
+        <Button label={messages.forms.signInAgain} onPress={signInAgain} />
       </View>
     )
   }
@@ -123,33 +123,39 @@ export function DeleteAccount({
   if (step === 'apple') {
     return (
       <View className="gap-3">
-        <Text className="text-sm text-neutral-500">
-          Your account signs in with Apple. Confirm with Apple to delete it.
-        </Text>
-        <Button label="Continue with Apple" onPress={continueWithApple} />
+        <Text className="text-sm text-neutral-500">{messages.profile.deletion.apple}</Text>
+        <Button label={messages.profile.deletion.continueWithApple} onPress={continueWithApple} />
       </View>
     )
   }
 
   // prumo:end-apple
   if (step === 'idle') {
-    return <Button label="Delete account" variant="outline" onPress={() => setStep('confirming')} />
+    return (
+      <Button
+        label={messages.profile.deletion.delete}
+        variant="outline"
+        onPress={() => setStep('confirming')}
+      />
+    )
   }
 
   return (
     <View className="gap-3">
       <Text accessibilityRole="alert" className="text-sm text-neutral-900">
-        {step === 'failed'
-          ? 'Your account could not be deleted. Try again.'
-          : 'This deletes your account and everything in it. It cannot be undone.'}
+        {step === 'failed' ? messages.profile.deletion.failed : messages.profile.deletion.warning}
       </Text>
-      <Button label="Delete my account" disabled={deleting} onPress={deleteAccount} />
+      <Button
+        label={messages.profile.deletion.confirm}
+        disabled={deleting}
+        onPress={deleteAccount}
+      />
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Keep my account"
+        accessibilityLabel={messages.profile.deletion.keep}
         onPress={() => setStep('idle')}
       >
-        <Text className="text-sm text-neutral-900 underline">Keep my account</Text>
+        <Text className="text-sm text-neutral-900 underline">{messages.profile.deletion.keep}</Text>
       </Pressable>
     </View>
   )

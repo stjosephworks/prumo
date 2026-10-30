@@ -27,6 +27,7 @@ import {
   TRANSACTION_MANAGER,
   type TransactionManager,
 } from '@/domain/shared/transactions/transaction-manager'
+import type { Locale } from '@/i18n/locales'
 
 export type SocialCallback = {
   provider: ProviderName
@@ -34,6 +35,10 @@ export type SocialCallback = {
   browserToken: string | undefined
   callbackUrl: URL
   name: string | null
+  // prumo:multi-language
+  // The language the browser asked in, which an account created here starts in.
+  locale: Locale
+  // prumo:end-multi-language
 }
 
 // biome-ignore format: one member a line, so cutting a feature cuts its own
@@ -61,7 +66,7 @@ export class CompleteSocialSignInUseCase {
 
     // The browser that comes back must be the one that left: a callback forwarded from elsewhere carries no token.
     if (browser === null || browser.id !== callback.state) {
-      throw new SocialSignInFailedError('The sign-in was started in another browser. Start again.')
+      throw new SocialSignInFailedError('signInStartedElsewhere')
     }
 
     const started = await this.transactions.run(async () => {
@@ -93,7 +98,9 @@ export class CompleteSocialSignInUseCase {
       nonce: started.nonce,
       name: callback.name,
     })
-    const userId = await this.linkIdentity.execute(callback.provider, profile)
+    const userId = await this.linkIdentity.execute(callback.provider, profile, {
+      locale: callback.locale,
+    })
     const exchange = started.client === 'mobile' ? this.opaque.create() : null
 
     await this.transactions.run(async () => {
@@ -137,9 +144,7 @@ export class CompleteSocialSignInUseCase {
     const identity = await this.identities.findBySubject(callback.provider, profile.subject)
 
     if (identity?.userId !== userId) {
-      throw new SocialSignInFailedError(
-        'That is not the account being deleted. Nothing was deleted.',
-      )
+      throw new SocialSignInFailedError('notTheAccountBeingDeleted')
     }
 
     await this.deleteAccount.deleteNow(userId)

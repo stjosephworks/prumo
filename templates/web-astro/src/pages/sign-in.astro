@@ -1,13 +1,5 @@
 ---
-import { SignInWays } from '@/features/auth/sign-in-choice'
-import { SocialSignIn } from '@/features/auth/social-buttons' // prumo:social
-import Narrow from '@/layouts/narrow.astro'
+import LanguageRedirect from '@/layouts/language-redirect.astro'
 ---
 
-<Narrow title="Sign in">
-  <h1 class="text-2xl font-semibold">Sign in</h1>
-  {/* prumo:social */}
-  <SocialSignIn client:only="react" />
-  {/* prumo:end-social */}
-  <SignInWays client:only="react" />
-</Narrow>
+<LanguageRedirect />
