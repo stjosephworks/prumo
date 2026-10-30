@@ -445,7 +445,8 @@ export const FEATURES: Record<Feature, Spec> = {
         'src/pages/sign-in.astro',
         'src/pages/consent.astro',
       ],
-      mobile: ['src/features/i18n', 'test/support/localization.ts'],
+      // The provider reads the phone's languages through expo-localization, which goes with it.
+      mobile: ['src/features/i18n', 'src/i18n/i18n.tsx', 'test/support/localization.ts'],
     },
     dependencies: { mobile: ['expo-localization'] },
   },

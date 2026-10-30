@@ -68,7 +68,9 @@ async function copyArea(knowledge: string, prumo: string, area: string, answers:
   for (const file of (await readdir(join(prumo, area))).filter((f) => f.endsWith('.md'))) {
     const path = join(prumo, area, file)
     const text = await readFile(path, 'utf8')
-    const cut = cutFeatures(text, enabled, path)
+    const features = cutFeatures(text, enabled, path)
+    // A project of one language has its routes at `app/(auth)/`, not under `app/[locale]/`.
+    const cut = answers.multiLanguage ? features : features.replaceAll('[locale]/', '')
 
     if (cut !== text) {
       await writeFile(path, cut)

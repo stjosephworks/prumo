@@ -22,6 +22,7 @@ const { title, description, index = true, locale } = Astro.props
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
     {!index && <meta name="robots" content="noindex" />}
+    {/* prumo:multi-language */}
     {
       // A page a search engine reads names its address in every language, whole, so each person is shown theirs.
       index && [
@@ -35,6 +36,13 @@ const { title, description, index = true, locale } = Astro.props
         )),
       ]
     }
+    {/* prumo:end-multi-language */}
+    {/* prumo:single-language */}
+    {/* { */}
+    {/*   // A page a search engine reads names its address, whole. */}
+    {/*   index && <link rel="canonical" href={new URL(Astro.url.pathname, config.PUBLIC_SITE_URL)} /> */}
+    {/* } */}
+    {/* prumo:end-single-language */}
   </head>
   <body>
     <slot />

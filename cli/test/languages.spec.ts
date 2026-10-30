@@ -19,6 +19,8 @@ const flags = (overrides: Partial<Flags>): Flags => ({
   monorepo: false,
   multiTenant: false,
   singleTenant: true,
+  multiLanguage: true,
+  singleLanguage: false,
   languages: undefined,
   mcp: false,
   noMcp: false,
@@ -59,6 +61,26 @@ describe('the languages a project speaks', () => {
       'en',
     ])
   })
+
+  it('asks whether it speaks one or several outside a terminal, and one means one', async () => {
+    const neither = { multiLanguage: false, singleLanguage: false, languages: 'en' }
+
+    await expect(resolveAnswers(flags(neither), undefined)).rejects.toThrow(
+      'Missing --single-language or --multi-language',
+    )
+    await expect(
+      resolveAnswers(flags({ ...neither, multiLanguage: true, singleLanguage: true }), undefined),
+    ).rejects.toThrow('Choose --multi-language or --single-language, not both.')
+    await expect(
+      resolveAnswers(flags({ ...neither, singleLanguage: true, languages: 'pt-BR,en' }), undefined),
+    ).rejects.toThrow('--single-language speaks one language')
+    expect(
+      await resolveAnswers(
+        flags({ ...neither, singleLanguage: true, languages: 'pt-BR' }),
+        undefined,
+      ),
+    ).toMatchObject({ multiLanguage: false, languages: ['pt-BR'] })
+  })
 })
 
 describe('a generated project', () => {
@@ -82,6 +104,7 @@ describe('a generated project', () => {
         types: ['api'],
         architecture: 'alone',
         multiTenant: false,
+        multiLanguage: true,
         languages: ['en'],
         mcp: false,
         signIn: ['password'],
@@ -153,5 +176,59 @@ describe('a generated project', () => {
     expect(
       JSON.parse(await readFile(join(api, 'package.json'), 'utf8')).dependencies,
     ).toMatchObject({ '@app/i18n': 'workspace:*' })
+  })
+
+  it('of one language writes its words where they are shown, and keeps nothing of the languages', async () => {
+    const target = await project({
+      types: ['api', 'web', 'mobile'],
+      apps: [
+        { name: 'api', type: 'api' },
+        { name: 'web', type: 'web', framework: 'vite' },
+        { name: 'site', type: 'web', framework: 'next' },
+        { name: 'press', type: 'web', framework: 'astro' },
+        { name: 'mobile', type: 'mobile' },
+      ],
+      architecture: 'monorepo',
+      multiLanguage: false,
+      languages: ['pt-BR'],
+    })
+    const read = (path: string) => readFile(join(target, path), 'utf8')
+
+    expect(existsSync(join(target, 'packages/i18n'))).toBe(false)
+    expect(existsSync(join(target, '.prumo/i18n'))).toBe(false)
+    expect(existsSync(join(target, '.prumo/api/languages.md'))).toBe(false)
+    expect(await read('.prumo/core/conventions.md')).toContain(
+      "Write every word a person reads where it is shown, in the project's language",
+    )
+    expect(JSON.parse(await read('.prumo/config.json'))).toMatchObject({
+      multiLanguage: false,
+      languages: ['pt-BR'],
+    })
+
+    for (const app of ['api', 'web', 'site', 'press', 'mobile']) {
+      expect(existsSync(join(target, 'apps', app, 'src/i18n')), app).toBe(false)
+    }
+
+    // The routes of a language are the app's routes, the words are Portuguese, and the errors carry their own.
+    expect(existsSync(join(target, 'apps/site/src/app/(auth)/sign-in/page.tsx'))).toBe(true)
+    expect(existsSync(join(target, 'apps/press/src/pages/sign-in.astro'))).toBe(true)
+    expect(await read('apps/site/src/app/(auth)/sign-in/page.tsx')).toContain(
+      "export const metadata: Metadata = { title: 'Entrar' }",
+    )
+    expect(await read('apps/api/src/domain/auth/errors/email-taken.error.ts')).toContain(
+      "super('Já existe uma conta com este e-mail')",
+    )
+    expect(await read('apps/api/src/infra/http/app.ts')).toContain('z.config(z.locales.pt())')
+    expect(
+      await read('apps/api/migrations/Migration20261005111545_create_user_profile_session.ts'),
+    ).not.toContain('"locale"')
+
+    for (const file of await files(target)) {
+      if (/\.(tsx?|astro)$/.test(file)) {
+        expect(await readFile(file, 'utf8'), file).not.toMatch(
+          /useMessages|messagesFor|@\/i18n\/|@app\/i18n|prumo:(end-)?(single|multi)-language/,
+        )
+      }
+    }
   })
 })

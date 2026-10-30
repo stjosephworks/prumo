@@ -11,7 +11,7 @@ import { BASE_LOCALE } from '@/i18n/locales'
 export function renderAt(path: string, ui: ReactNode, transport: Transport) {
   window.history.replaceState(null, '', path)
 
-  // As the root layout does, in the base language: the language a test's address names is the app's to read.
+  // As the root layout does, in the base language: the language a test's address names is the app's to read. // prumo:multi-language
   return render(
     <I18nProvider locale={BASE_LOCALE}>
       <Providers

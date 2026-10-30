@@ -1,11 +1,22 @@
 import type { QueryClient } from '@tanstack/react-query'
 import type { ComponentType } from 'react'
+// prumo:single-language
+// import { z } from 'zod'
+// prumo:end-single-language
 import { SignedIn } from '@/features/auth/signed-in'
 import { type Clients, Providers } from '@/features/clients/clients'
 import { I18nProvider } from '@/i18n/i18n'
 import { BASE_LOCALE, type Locale } from '@/i18n/locales'
 
-// What a test hands an island instead of the real API, and the language its page speaks, which the page passes.
+// prumo:single-language
+// // zod's own messages, for what a form refuses before it is sent, in the project's language.
+// z.config(z.locales.en()) // prumo:en
+// z.config(z.locales.pt()) // prumo:pt-BR
+// z.config(z.locales.es()) // prumo:es-419
+//
+// prumo:end-single-language
+// What a test hands an island instead of the real API.
+// And the language its page speaks, which the page passes. // prumo:multi-language
 type Given = { clients?: Clients; queryClient?: QueryClient; locale?: Locale }
 
 // Each interactive part of a page is an island: a React root Astro mounts in the browser, as

@@ -18,7 +18,7 @@ const view = {
   redirectsToThisDevice: false,
   scopes: [
     { scope: 'profile:read', description: 'Read your profile' },
-    { scope: 'profile:write', description: 'Change your display name, language and timezone' },
+    { scope: 'profile:write', description: 'Change your display name and timezone' },
   ],
 }
 

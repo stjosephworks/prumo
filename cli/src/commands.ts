@@ -44,7 +44,8 @@ export const COMMANDS: CommandHelp[] = [
       },
       {
         flag: '--multi-language',
-        description: 'Words in messages, one file per language, so another is a file and its translation',
+        description:
+          'Words in messages, one file per language, so another is a file and its translation',
       },
       {
         flag: '--languages <list>',

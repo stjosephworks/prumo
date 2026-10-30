@@ -12,7 +12,10 @@ import { useLocalePath } from '@/i18n/i18n'
 // who is signed in. Nothing inside renders until the session is known, and a visitor without one is sent to sign in,
 // to come back to this same address afterwards.
 export function SignedIn({ children }: { children: ReactNode }) {
-  const { api, auth } = useClients()
+  const { api, auth } = useClients() // prumo:multi-language
+  // prumo:single-language
+  // const { auth } = useClients()
+  // prumo:end-single-language
   const router = useRouter()
   const localePath = useLocalePath()
   const session = useQuery(sessionQuery(auth))

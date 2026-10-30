@@ -19,6 +19,8 @@ const flags = (overrides: Partial<Flags>): Flags => ({
   monorepo: false,
   multiTenant: false,
   singleTenant: false,
+  multiLanguage: true,
+  singleLanguage: false,
   languages: 'en',
   mcp: false,
   noMcp: false,
@@ -354,6 +356,14 @@ describe('resolveAnswers in a terminal', () => {
         asked.push('multiTenant')
         return true
       },
+      multiLanguage: async () => {
+        asked.push('multiLanguage')
+        return true
+      },
+      language: async () => {
+        asked.push('language')
+        return 'pt-BR'
+      },
       languages: async () => {
         asked.push('languages')
         return ['pt-BR', 'en']
@@ -400,6 +410,7 @@ describe('resolveAnswers in a terminal', () => {
       apps: [{ name: 'api', type: 'api' }],
       architecture: 'monorepo',
       multiTenant: true,
+      multiLanguage: true,
       languages: ['en'],
       mcp: false,
       signIn: ['password'],
@@ -551,6 +562,7 @@ describe('generate', () => {
         types: ['mobile'],
         architecture: 'alone',
         multiTenant: false,
+        multiLanguage: true,
         languages: ['en'],
         mcp: false,
         signIn: ['password'],
@@ -572,6 +584,7 @@ describe('generate', () => {
       apps: [{ name: 'mobile', type: 'mobile' }],
       architecture: 'alone',
       multiTenant: false,
+      multiLanguage: true,
       languages: ['en'],
       mcp: false,
       signIn: ['password'],
@@ -617,6 +630,7 @@ describe('generate', () => {
           types: ['api'],
           architecture: 'alone',
           multiTenant: false,
+          multiLanguage: true,
           languages: ['en'],
           mcp: false,
           signIn: ['password'],
@@ -650,6 +664,7 @@ describe('generate', () => {
         types: ['api', 'mobile'],
         architecture: 'monorepo',
         multiTenant: true,
+        multiLanguage: true,
         languages: ['en'],
         mcp: false,
         signIn: ['password'],
@@ -713,6 +728,7 @@ describe('generate', () => {
         apps: [...apps],
         architecture: 'monorepo',
         multiTenant: false,
+        multiLanguage: true,
         languages: ['en'],
         mcp: true,
         signIn: ['password'],
@@ -752,6 +768,7 @@ describe('generate', () => {
         apps: [{ name: 'web', type: 'web', framework: 'next' }],
         architecture: 'alone',
         multiTenant: false,
+        multiLanguage: true,
         languages: ['en'],
         mcp: false,
         signIn: ['password'],
@@ -784,6 +801,7 @@ describe('generate', () => {
           types: ['web'],
           architecture: 'alone',
           multiTenant: false,
+          multiLanguage: true,
           languages: ['en'],
           mcp: false,
           signIn: ['password'],
@@ -817,6 +835,7 @@ describe('generate when it fails', () => {
     types: ['web' as const],
     architecture: 'alone' as const,
     multiTenant: false,
+    multiLanguage: true,
     languages: ['en' as const],
     mcp: false,
     signIn: ['password' as const],

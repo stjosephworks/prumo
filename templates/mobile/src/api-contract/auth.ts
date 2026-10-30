@@ -51,8 +51,11 @@ export type TokenStore = {
 
 export type AuthClient = ReturnType<typeof createAuthClient>
 
-// The device's timezone, sent when an account is created so its profile starts in it. Its language needs no field:
-// every request carries the one the screen speaks as Accept-Language, which the new profile starts in.
+// The device's timezone, sent when an account is created so its profile starts in it.
+// prumo:multi-language
+// Its language needs no field: every request carries the one the screen speaks as Accept-Language, which the new
+// profile starts in.
+// prumo:end-multi-language
 function devicePreferences(): { timezone: string } {
   return { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }
 }
