@@ -158,12 +158,13 @@ The three that govern everything else:
 
 ## 7. The assistant layer
 
-A generated project is not tied to one assistant. `.prumo/` is the single source of truth and
-stays neutral; the scaffolder writes the entry file each tool loads, and nothing more.
+A generated project is not tied to one assistant. `.prumo/` is the single source of truth for what
+Prumo ships, and `.context/` for what the project decides itself, which wins where they disagree. Both stay
+neutral; the scaffolder writes the entry file each tool loads, and nothing more.
 
 | File | Read by |
 |---|---|
-| `AGENTS.md` | The real pointer into `.prumo/`. Codex, Cursor, Copilot (in VS Code by default), Gemini CLI, Windsurf, Zed and 20+ others |
+| `AGENTS.md` | The real pointer into `.context/` and `.prumo/`. Codex, Cursor, Copilot (in VS Code by default), Gemini CLI, Windsurf, Zed and 20+ others |
 | `CLAUDE.md` | Claude Code only: an `@AGENTS.md` import plus anything Claude-specific |
 
 No generated skills, subagents or slash commands. Those change every quarter.
