@@ -1,7 +1,7 @@
 module.exports = {
   preset: 'jest-expo',
   setupFiles: [
-    '<rootDir>/test/support/localization.ts',
+    '<rootDir>/test/support/localization.ts', // prumo:multi-language
     '<rootDir>/test/support/mmkv.ts',
     '<rootDir>/test/support/google-sign-in.ts', // prumo:google
   ],

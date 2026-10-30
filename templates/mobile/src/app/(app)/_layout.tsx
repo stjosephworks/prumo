@@ -21,9 +21,13 @@ export default function AuthenticatedLayout() {
     return <Redirect href="/sign-in" />
   }
 
-  return <SignedIn />
+  return <SignedIn /> // prumo:multi-language
+  // prumo:single-language
+  // return <Stack screenOptions={{ headerShown: false }} />
+  // prumo:end-single-language
 }
 
+// prumo:multi-language
 // Only once signed in does the account have a language for the app to follow, or to take the app's.
 function SignedIn() {
   const { api } = useClients()
@@ -32,3 +36,4 @@ function SignedIn() {
 
   return <Stack screenOptions={{ headerShown: false }} />
 }
+// prumo:end-multi-language

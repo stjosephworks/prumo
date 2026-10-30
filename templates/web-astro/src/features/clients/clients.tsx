@@ -14,7 +14,8 @@ export type Clients = { api: ApiClient; auth: AuthClient }
 
 const ClientsContext = createContext<Clients | null>(null)
 
-// Every request names the language the screen speaks (withLanguage), as the cookies it signs in with.
+// Every request names the language the screen speaks (withLanguage), as the cookies it signs in with. // prumo:multi-language
+// Every request carries the cookies it signs in with. // prumo:single-language
 const transport: Transport = withLanguage((input, init) =>
   fetch(input, { ...init, credentials: 'include' }),
 )

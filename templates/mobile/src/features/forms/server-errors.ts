@@ -17,8 +17,8 @@ export function applyServerError<T extends FieldValues>(
 
   const unmatched: string[] = []
 
-  for (const [field, messages] of Object.entries(error.errors)) {
-    const message = messages.join(' ')
+  for (const [field, texts] of Object.entries(error.errors)) {
+    const message = texts.join(' ')
 
     if ((fields as readonly string[]).includes(field)) {
       setError(field as Path<T>, { type: 'server', message })

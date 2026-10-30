@@ -39,9 +39,18 @@ export const COMMANDS: CommandHelp[] = [
       },
       { flag: '--single-tenant', description: 'No multi-tenancy conventions' },
       {
+        flag: '--single-language',
+        description: 'One language, its words written where they are shown; --languages names it',
+      },
+      {
+        flag: '--multi-language',
+        description:
+          'Words in messages, one file per language, so another is a file and its translation',
+      },
+      {
         flag: '--languages <list>',
         description:
-          'Comma-separated, the base first: en, pt-BR, es-419; another is added once the project exists',
+          'en, pt-BR or es-419: one, or with --multi-language comma-separated, the base first',
       },
       { flag: '--mcp', description: 'An MCP server on the api, authorized through the web' },
       { flag: '--no-mcp', description: 'No MCP server' },

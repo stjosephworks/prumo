@@ -10,7 +10,7 @@ import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
 import { useMessages } from '@/i18n/i18n'
 
-// The language is chosen where the screen's is, and the account follows it (features/i18n/account-language.ts).
+// The language is chosen where the screen's is, and the account follows it (features/i18n/account-language.ts). // prumo:multi-language
 const schema = z.object({
   displayName: z.string().min(1).max(80),
   timezone: z.string().min(1).max(64),

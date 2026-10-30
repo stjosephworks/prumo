@@ -114,6 +114,7 @@ describe('prumo', () => {
         'web',
         '--alone',
         '--single-tenant',
+        '--single-language',
         '--languages',
         'en',
         '--skip-install',
@@ -181,6 +182,7 @@ describe('prumo', () => {
         ],
         architecture: 'monorepo',
         multiTenant: false,
+        multiLanguage: true,
       }),
     )
     await cp(join(templates, 'api/scripts'), join(api, 'scripts'), { recursive: true })

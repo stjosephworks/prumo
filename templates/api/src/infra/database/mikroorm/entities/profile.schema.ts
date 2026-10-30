@@ -16,8 +16,10 @@ export const ProfileSchema = new EntitySchema({
       deleteRule: 'restrict',
     },
     displayName: { type: 'text' },
+    // prumo:multi-language
     // The project's base language; `prumo new` writes the same default into the migration that creates the column.
     locale: { type: 'text', default: BASE_LOCALE },
+    // prumo:end-multi-language
     timezone: { type: 'text', default: 'UTC' },
     createdAt: { type: 'datetime', onCreate: () => new Date(), defaultRaw: 'now()' },
     updatedAt: {

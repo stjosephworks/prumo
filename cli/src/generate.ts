@@ -198,7 +198,7 @@ async function write({
   if (answers.architecture === 'alone' && only !== undefined) {
     await copyTemplate(join(templates, templateOf(only)), target)
     await applyFeatures(target, templateOf(only), enabledFor(answers))
-    await applyLanguages(target, answers.languages)
+    await applyLanguages(target, answers.languages, answers.multiLanguage)
     await nameProject(target, answers.name)
     await writeLocalEnv(target, only.type)
 
@@ -218,6 +218,7 @@ async function write({
       apps,
       features: enabledFor(answers),
       languages: answers.languages,
+      multiLanguage: answers.multiLanguage,
     })
     await nameProject(target, answers.name)
 

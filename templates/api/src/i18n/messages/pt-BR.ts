@@ -40,7 +40,10 @@ export const ptBR = {
   // How the consent page words each scope an MCP client asks for.
   scopes: {
     'profile:read': 'Ler o seu perfil',
-    'profile:write': 'Alterar o seu nome de exibição, idioma e fuso horário',
+    'profile:write': 'Alterar o seu nome de exibição, idioma e fuso horário', // prumo:multi-language
+    // prumo:single-language
+    // 'profile:write': 'Alterar o seu nome de exibição e fuso horário',
+    // prumo:end-single-language
   },
   // prumo:end-mcp
   // prumo:mail

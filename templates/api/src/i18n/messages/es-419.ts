@@ -41,7 +41,10 @@ export const es419 = {
   // How the consent page words each scope an MCP client asks for.
   scopes: {
     'profile:read': 'Leer tu perfil',
-    'profile:write': 'Cambiar tu nombre visible, idioma y zona horaria',
+    'profile:write': 'Cambiar tu nombre visible, idioma y zona horaria', // prumo:multi-language
+    // prumo:single-language
+    // 'profile:write': 'Cambiar tu nombre visible y zona horaria',
+    // prumo:end-single-language
   },
   // prumo:end-mcp
   // prumo:mail

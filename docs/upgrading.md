@@ -21,7 +21,10 @@ older one and your project is what your team changed.
    | `apps` | `--app <name>=<type>` for each app whose name is not its type, in order; those types leave `--types`. A web app with a `framework` other than `vite` is `web:<framework>`, in `--types` or `--app` |
    | `architecture` | `--alone` or `--monorepo` |
    | `multiTenant` | `--multi-tenant` or `--single-tenant` |
+   | `multiLanguage` | `--multi-language` or `--single-language` |
+   | `languages` | `--languages pt-BR,en`, the base first |
    | `mcp` | `--mcp` or `--no-mcp` |
+   | `signIn` | `--sign-in password,email-code` |
    | `email` | `--email` or `--no-email` |
    | `social` | `--social google,apple`, or `--no-social` when it is empty |
 
@@ -29,7 +32,9 @@ older one and your project is what your team changed.
    app's `framework`. Before 0.8.0 every web app was Vite's. A `site` in `types` became `web:next` in 0.8.0: see below.
 
    `email` and `social` exist from 0.4.0. A project generated before has neither, so its reference at the old
-   version leaves both flags out, and its reference at the new one passes `--no-email --no-social`.
+   version leaves both flags out, and its reference at the new one passes `--no-email --no-social`. `signIn`
+   exists from 0.9.0, and a project before it signed in with `--sign-in password`. `multiLanguage` and `languages`
+   exist from 0.10.0, and a project before it spoke one language: `--single-language --languages en`.
 
 2. Generate both, under the project's own name so that nothing differs by name alone:
 
@@ -68,11 +73,19 @@ three of its own.
 
 ### 0.10.0
 
+A project now speaks one language or several (`--single-language`, `--multi-language`). Every row below that names
+messages, `src/i18n/`, `[locale]` or the request's language is a project of several languages; a project of one has
+none of it, and its rows say so.
+
 | File | Types | Change |
 |---|---|---|
 | `.context/INDEX.md`, `AGENTS.md`, `.prumo/core/context.md` | every type | New: the project's own rules, in `.context/`, which win over `.prumo/`. An existing project creates `.context/INDEX.md`, copies `core/context.md` from the package's `.prumo-templates/`, and points `AGENTS.md` at both indexes, saying `.context/` wins |
-| `.prumo/config.json` | every type | `languages`, the project's, its base first. A config without it was generated speaking English, with its words in each component |
-| `.prumo/i18n/languages.md` | every type | New, in an area every project receives: the messages, the base, and how a language is added |
+| `.prumo/config.json` | every type | `multiLanguage`, and `languages`, the project's, its base first. A config without them was generated speaking one language, English, with its words in each component: `false` and `["en"]` |
+| `.prumo/core/conventions.md` | every type, one language | Its words are written where they are shown, in its language |
+| `src/domain/users/entities/profile.entity.ts`, `profile.schema.ts`, `migrations/…_create_user_profile_session.ts`, the DTOs, `src/api-contract/profile.ts` | api, web, mobile, one language | No `locale` on a profile, nor in a sign-up's body: the project speaks one. An existing project keeps its column, or drops it in a migration of its own |
+| `src/infra/http/app.ts`, and each client's entry: `src/main.tsx`, `src/features/clients/clients.tsx` on Next, `src/features/clients/island.tsx` on Astro, `src/app/_layout.tsx` on mobile | every type, one language | `z.config(z.locales.<language>())`, so zod's own messages are in the project's language; English needs it too, written the same way |
+| `issue-code.use-case.ts`, `change-email.use-case.ts`, `change-phone.use-case.ts`, every error a person reads | api, one language | The mails and texts are functions of the code, written in the project's language; no profile is read for a language; an error's words are its constructor's |
+| `.prumo/i18n/languages.md` | every type, several languages | New, in an area every project of several languages receives: the messages, the base, and how a language is added |
 | `src/i18n/locales.ts`, or `packages/i18n` in a workspace | api | New. `LOCALES`, `LOCALE_INFO`, `negotiateLocale`, `parseAcceptLanguage` and `format`. In a workspace the API imports `@app/i18n`, its TypeScript stripped by Node at runtime |
 | `src/i18n/messages/` | api | New. The API's words, one file per language: every error a person reads, every mail and every text |
 | `src/domain/shared/errors/domain-error.ts`, every error a person reads, `error-handler.ts` | api | A `DomainError` names its message in `text`, with `values`; `detail` is written in the request's language. An error without `text` keeps its message |
@@ -103,8 +116,9 @@ three of its own.
 | `jest.config.js`, `test/support/localization.ts`, `test/support/mmkv.ts`, `test/support/messages.ts`, every spec | mobile | Tests run in the base language, with the phone naming none and MMKV in memory |
 | `.prumo/mobile/languages.md` | mobile | New |
 
-Why: making an app speak a second language means finding every word written into its code. Every project now starts
-with its words in messages, so a language is added as a file and its translation.
+Why: making an app speak a second language means finding every word written into its code. A project that will speak
+several starts with its words in messages, so a language is added as a file and its translation; one that speaks one
+keeps its words where they are shown, as before, and an assistant converts it the day it needs a second.
 
 ### 0.9.0
 

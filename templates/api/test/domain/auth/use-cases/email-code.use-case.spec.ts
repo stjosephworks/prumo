@@ -4,8 +4,10 @@ import { CODE_ATTEMPTS, SEND_INTERVAL_MS } from '@/domain/auth/entities/one-time
 import { InvalidCodeError } from '@/domain/auth/errors/invalid-code.error'
 import { BASE_LOCALE, LOCALES } from '@/i18n/locales'
 
+// prumo:multi-language
 // A language of the project's that a device names in lowercase: whichever, as long as the project speaks it.
 const DEVICE_LOCALE = LOCALES.at(-1) ?? BASE_LOCALE
+// prumo:end-multi-language
 
 const EMAIL = 'ana@example.com'
 

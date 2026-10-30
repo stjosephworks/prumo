@@ -44,7 +44,7 @@ function fieldOf(instancePath: string, key?: string): string {
   return [...instancePath.split('/').filter(Boolean), ...(key === undefined ? [] : [key])].join('.')
 }
 
-// zod wrote each message in the request's language (hooks/locale.hook.ts); only a key it refused is named here.
+// zod wrote each message; only a key it refused is named here.
 function fieldErrors(error: FastifyError, messages: Messages): FieldErrors | undefined {
   if (!hasZodFastifySchemaValidationErrors(error)) {
     return undefined
@@ -76,8 +76,13 @@ export function statusOf(error: FastifyError): number {
   return typeof error.statusCode === 'number' ? error.statusCode : 500
 }
 
+// prumo:multi-language
 // What a person is told, in the request's language. An error that names no message of the API's is a developer's,
 // and keeps its words.
+// prumo:end-multi-language
+// prumo:single-language
+// // What a person is told: an error's own words, unless the API failed.
+// prumo:end-single-language
 function detailOf(
   error: FastifyError,
   status: number,
@@ -92,10 +97,12 @@ function detailOf(
     return messages.errors.unexpected
   }
 
+  // prumo:multi-language
   if (error instanceof DomainError && error.text !== undefined) {
     return format(messages.errors[error.text], error.values)
   }
 
+  // prumo:end-multi-language
   return error.message
 }
 

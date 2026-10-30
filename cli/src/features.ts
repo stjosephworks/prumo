@@ -21,6 +21,8 @@ export const FEATURE_NAMES = [
   'social',
   'google',
   'apple',
+  'multi-language',
+  'single-language',
 ] as const
 
 export type Feature = (typeof FEATURE_NAMES)[number]
@@ -45,6 +47,7 @@ export function enabledFor(answers: {
   signIn: SignInMethod[]
   email: boolean
   social: SocialProvider[]
+  multiLanguage: boolean
 }): Enabled {
   const emailCode = answers.signIn.includes('email-code')
   const phoneCode = answers.signIn.includes('phone-code')
@@ -64,6 +67,10 @@ export function enabledFor(answers: {
     social: answers.social.length > 0,
     google: answers.social.includes('google'),
     apple: answers.social.includes('apple'),
+    // A project speaks its languages from messages, or one language written where it is shown: each has what the
+    // other does not.
+    'multi-language': answers.multiLanguage,
+    'single-language': !answers.multiLanguage,
   }
 }
 
@@ -420,6 +427,30 @@ export const FEATURES: Record<Feature, Spec> = {
     },
     dependencies: { mobile: ['expo-apple-authentication'] },
   },
+  // What finds a person's language and lets them change it. The messages themselves are written where they are
+  // shown before they go (inline.ts), and so is every route under `[locale]`.
+  'multi-language': {
+    files: {
+      api: [
+        'src/infra/http/hooks/locale.hook.ts',
+        'test/infra/http/hooks/locale.hook.spec.ts',
+        'test/domain/users/entities/profile.entity.spec.ts',
+      ],
+      'web-vite': ['src/features/i18n'],
+      'web-next': ['src/features/i18n', 'src/proxy.ts', 'test/proxy.spec.ts'],
+      'web-astro': [
+        'src/features/i18n',
+        'src/layouts/language-redirect.astro',
+        'src/pages/index.astro',
+        'src/pages/sign-in.astro',
+        'src/pages/consent.astro',
+      ],
+      // The provider reads the phone's languages through expo-localization, which goes with it.
+      mobile: ['src/features/i18n', 'src/i18n/i18n.tsx', 'test/support/localization.ts'],
+    },
+    dependencies: { mobile: ['expo-localization'] },
+  },
+  'single-language': { files: {}, dependencies: {} },
 }
 
 // A feature, or a language of the project's: both are marked and cut the same way.
@@ -468,6 +499,31 @@ export function cutFeature(text: string, feature: string, keep: boolean, file = 
 // against the formatter. A project has its features settled, so the comment goes and the formatter has its way.
 const KEEP_MEMBERS =
   /^[ \t]*\/\/ biome-ignore format: one member a line, so cutting a feature cuts its own\n/gm
+
+// What a project of one language has instead of a languages' part is written in the template commented out, so the
+// template still compiles; such a project receives it as code.
+const SINGLE_START = /^\s*(\/\/ prumo:single-language|\{\/\* prumo:single-language \*\/\})$/
+const SINGLE_END = /^\s*(\/\/ prumo:end-single-language|\{\/\* prumo:end-single-language \*\/\})$/
+const MARKER = /^\s*(\/\/ prumo:[\w-]+|\{\/\* prumo:[\w-]+ \*\/\})$/
+
+export function openSingleLanguage(text: string): string {
+  let inBlock = false
+
+  return text
+    .split('\n')
+    .map((line) => {
+      if (SINGLE_START.test(line)) {
+        inBlock = true
+      } else if (SINGLE_END.test(line)) {
+        inBlock = false
+      } else if (inBlock && !MARKER.test(line)) {
+        return line.replace(/^(\s*)\/\/ ?/, '$1').replace(/^(\s*)\{\/\* (.*) \*\/\}$/, '$1$2')
+      }
+
+      return line
+    })
+    .join('\n')
+}
 
 export function cutFeatures(text: string, enabled: Enabled, file = 'a file'): string {
   return FEATURE_NAMES.reduce(
@@ -535,7 +591,12 @@ export async function applyFeatures(
     }
 
     const text = await readFile(source, 'utf8')
-    const cut = cutFeatures(text, enabled, source)
+    const code = /\.(tsx?|astro|js)$/.test(source)
+    const cut = cutFeatures(
+      code && enabled['single-language'] ? openSingleLanguage(text) : text,
+      enabled,
+      source,
+    )
 
     if (dropped.some((dependency) => cut.includes(`'${dependency}`))) {
       throw new Error(`${source} still imports a package that was removed, outside its marker`)

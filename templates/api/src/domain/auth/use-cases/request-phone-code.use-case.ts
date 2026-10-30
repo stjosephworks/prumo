@@ -13,8 +13,8 @@ export class RequestPhoneCodeUseCase {
     private readonly issueCode: IssueCodeUseCase,
   ) {}
 
-  // Every number gets its code, with an account or not: entering it signs in, or creates the account. An account's
-  // code is written in its language; anyone else's in the one they asked in.
+  // Every number gets its code, with an account or not: entering it signs in, or creates the account.
+  // An account's code is written in its language; anyone else's in the one they asked in. // prumo:multi-language
   async execute(phone: string, locale: Locale): Promise<void> {
     const read = this.phones.read(phone)
 
@@ -26,7 +26,7 @@ export class RequestPhoneCodeUseCase {
 
     await this.issueCode.execute({ channel: 'phone', destination: read.e164 }, 'sign-in', {
       deliver: true,
-      account: user?.id ?? null,
+      account: user?.id ?? null, // prumo:multi-language
       locale,
     })
   }

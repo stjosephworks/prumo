@@ -23,6 +23,8 @@ const webPort = 4173
 const windows = process.platform === 'win32'
 
 const config = JSON.parse(readFileSync(join(project, '.prumo', 'config.json'), 'utf8'))
+// A project of one language has its pages at `/` and no language per account; one from before 0.10.0 too.
+const base = config.multiLanguage === true ? config.languages[0].toLowerCase() : undefined
 // Every app by its name; a project written before apps had names holds one per type, named after it.
 const apps = config.apps ?? types.map((type) => ({ name: type, type }))
 const appsOfType = (type) => apps.filter((app) => app.type === type)
@@ -379,8 +381,7 @@ describe('the hand-written contract against the running API', () => {
     const expected: Array<keyof Profile> = [
       'id',
       'userId',
-      'displayName',
-      'locale',
+      'displayName',${base === undefined ? '' : `\n      'locale',`}
       'timezone',
       'createdAt',
       'updatedAt',
@@ -436,7 +437,6 @@ async function verifyAstro(app) {
       {},
       async () => {
         // `/` sends the browser to a language; the base's home stands for every language's.
-        const base = config.languages?.[0]?.toLowerCase()
         const home = base === undefined ? '/' : `/${base}/`
         const html = await (await fetch(`http://localhost:${webPort}${home}`)).text()
         if (!/<title>/.test(html) || !/<meta name="description"/.test(html)) {
@@ -465,8 +465,7 @@ async function verifyNext(app) {
   const build = step(`${app.name}: build`, () => run('pnpm', ['build'], site))
 
   // Every page is built once per language, under its language's address; the base's home stands for them all. A
-  // project written before 0.10.0 had no languages, and its home was `/`.
-  const base = config.languages?.[0]?.toLowerCase()
+  // project of one language has its home at `/`.
   const home =
     base === undefined ? /[┌└├]\s+○\s+\/(\s|$)/m : new RegExp(`[├└]\\s+●\\s+\\/${base}(\\s|$)`, 'm')
 

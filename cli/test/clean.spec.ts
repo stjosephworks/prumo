@@ -21,7 +21,7 @@ describe('clean', () => {
   async function project(
     answers: Omit<
       Answers,
-      'name' | 'multiTenant' | 'languages' | 'mcp' | 'signIn' | 'email' | 'social'
+      'name' | 'multiTenant' | 'multiLanguage' | 'languages' | 'mcp' | 'signIn' | 'email' | 'social'
     >,
     databaseUrl = URL,
   ) {
@@ -36,6 +36,7 @@ describe('clean', () => {
       answers: {
         name: 'acme',
         multiTenant: false,
+        multiLanguage: true,
         languages: ['en'],
         mcp: false,
         signIn: ['password'],
@@ -181,6 +182,7 @@ describe('clean', () => {
         apps: [{ name: 'web', type: 'web', framework: 'next' }],
         architecture: 'alone',
         multiTenant: false,
+        multiLanguage: true,
         languages: ['en'],
         mcp: false,
         signIn: ['password'],

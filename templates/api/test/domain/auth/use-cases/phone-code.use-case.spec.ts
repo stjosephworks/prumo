@@ -10,8 +10,10 @@ import { InvalidPhoneError } from '@/domain/auth/errors/invalid-phone.error'
 import { TooManyCodesError } from '@/domain/auth/errors/too-many-codes.error'
 import { BASE_LOCALE, LOCALES } from '@/i18n/locales'
 
+// prumo:multi-language
 // A language of the project's that a device names in lowercase: whichever, as long as the project speaks it.
 const DEVICE_LOCALE = LOCALES.at(-1) ?? BASE_LOCALE
+// prumo:end-multi-language
 
 const TYPED = '+1 (415) 555-2671'
 const PHONE = '+14155552671'

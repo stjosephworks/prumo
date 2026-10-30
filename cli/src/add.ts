@@ -236,7 +236,7 @@ async function write({
   journal.creates(directory)
   await copyApp(templates, root, app)
   await applyFeatures(directory, templateOf(app), enabledFor(answers))
-  await applyLanguages(directory, answers.languages)
+  await applyLanguages(directory, answers.languages, answers.multiLanguage)
 
   // The first port of its template that no app of the workspace holds, as each one's .env says today.
   const { key, from, site } = PORTS[templateOf(app)]

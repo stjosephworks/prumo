@@ -13,8 +13,14 @@ Build the server per request in `src/infra/mcp/mcp.server.ts` with `createMcpHan
 
 Write a module's tools in `src/infra/mcp/tools/<module>.tool.ts`, with the scope each one needs beside it:
 `<module>:read` to read the module's data, `<module>:write` to change it. Add the module's two scopes to
-`SCOPES` in `mcp.scopes.ts`, how a person reads each to `scopes` in every language's messages, and its tools to
-`TOOL_SCOPES`. A tool resolves a use case and
+`SCOPES` in `mcp.scopes.ts`, and its tools to `TOOL_SCOPES`.
+<!-- prumo:multi-language -->
+Word each scope as a person reads it on the consent page in `scopes`, in every language's messages.
+<!-- prumo:end-multi-language -->
+<!-- prumo:single-language -->
+Word each scope as a person reads it on the consent page in `SCOPE_WORDS`, in `oauth.controller.ts`.
+<!-- prumo:end-single-language -->
+A tool resolves a use case and
 calls `execute()`, exactly as a route handler does. Take its input schema from the module's `dto/`, and pass its
 result through the module's output schema with `.parse()` before returning it.
 

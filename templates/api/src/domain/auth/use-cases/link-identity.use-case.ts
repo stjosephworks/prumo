@@ -30,8 +30,8 @@ export class LinkIdentityUseCase {
     private readonly createProfile: CreateProfileUseCase,
   ) {}
 
-  // Returns the id of the user the provider's account belongs to, creating or linking it as the rules say. An account
-  // created here speaks the language the sign-in was asked in.
+  // Returns the id of the user the provider's account belongs to, creating or linking it as the rules say.
+  // An account created here speaks the language the sign-in was asked in. // prumo:multi-language
   execute(
     provider: ProviderName,
     profile: ProviderProfile,

@@ -48,7 +48,7 @@ describe('changing the email', () => {
     expect(changed.json().user.email).toBe('new@example.com')
 
     if (previous !== null) {
-      // In the account's language, which a fresh account speaks as the base.
+      // In the account's language, which a fresh account speaks as the base. // prumo:multi-language
       expect(mailer.sent.findLast((mail) => mail.to === previous)?.subject).toBe(
         messagesFor(BASE_LOCALE).mail.emailChanged.subject,
       )

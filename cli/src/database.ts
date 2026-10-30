@@ -31,12 +31,17 @@ export type Config = Omit<Answers, 'name'> & { prumo?: string }
 export function readConfig(root: string): Config {
   const config = JSON.parse(readFileSync(join(root, '.prumo', 'config.json'), 'utf8')) as Omit<
     Config,
-    'signIn' | 'languages'
-  > & { signIn?: SignInMethod[]; languages?: Language[] }
+    'signIn' | 'languages' | 'multiLanguage'
+  > & { signIn?: SignInMethod[]; languages?: Language[]; multiLanguage?: boolean }
 
   // Written from 0.9.0; a project before it signed in with a password, and only that.
-  // Languages from 0.10.0; a project before it spoke English, with no messages to add another to.
-  return { ...config, signIn: config.signIn ?? ['password'], languages: config.languages ?? ['en'] }
+  // Languages from 0.10.0; a project before it spoke one, English, its words written in each component.
+  return {
+    ...config,
+    signIn: config.signIn ?? ['password'],
+    multiLanguage: config.multiLanguage ?? false,
+    languages: config.languages ?? ['en'],
+  }
 }
 
 // Where the API sits, or undefined when the project has none.

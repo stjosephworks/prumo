@@ -18,7 +18,7 @@ export class RequestPasswordResetUseCase {
 
     await this.issueCode.execute({ channel: 'email', destination: address }, 'reset-password', {
       deliver: user !== null,
-      account: user?.id ?? null,
+      account: user?.id ?? null, // prumo:multi-language
       locale,
     })
   }

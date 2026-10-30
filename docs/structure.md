@@ -20,7 +20,7 @@ This document describes **where files live and what they are called**. What goes
     INDEX.md         ← generated. One line per file. The tool's territory
     config.json      ← what the project answered, and the Prumo version that wrote it
     core/            ← always present
-    i18n/            ← always present: the project's languages and how one is added
+    i18n/            ← a project of several languages: its languages and how one is added
     api/             ← type api
     database/        ← type api
     client/          ← any client type
@@ -66,7 +66,8 @@ agrees.
 
 ## Areas
 
-Areas do not mirror types. Fourteen of the seventeen are not types at all: `core/` and `i18n/` ship always, `database/` follows a
+Areas do not mirror types. Fourteen of the seventeen are not types at all: `core/` ships always, `i18n/` follows whether
+the project speaks several languages, `database/` follows a
 type, `client/` follows either client type, `web-vite/`, `web-next/` and `web-astro/` follow a web app's framework,
 `monorepo/` follows the architecture, `multi-tenancy/` follows a third axis of its own, `mcp/` a fourth, asked only
 when there is an api and a web, `codes/`, `email/` and `phone/` follow how people sign in and whether emails are
@@ -80,7 +81,7 @@ sign-in by code, so no project reads about a flow it does not have.
 | Area | Holds | Ships when |
 |---|---|---|
 | `core/` | What crosses every type: TypeScript config, Biome and the pre-commit hook, Vitest, file naming, code style, the branch flow | **always** |
-| `i18n/` | The project's languages: the messages every word comes from, the base they are checked against, and how a language is added | **always** |
+| `i18n/` | The project's languages: the messages every word comes from, the base they are checked against, and how a language is added | the project answered `--multi-language` |
 | `api/` | Fastify rules and the domain/infra structure: ports, use cases, DTOs, the HTTP edge | type is `api` |
 | `database/` | Database rules and performance. Separate from `api/` so a future worker or lambda can take it without being an API | type is `api` |
 | `client/` | What every client shares: calling the API, the error type, queries, forms | type is `web` or `mobile` |
@@ -106,10 +107,12 @@ rules on the client side, and two copies drifting would mean one of them quietly
 app's public pages use the wire-contract half, and its signed-in area all of it; the document says which half is
 Query-specific.
 
-**`core/` and `i18n/` are the only unconditional areas, so they are always-loaded context.** The bar for
-entering one is *crossing every type in fact*, not seeming general. If either bloats, every project pays on every
-session. `i18n/` is its own area rather than a file of `core/` because every project is born speaking its languages
-from messages (2026-10-29), and what each type adds to it lives in that type's area: the API's in `api/`.
+**`core/` is the only unconditional area, so it is always-loaded context.** The bar for entering it is *crossing
+every type in fact*, not seeming general. If it bloats, every project pays on every session. `i18n/` is its own area
+rather than a file of `core/` because a project of several languages speaks them from messages whatever its types
+(2026-10-29), and what each type adds to it is that type's `languages.md`: the API's in `api/`. A project of one
+language (2026-10-30) receives neither: one paragraph of `core/conventions.md` says its words are written where they
+are shown, in its language.
 
 **One type, one area per framework.** Since 2026-10-27 `web` is one type whatever it is built with, because a
 public site is often the whole web app and needs the same sign-in. Its frameworks share React, Tailwind, shadcn and,

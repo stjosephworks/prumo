@@ -74,9 +74,16 @@ An account that signs in with Apple is deleted through Apple instead, which revo
 <!-- prumo:end-apple -->
 
 Create a user and the application's own row for it in one use case, inside one transaction: the use case that
-creates the `User` calls `CreateProfileUseCase`. Take the device's `locale` and `timezone`, both optional, with
-the request that creates the account, and use them for the new profile only: a locale the profile does not support
-becomes the first one in its language, else English. The clients' contract sends them on its own.
+creates the `User` calls `CreateProfileUseCase`.
+<!-- prumo:multi-language -->
+Take the device's `locale` and `timezone`, both optional, with the request that creates the account, and use them
+for the new profile only: a locale the project does not speak becomes the first one in its language, else the base.
+The clients' contract sends them on its own.
+<!-- prumo:end-multi-language -->
+<!-- prumo:single-language -->
+Take the device's `timezone`, optional, with the request that creates the account, and use it for the new profile
+only. The clients' contract sends it on its own.
+<!-- prumo:end-single-language -->
 
 Limit the routes that take a secret, a password or a code, with `@fastify/rate-limit`, through the route's own
 `config.rateLimit`. The plugin is registered with `global: false`. It counts by `request.ip`, which is the

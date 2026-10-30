@@ -60,7 +60,7 @@ jobs:
           npm install ${{ runner.temp }}/*.tgz
         working-directory: ${{ runner.temp }}
       - name: Generate from the installed package
-        run: ./node_modules/.bin/prumo new packaged --types api,web --single-tenant --languages en --no-mcp --sign-in password --no-email --no-social --skip-install
+        run: ./node_modules/.bin/prumo new packaged --types api,web --single-tenant --single-language --languages en --no-mcp --sign-in password --no-email --no-social --skip-install
         working-directory: ${{ runner.temp }}
       - name: Assert what npm is known to delete arrived anyway
         run: |
@@ -81,48 +81,56 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Speaking its languages from messages with only its base, as a project that will add one later.
           - name: an-api
             types: api
             architecture: alone
+            languages: --multi-language --languages en
             flags: --sign-in password --no-email
+          # One language each, its words written where they are shown, in a language other than English.
           - name: a-web
             types: web
             architecture: alone
+            languages: --single-language --languages pt-BR
           - name: a-mobile
             types: mobile
             architecture: alone
+            languages: --single-language --languages es-419
           - name: a-next-web
             types: web:next
             architecture: alone
+            languages: --single-language --languages pt-BR
           - name: an-astro-web
             types: web:astro
             architecture: alone
+            languages: --single-language --languages es-419
           # One type laid out as a workspace, and the one multi-tenant project. Its API alone speaks the workspace's
           # languages from their package, with a base other than English.
           - name: a-tenant-workspace
             types: api
             architecture: monorepo
             tenancy: --multi-tenant
-            languages: --languages es-419,en
+            languages: --multi-language --languages es-419,en
             flags: --sign-in password --email
           # The one project with MCP: every other one proves the templates run with it cut out. It speaks every language.
           - name: everything
             types: api,web,mobile
             architecture: monorepo
-            languages: --languages en,pt-BR,es-419
+            languages: --multi-language --languages en,pt-BR,es-419
             flags: --app site=web:next --app press=web:astro --mcp --sign-in password,email-code --email --social google,apple
           # No password at all: a code by email or by text is the only way in beside the providers, on every client. No
           # English either: Portuguese is the base, Spanish beside it.
           - name: by-code
             types: api,web,mobile
             architecture: monorepo
-            languages: --languages pt-BR,es-419
+            languages: --multi-language --languages pt-BR,es-419
             flags: --app site=web:next --app press=web:astro --no-mcp --sign-in email-code,phone-code --social google,apple
           # Apps named on purpose: a renamed api, and a second web on each framework, each verified, the api trusting
-          # every one.
+          # every one. One language, so a workspace without the languages' package is proved too.
           - name: named-apps
             types: web
             architecture: monorepo
+            languages: --single-language --languages pt-BR
             flags: --app server=api --app backoffice=web --app site=web:next --app blog=web:next --app press=web:astro --app guide=web:astro --no-mcp --sign-in password --email --social google
     steps:
       - uses: actions/checkout@v5
@@ -138,7 +146,7 @@ jobs:
         working-directory: cli
       # The layout always comes from the matrix: one type needs --alone or --monorepo, several accept --monorepo.
       - name: Generate ${{ matrix.name }}
-        run: node ${{ github.workspace }}/cli/src/cli.ts new ${{ matrix.name }} --types ${{ matrix.types }} --${{ matrix.architecture }} ${{ matrix.tenancy || '--single-tenant' }} ${{ matrix.languages || '--languages en' }} ${{ matrix.flags }}
+        run: node ${{ github.workspace }}/cli/src/cli.ts new ${{ matrix.name }} --types ${{ matrix.types }} --${{ matrix.architecture }} ${{ matrix.tenancy || '--single-tenant' }} ${{ matrix.languages || '--single-language --languages en' }} ${{ matrix.flags }}
         working-directory: ${{ runner.temp }}
       # A workspace grows by one web app, installed and formatted as prumo add does it, before it is verified.
       - name: Add an app to ${{ matrix.name }}
@@ -170,7 +178,7 @@ jobs:
       - run: pnpm build
         working-directory: cli
       - name: Generate on the floor
-        run: node ${{ github.workspace }}/cli/dist/cli.js new floor --types api,web --single-tenant --languages en --no-mcp --sign-in password --no-email --no-social
+        run: node ${{ github.workspace }}/cli/dist/cli.js new floor --types api,web --single-tenant --single-language --languages en --no-mcp --sign-in password --no-email --no-social
         working-directory: ${{ runner.temp }}
       - name: Verify on the floor
         run: >
@@ -229,7 +237,7 @@ jobs:
           npm install (Get-ChildItem *.tgz).FullName
         working-directory: ${{ runner.temp }}
       - name: Generate from the installed package
-        run: npx --no-install prumo new packaged --types api,web --single-tenant --languages en --no-mcp --sign-in password --no-email --no-social --skip-install
+        run: npx --no-install prumo new packaged --types api,web --single-tenant --single-language --languages en --no-mcp --sign-in password --no-email --no-social --skip-install
         working-directory: ${{ runner.temp }}
       - name: Assert what npm is known to delete arrived anyway
         run: |
@@ -284,7 +292,7 @@ jobs:
       - run: pnpm install
         working-directory: cli
       - name: Generate ${{ matrix.name }}
-        run: node ${{ github.workspace }}/cli/src/cli.ts new ${{ matrix.name }} --types ${{ matrix.types }} --${{ matrix.architecture }} --single-tenant ${{ matrix.languages || '--languages en' }} ${{ matrix.flags }}
+        run: node ${{ github.workspace }}/cli/src/cli.ts new ${{ matrix.name }} --types ${{ matrix.types }} --${{ matrix.architecture }} --single-tenant ${{ matrix.languages || '--single-language --languages en' }} ${{ matrix.flags }}
         working-directory: ${{ runner.temp }}
       # A workspace grows by one web app, installed and formatted as prumo add does it, before it is verified.
       - name: Add an app to ${{ matrix.name }}

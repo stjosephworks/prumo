@@ -4,11 +4,16 @@ import { DomainError } from '@/domain/shared/errors/domain-error'
 export class InvalidPhoneError extends DomainError {
   readonly kind = 'invalid'
   override readonly code: 'invalid_phone' | 'phone_not_served'
-  override readonly text: 'invalidPhone' | 'phoneNotServed'
+  override readonly text: 'invalidPhone' | 'phoneNotServed' // prumo:multi-language
 
   constructor(problem: 'invalid' | 'not_served') {
+    // prumo:multi-language
     super()
-    this.code = problem === 'invalid' ? 'invalid_phone' : 'phone_not_served'
     this.text = problem === 'invalid' ? 'invalidPhone' : 'phoneNotServed'
+    // prumo:end-multi-language
+    // prumo:single-language
+    // super(problem === 'invalid' ? messages.errors.invalidPhone : messages.errors.phoneNotServed)
+    // prumo:end-single-language
+    this.code = problem === 'invalid' ? 'invalid_phone' : 'phone_not_served'
   }
 }
