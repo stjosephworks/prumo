@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
 import { memoryTokenStore } from '@test/support/memory-token-store'
+import { messages } from '@test/support/messages'
 import { createTestQueryClient } from '@test/support/query-client'
 import { renderRouter, screen } from 'expo-router/testing-library'
 import type { ReactNode } from 'react'
@@ -37,7 +38,7 @@ async function renderAt(getSession: () => Response | Promise<Response>) {
   await renderRouter(
     {
       '(app)/_layout': AuthenticatedLayout,
-      '(app)/index': () => <Text>Your profile</Text>,
+      '(app)/index': () => <Text>{messages.profile.title}</Text>,
       'sign-in': () => <Text>Sign in</Text>,
     },
     { initialUrl: '/', wrapper: Providers },
@@ -52,7 +53,7 @@ describe('AuthenticatedLayout', () => {
       return json(200, { user })
     })
 
-    expect(await screen.findByText('Your profile')).toBeOnTheScreen()
+    expect(await screen.findByText(messages.profile.title)).toBeOnTheScreen()
     expect(screen.queryByText('Sign in')).toBeNull()
   })
 
@@ -67,6 +68,6 @@ describe('AuthenticatedLayout', () => {
     await renderAt(() => json(500, { message: 'Internal server error' }))
 
     expect(await screen.findByText('Sign in')).toBeOnTheScreen()
-    expect(screen.queryByText('Your profile')).toBeNull()
+    expect(screen.queryByText(messages.profile.title)).toBeNull()
   })
 })

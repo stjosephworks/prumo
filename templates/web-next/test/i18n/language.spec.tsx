@@ -14,7 +14,8 @@ import { BASE_LOCALE, LOCALES, segmentOf } from '@/i18n/locales'
 const other = LOCALES.find((locale) => locale !== BASE_LOCALE) ?? BASE_LOCALE
 
 function signedIn(locale: Profile['locale'], patches: unknown[] = []) {
-  const profile: Profile = {
+  // The API changes the profile as it is asked, so a refetch reads the new language.
+  let profile: Profile = {
     id: 'profile-1',
     userId: 'user-1',
     displayName: 'Ana',
@@ -28,7 +29,10 @@ function signedIn(locale: Profile['locale'], patches: unknown[] = []) {
     'GET /api/auth/session': () => json(200, { user: { id: 'user-1', email: 'ana@example.com' } }),
     'GET /api/v1/users/me': () => json(200, profile),
     'PATCH /api/v1/users/me': async (request) => {
-      patches.push(await request.json())
+      const changes = (await request.json()) as Partial<Profile>
+
+      patches.push(changes)
+      profile = { ...profile, ...changes }
       return json(200, profile)
     },
   })

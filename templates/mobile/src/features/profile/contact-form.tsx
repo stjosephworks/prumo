@@ -20,6 +20,9 @@ import { Field } from '@/components/ui/field'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
 import { clearUserData } from '@/features/storage/storage'
+import { useMessages } from '@/i18n/i18n'
+import { format } from '@/i18n/locales'
+import type { Messages } from '@/i18n/messages'
 
 type Channel = 'email' | 'phone'
 
@@ -29,7 +32,36 @@ const CHANNELS: Channel[] = [
   'phone', // prumo:sms
 ]
 
-const NOUN: Record<Channel, string> = { email: 'email', phone: 'phone number' }
+type Words = { label: string; add: string; change: string; newLabel: string }
+
+// How the profile names each address, and what it offers to do with it.
+function wordsOf(channel: Channel, messages: Messages): Words {
+  const words = messages.profile.contact
+
+  // prumo:mail
+  if (channel === 'email') {
+    return {
+      label: words.email,
+      add: words.addEmail,
+      change: words.changeEmail,
+      newLabel: words.newEmail,
+    }
+  }
+
+  // prumo:end-mail
+  // prumo:sms
+  if (channel === 'phone') {
+    return {
+      label: words.phone,
+      add: words.addPhone,
+      change: words.changePhone,
+      newLabel: words.newPhone,
+    }
+  }
+
+  // prumo:end-sms
+  throw new Error(`Nothing changes by ${channel}`)
+}
 
 function currentOf(user: Session['user'], channel: Channel): string | null {
   // prumo:mail
@@ -99,6 +131,7 @@ export function ContactForm({
   auth: AuthClient
   onSignedOut: () => void
 }) {
+  const messages = useMessages()
   const { data: session } = useQuery(sessionQuery(auth))
   const [editing, setEditing] = useState<Channel>()
 
@@ -108,15 +141,20 @@ export function ContactForm({
 
   return (
     <View className="gap-4">
-      <Text className="text-lg font-semibold text-neutral-900">How you sign in</Text>
+      <Text className="text-lg font-semibold text-neutral-900">
+        {messages.profile.contact.title}
+      </Text>
       {CHANNELS.map((channel) => {
         const current = currentOf(session.user, channel)
+        const words = wordsOf(channel, messages)
 
         return (
           <View key={channel} className="gap-3">
             <Text className="text-sm text-neutral-900">
-              {NOUN[channel][0]?.toUpperCase()}
-              {NOUN[channel].slice(1)}: {current ?? 'none yet'}
+              {format(messages.profile.contact.current, {
+                channel: words.label,
+                address: current ?? messages.profile.contact.none,
+              })}
             </Text>
             {editing === channel ? (
               <ChangeAddress
@@ -128,7 +166,7 @@ export function ContactForm({
               />
             ) : (
               <Button
-                label={current === null ? `Add a ${NOUN[channel]}` : `Change your ${NOUN[channel]}`}
+                label={current === null ? words.add : words.change}
                 variant="outline"
                 onPress={() => setEditing(channel)}
               />
@@ -140,7 +178,8 @@ export function ContactForm({
   )
 }
 
-const codeSchema = z.object({ code: z.string().regex(/^\d{6}$/, 'Enter the 6 digits we sent') })
+const codeSchemaOf = (messages: Messages) =>
+  z.object({ code: z.string().regex(/^\d{6}$/, messages.forms.sixDigits) })
 
 function ChangeAddress({
   api,
@@ -155,6 +194,7 @@ function ChangeAddress({
   onDone: () => void
   onSignedOut: () => void
 }) {
+  const messages = useMessages()
   const queryClient = useQueryClient()
   const [to, setTo] = useState<string>()
   const [stale, setStale] = useState(false)
@@ -165,7 +205,7 @@ function ChangeAddress({
     defaultValues: { to: '' },
   })
   const codeForm = useForm<{ code: string }>({
-    resolver: zodResolver(codeSchema),
+    resolver: zodResolver(codeSchemaOf(messages)),
     defaultValues: { code: '' },
   })
 
@@ -186,7 +226,7 @@ function ChangeAddress({
         return
       }
 
-      applyServerError(error, ['to'], addressForm.setError)
+      applyServerError(error, ['to'], addressForm.setError, messages)
       return
     }
 
@@ -201,7 +241,7 @@ function ChangeAddress({
     try {
       await confirmChange(api, channel, to, code)
     } catch (error) {
-      applyServerError(error, ['code'], codeForm.setError)
+      applyServerError(error, ['code'], codeForm.setError, messages)
       return
     }
 
@@ -212,10 +252,8 @@ function ChangeAddress({
   if (stale) {
     return (
       <View className="gap-3">
-        <Text className="text-sm text-neutral-500">
-          To change how you sign in, sign in again first.
-        </Text>
-        <Button label="Sign in again" onPress={signInAgain} />
+        <Text className="text-sm text-neutral-500">{messages.profile.contact.stale}</Text>
+        <Button label={messages.forms.signInAgain} onPress={signInAgain} />
       </View>
     )
   }
@@ -231,7 +269,7 @@ function ChangeAddress({
           name="to"
           render={({ field }) => (
             <Field
-              label={`New ${NOUN[channel]}`}
+              label={wordsOf(channel, messages).newLabel}
               autoCapitalize="none"
               autoComplete={channel === 'email' ? 'email' : 'tel'}
               keyboardType={channel === 'email' ? 'email-address' : 'phone-pad'}
@@ -243,11 +281,11 @@ function ChangeAddress({
           )}
         />
         <Button
-          label="Send a code there"
+          label={messages.profile.contact.send}
           disabled={isSubmitting}
           onPress={addressForm.handleSubmit(sendCode)}
         />
-        <Link label="Cancel" onPress={onDone} />
+        <Link label={messages.forms.cancel} onPress={onDone} />
       </View>
     )
   }
@@ -265,7 +303,7 @@ function ChangeAddress({
         name="code"
         render={({ field }) => (
           <Field
-            label="Code"
+            label={messages.forms.code}
             keyboardType="number-pad"
             autoComplete="one-time-code"
             textContentType="oneTimeCode"
@@ -276,8 +314,12 @@ function ChangeAddress({
           />
         )}
       />
-      <Button label="Confirm" disabled={isSubmitting} onPress={codeForm.handleSubmit(confirm)} />
-      <Link label="Cancel" onPress={onDone} />
+      <Button
+        label={messages.profile.contact.confirm}
+        disabled={isSubmitting}
+        onPress={codeForm.handleSubmit(confirm)}
+      />
+      <Link label={messages.forms.cancel} onPress={onDone} />
     </View>
   )
 }

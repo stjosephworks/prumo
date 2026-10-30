@@ -23,7 +23,8 @@ Add a language this way, and in no other:
 3. In every app, copy the base's messages to `src/i18n/messages/<tag>.ts`, export them under the tag's name
    without its hyphen (`frCA` for `fr-CA`), and add them to `MESSAGES`.
 4. Translate every value, keeping its placeholders.
-5. Follow what each app's own area adds: the API's `api/languages.md`, and every client's.
+5. Follow what each app's own area adds: the API's `api/languages.md` (zod's messages), and every client's: a mobile
+   app declares the language in `app.config.ts`.
 
 ## Rationale
 
