@@ -70,6 +70,7 @@ three of its own.
 
 | File | Types | Change |
 |---|---|---|
+| `.context/INDEX.md`, `AGENTS.md`, `.prumo/core/context.md` | every type | New: the project's own rules, in `.context/`, which win over `.prumo/`. An existing project creates `.context/INDEX.md`, copies `core/context.md` from the package's `.prumo-templates/`, and points `AGENTS.md` at both indexes, saying `.context/` wins |
 | `.prumo/config.json` | every type | `languages`, the project's, its base first. A config without it was generated speaking English, with its words in each component |
 | `.prumo/i18n/languages.md` | every type | New, in an area every project receives: the messages, the base, and how a language is added |
 | `src/i18n/locales.ts`, or `packages/i18n` in a workspace | api | New. `LOCALES`, `LOCALE_INFO`, `negotiateLocale`, `parseAcceptLanguage` and `format`. In a workspace the API imports `@app/i18n`, its TypeScript stripped by Node at runtime |

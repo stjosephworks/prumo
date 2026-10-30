@@ -123,15 +123,30 @@ export async function writeContext(
   await writeIndex(prumo, areas)
   await writeConfig(prumo, answers)
 
+  // The project's own rules start with an empty index; from here on `.context/` is the team's, and the assistant's
+  // that writes in it as `core/context.md` says.
+  await mkdir(join(root, '.context'), { recursive: true })
+  await writeFile(
+    join(root, '.context', 'INDEX.md'),
+    '# Project rules\n\nThe rules this project decided for itself, one line per file. Where one disagrees with `.prumo/`, it wins; `.prumo/core/context.md` says when one is written here.\n',
+  )
+
   await writeFile(
     join(root, 'AGENTS.md'),
-    `# ${answers.name}\n\nThis project's conventions live in \`.prumo/\`. Read [\`.prumo/INDEX.md\`](.prumo/INDEX.md) before changing how something is done.\n`,
+    `# ${answers.name}
+
+This project's rules live in two places. Read both indexes before changing how something is done:
+
+- [\`.context/INDEX.md\`](.context/INDEX.md): the rules this project decided for itself. **They win wherever they disagree with \`.prumo/\`.** [\`.prumo/core/context.md\`](.prumo/core/context.md) says when a new one is written there.
+- [\`.prumo/INDEX.md\`](.prumo/INDEX.md): the conventions Prumo ships.
+`,
   )
   await writeFile(join(root, 'CLAUDE.md'), '@AGENTS.md\n')
 }
 
 // A project that grew: the areas it now calls for and did not have arrive, and an area it had stays as the team left
-// it. The index and the config follow; AGENTS.md is the team's, and is not touched. Returns the areas that arrived.
+// it. The index and the config follow; AGENTS.md and `.context/` are the team's, and are not touched. Returns the
+// areas that arrived.
 export async function growContext(
   knowledge: string,
   root: string,

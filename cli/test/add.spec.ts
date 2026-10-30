@@ -93,12 +93,15 @@ describe('prumo add', () => {
   it('brings the areas a new type needs, and leaves the ones the team holds as they are', async () => {
     const target = await workspace()
     const edited = join(target, '.prumo/core/naming.md')
+    const rules = join(target, '.context/INDEX.md')
     await writeFile(edited, '# Naming\n\nOurs now.\n')
+    await writeFile(rules, '# Project rules\n\n- [billing.md](billing.md): Billing\n')
 
     const added = await add(target, 'mobile')
 
     expect(added.areas).toEqual(['mobile'])
     expect(await read(edited)).toBe('# Naming\n\nOurs now.\n')
+    expect(await read(rules)).toBe('# Project rules\n\n- [billing.md](billing.md): Billing\n')
     expect(await read(join(target, '.prumo/INDEX.md'))).toContain('[mobile/')
     expect((await json(join(target, 'apps/mobile/app.json'))).expo.scheme).toBe('acme')
     expect(await read(join(target, 'AGENTS.md'))).toContain('# acme')

@@ -582,6 +582,12 @@ describe('generate', () => {
     expect(index).toContain('[client/data.md](client/data.md)')
     expect(existsSync(join(target, '.prumo/api'))).toBe(false)
     expect(await readFile(join(target, 'CLAUDE.md'), 'utf8')).toBe('@AGENTS.md\n')
+    // The project's own rules have a place from the start, and the pointer says they win.
+    expect(await readFile(join(target, '.context/INDEX.md'), 'utf8')).toMatch(/^# Project rules\n/)
+    expect(await readFile(join(target, 'AGENTS.md'), 'utf8')).toContain(
+      '**They win wherever they disagree with `.prumo/`.**',
+    )
+    expect(index).toContain('[core/context.md](core/context.md)')
     expect(existsSync(join(target, '.git'))).toBe(true)
     expect(await readFile(join(target, '.git/HEAD'), 'utf8')).toBe('ref: refs/heads/main\n')
     expect(existsSync(join(target, '.githooks/install.mjs'))).toBe(true)
