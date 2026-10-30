@@ -9,6 +9,7 @@ import { useClients } from '@/features/clients/clients'
 import { island } from '@/features/clients/island'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { useLocalePath, useMessages } from '@/i18n/i18n'
 import { navigate } from '@/lib/navigate'
 
 const schema = z.object({
@@ -20,6 +21,8 @@ const schema = z.object({
 type SignUpValues = z.infer<typeof schema>
 
 export function SignUpForm({ auth }: { auth: Pick<AuthClient, 'signUp'> }) {
+  const messages = useMessages()
+  const localePath = useLocalePath()
   const form = useForm<SignUpValues>({
     resolver: zodResolver(schema),
     mode: 'onTouched',
@@ -30,7 +33,7 @@ export function SignUpForm({ auth }: { auth: Pick<AuthClient, 'signUp'> }) {
 
   async function onSubmit(values: SignUpValues) {
     const result = await auth.signUp(values).catch((error: unknown) => {
-      applyServerError(error, ['name', 'email', 'password'], form.setError)
+      applyServerError(error, ['name', 'email', 'password'], form.setError, messages)
       return undefined
     })
 
@@ -40,14 +43,14 @@ export function SignUpForm({ auth }: { auth: Pick<AuthClient, 'signUp'> }) {
 
     // prumo:email
     if (result.verificationRequired) {
-      navigate.to(`/verify-email?${new URLSearchParams({ email: values.email })}`)
+      navigate.to(`${localePath('/verify-email')}?${new URLSearchParams({ email: values.email })}`)
       return
     }
 
     // prumo:end-email
 
     // The next page is a new page load, with a cache of its own that asks for the session afresh.
-    navigate.to('/account')
+    navigate.to(localePath('/account'))
   }
 
   return (
@@ -55,17 +58,17 @@ export function SignUpForm({ auth }: { auth: Pick<AuthClient, 'signUp'> }) {
       <FormError errors={errors} />
       <FieldGroup>
         <Field data-invalid={errors.name !== undefined}>
-          <FieldLabel htmlFor="name">Name</FieldLabel>
+          <FieldLabel htmlFor="name">{messages.auth.signUp.name}</FieldLabel>
           <Input id="name" autoComplete="name" {...form.register('name')} />
           <FieldError errors={[errors.name]} />
         </Field>
         <Field data-invalid={errors.email !== undefined}>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <FieldLabel htmlFor="email">{messages.auth.email}</FieldLabel>
           <Input id="email" type="email" autoComplete="email" {...form.register('email')} />
           <FieldError errors={[errors.email]} />
         </Field>
         <Field data-invalid={errors.password !== undefined}>
-          <FieldLabel htmlFor="password">Password</FieldLabel>
+          <FieldLabel htmlFor="password">{messages.auth.signIn.password}</FieldLabel>
           <Input
             id="password"
             type="password"
@@ -76,10 +79,11 @@ export function SignUpForm({ auth }: { auth: Pick<AuthClient, 'signUp'> }) {
         </Field>
       </FieldGroup>
       <Button type="submit" disabled={isSubmitting}>
-        Create account
+        {messages.auth.signUp.submit}
       </Button>
       <p className="text-sm text-muted-foreground">
-        Already registered? <a href="/sign-in">Sign in</a>
+        {messages.auth.signUp.registered}{' '}
+        <a href={localePath('/sign-in')}>{messages.auth.signUp.signIn}</a>
       </p>
     </form>
   )

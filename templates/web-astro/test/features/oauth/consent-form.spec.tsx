@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
+import { messages } from '@test/support/messages'
 import { createTestQueryClient } from '@test/support/query-client'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -48,11 +49,11 @@ describe('ConsentForm', () => {
 
     expect(await screen.findByText('Claude')).toBeInTheDocument()
     expect(screen.getByText(/claude\.example\.com\)/)).toBeInTheDocument()
-    expect(screen.getByRole('list', { name: 'What it will be able to do' })).toHaveTextContent(
+    expect(screen.getByRole('list', { name: messages.consent.abilities })).toHaveTextContent(
       'Read your profile',
     )
 
-    await visitor.click(screen.getByRole('button', { name: 'Allow' }))
+    await visitor.click(screen.getByRole('button', { name: messages.consent.allow }))
 
     expect(decision).toEqual({ accept: true })
     expect(leave).toHaveBeenCalledWith('https://claude.example.com/callback?code=c')
@@ -64,7 +65,7 @@ describe('ConsentForm', () => {
         json(200, { ...view, redirectHost: 'localhost:33418', redirectsToThisDevice: true }),
     })
 
-    expect(await screen.findByRole('note')).toHaveTextContent('a program on this device')
+    expect(await screen.findByRole('note')).toHaveTextContent(messages.consent.device)
   })
 
   it('says so when the request has expired', async () => {
@@ -73,6 +74,6 @@ describe('ConsentForm', () => {
         json(404, { title: 'Not Found', status: 404 }, 'application/problem+json'),
     })
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('expired')
+    expect(await screen.findByRole('alert')).toHaveTextContent(messages.consent.expired)
   })
 })

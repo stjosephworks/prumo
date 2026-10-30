@@ -1,0 +1,23 @@
+---
+import { BASE_LOCALE, segmentOf } from '@/i18n/locales'
+
+// An address without a language, as `/` and the API's links back. The pages are built ahead of time, so the browser
+// sends it to the same address in the visitor's language (choice.ts); without a script, a link to the base's home.
+---
+
+<html lang={BASE_LOCALE}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>…</title>
+    <script>
+      import { sendToLanguage } from '@/i18n/choice'
+
+      sendToLanguage()
+    </script>
+  </head>
+  <body>
+    <noscript><a href={`/${segmentOf(BASE_LOCALE)}/`}>{`/${segmentOf(BASE_LOCALE)}/`}</a></noscript>
+  </body>
+</html>

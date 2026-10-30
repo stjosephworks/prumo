@@ -114,6 +114,27 @@ describe('a generated project', () => {
     }
   })
 
+  it('leaves no app of a workspace importing the list from a copy of its own, an Astro page neither', async () => {
+    const target = await project({
+      types: ['api', 'web', 'mobile'],
+      apps: [
+        { name: 'api', type: 'api' },
+        { name: 'web', type: 'web', framework: 'vite' },
+        { name: 'site', type: 'web', framework: 'next' },
+        { name: 'press', type: 'web', framework: 'astro' },
+        { name: 'mobile', type: 'mobile' },
+      ],
+      architecture: 'monorepo',
+      languages: ['pt-BR', 'en'],
+    })
+
+    for (const file of await files(target)) {
+      if (/\.(tsx?|astro)$/.test(file)) {
+        expect(await readFile(file, 'utf8'), file).not.toContain("'@/i18n/locales'")
+      }
+    }
+  })
+
   it('moves the languages of a workspace into the package every app imports them from', async () => {
     const target = await project({
       types: ['api', 'web'],

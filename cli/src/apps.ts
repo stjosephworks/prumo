@@ -163,11 +163,12 @@ export const RESERVED_APP_NAMES = [...ROOT_SCRIPTS, ...PNPM_COMMANDS]
 
 // Where an app keeps its port and the first one it takes; a second app of the same template takes the next. Every web
 // app keeps it under one key, each framework starting from its own default.
-export const PORTS: Record<Template, { key: string; from: number }> = {
+// The setting each template's port is written to, and where a web app that names its own address writes it too.
+export const PORTS: Record<Template, { key: string; from: number; site?: string }> = {
   api: { key: 'PORT', from: 3000 },
   'web-vite': { key: 'WEB_PORT', from: 5173 },
-  'web-next': { key: 'WEB_PORT', from: 3200 },
-  'web-astro': { key: 'WEB_PORT', from: 4321 },
+  'web-next': { key: 'WEB_PORT', from: 3200, site: 'NEXT_PUBLIC_SITE_URL' },
+  'web-astro': { key: 'WEB_PORT', from: 4321, site: 'PUBLIC_SITE_URL' },
   mobile: { key: 'METRO_PORT', from: 8081 },
 }
 

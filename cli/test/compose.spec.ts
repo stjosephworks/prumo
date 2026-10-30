@@ -211,6 +211,10 @@ describe('composeWorkspace with apps named on purpose', () => {
     expect(await read('apps/backoffice/.env.example')).toMatch(/^WEB_PORT=5174$/m)
     expect(await read('apps/site/.env.example')).toMatch(/^WEB_PORT=3200$/m)
     expect(await read('apps/blog/.env.example')).toMatch(/^WEB_PORT=3201$/m)
+    // The address it names in its hreflang links is its own, at the port it took.
+    expect(await read('apps/blog/.env.example')).toMatch(
+      /^NEXT_PUBLIC_SITE_URL=http:\/\/localhost:3201$/m,
+    )
     expect((await manifest('apps/blog/package.json')).scripts.start).toBe('next start --port 3201')
     expect((await manifest('apps/site/package.json')).scripts.start).toBe('next start --port 3200')
     expect(await read('apps/server/.env.example')).toMatch(
