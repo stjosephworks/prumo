@@ -4,6 +4,7 @@ import { PHONE_NUMBERS, type PhoneNumbers } from '@/domain/auth/ports/phone-numb
 import { USER_REPOSITORY, type UserRepository } from '@/domain/auth/repositories/user.repository'
 import { IssueCodeUseCase } from '@/domain/auth/use-cases/issue-code.use-case'
 import { RequireRecentSignInUseCase } from '@/domain/auth/use-cases/require-recent-sign-in.use-case'
+import type { Locale } from '@/i18n/locales'
 
 @injectable()
 export class RequestPhoneChangeUseCase {
@@ -15,7 +16,7 @@ export class RequestPhoneChangeUseCase {
   ) {}
 
   // Only a number nobody has gets the code, and the answer is the same either way.
-  async execute(userId: string, sessionId: string, phone: string): Promise<void> {
+  async execute(userId: string, sessionId: string, phone: string, locale: Locale): Promise<void> {
     await this.requireRecentSignIn.execute(sessionId)
 
     const read = this.phones.read(phone)
@@ -29,6 +30,7 @@ export class RequestPhoneChangeUseCase {
     await this.issueCode.execute({ channel: 'phone', destination: read.e164 }, 'change-phone', {
       deliver: !taken,
       userId,
+      locale,
     })
   }
 }

@@ -1,4 +1,5 @@
 import { fakeTransport, json } from '@test/support/fake-transport'
+import { messages } from '@test/support/messages'
 import { renderApp } from '@test/support/render-app'
 import { withPassword } from '@test/support/with-password'
 import { screen, within } from '@testing-library/react'
@@ -22,11 +23,11 @@ describe('SignInForm', () => {
     )
 
     await withPassword(user)
-    await user.type(await screen.findByLabelText('Email'), 'ana@example.com')
-    await user.type(screen.getByLabelText('Password'), 'wrong-password')
-    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+    await user.type(await screen.findByLabelText(messages.auth.email), 'ana@example.com')
+    await user.type(screen.getByLabelText(messages.auth.signIn.password), 'wrong-password')
+    await user.click(screen.getByRole('button', { name: messages.auth.signIn.submit }))
 
-    const form = screen.getByRole('button', { name: 'Sign in' }).closest('form')
+    const form = screen.getByRole('button', { name: messages.auth.signIn.submit }).closest('form')
 
     expect(form).not.toBeNull()
     expect(

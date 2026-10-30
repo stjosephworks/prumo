@@ -10,6 +10,9 @@ import { Field } from '@/components/ui/field'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
 import { useCooldown } from '@/features/forms/use-cooldown'
+import { useMessages } from '@/i18n/i18n'
+import { format } from '@/i18n/locales'
+import type { Messages } from '@/i18n/messages'
 
 type Channel = 'email' | 'phone'
 
@@ -28,15 +31,15 @@ type Address = {
   switchTo: string
 }
 
-function addressOf(channel: Channel): Address {
+function addressOf(channel: Channel, messages: Messages): Address {
   // prumo:email-code
   if (channel === 'email') {
     return {
-      label: 'Email',
+      label: messages.auth.email,
       keyboardType: 'email-address',
       autoComplete: 'email',
       schema: z.email(),
-      switchTo: 'Use email instead',
+      switchTo: messages.auth.code.useEmail,
     }
   }
 
@@ -44,12 +47,12 @@ function addressOf(channel: Channel): Address {
   // prumo:phone-code
   if (channel === 'phone') {
     return {
-      label: 'Phone number',
+      label: messages.auth.code.phone,
       keyboardType: 'phone-pad',
       autoComplete: 'tel',
-      schema: z.string().trim().min(1, 'Enter your mobile number'),
+      schema: z.string().trim().min(1, messages.auth.code.phoneRequired),
       hint: 'A mobile number, with its country code, as +1 415 555 2671.',
-      switchTo: 'Use a phone number instead',
+      switchTo: messages.auth.code.usePhone,
     }
   }
 
@@ -89,9 +92,27 @@ function signIn(auth: AuthClient, channel: Channel, to: string, code: string): P
   throw new Error(`No sign-in code goes by ${channel}`)
 }
 
-const codeSchema = z.object({ code: z.string().regex(/^\d{6}$/, 'Enter the 6 digits we sent') })
+// The link back to the first step, worded for the channel the code went by.
+function anotherAddress(channel: Channel, messages: Messages): string {
+  // prumo:email-code
+  if (channel === 'email') {
+    return messages.auth.code.anotherEmail
+  }
 
-type CodeValues = z.infer<typeof codeSchema>
+  // prumo:end-email-code
+  // prumo:phone-code
+  if (channel === 'phone') {
+    return messages.auth.code.anotherNumber
+  }
+
+  // prumo:end-phone-code
+  throw new Error(`No sign-in code goes by ${channel}`)
+}
+
+const codeSchemaOf = (messages: Messages) =>
+  z.object({ code: z.string().regex(/^\d{6}$/, messages.forms.sixDigits) })
+
+type CodeValues = z.infer<ReturnType<typeof codeSchemaOf>>
 
 type Sent = { channel: Channel; to: string }
 
@@ -105,6 +126,7 @@ function Link({ label, onPress }: { label: string; onPress: () => void }) {
 
 // Two steps on one screen: the address, then the code sent to it. Entering it signs in, or creates the account.
 export function CodeSignInForm({ auth, onSignedIn }: { auth: AuthClient; onSignedIn: () => void }) {
+  const messages = useMessages()
   const [channel, setChannel] = useState<Channel>(CHANNELS[0] ?? 'email')
   const [sent, setSent] = useState<Sent>()
   const [wait, startWait] = useCooldown()
@@ -144,12 +166,12 @@ export function CodeSignInForm({ auth, onSignedIn }: { auth: AuthClient; onSigne
     <View className="gap-6">
       <AddressStep
         key={channel}
-        address={addressOf(channel)}
+        address={addressOf(channel, messages)}
         send={(to) => send(to, channel)}
         onSent={(to) => setSent({ channel, to })}
       />
       {other === undefined ? null : (
-        <Link label={addressOf(other).switchTo} onPress={() => setChannel(other)} />
+        <Link label={addressOf(other, messages).switchTo} onPress={() => setChannel(other)} />
       )}
     </View>
   )
@@ -164,6 +186,7 @@ function AddressStep({
   send: (to: string) => Promise<boolean>
   onSent: (to: string) => void
 }) {
+  const messages = useMessages()
   const form = useForm<{ to: string }>({
     resolver: zodResolver(z.object({ to: address.schema })),
     mode: 'onTouched',
@@ -175,7 +198,7 @@ function AddressStep({
     try {
       await send(to)
     } catch (error) {
-      applyServerError(error, ['to'], form.setError)
+      applyServerError(error, ['to'], form.setError, messages)
       return
     }
 
@@ -205,11 +228,11 @@ function AddressStep({
         <Text className="text-sm text-neutral-500">{address.hint}</Text>
       )}
       <Button
-        label="Send me a code"
+        label={messages.auth.code.send}
         disabled={isSubmitting}
         onPress={form.handleSubmit(onSubmit)}
       />
-      <Text className="text-sm text-neutral-500">No account yet? The code creates one.</Text>
+      <Text className="text-sm text-neutral-500">{messages.auth.code.createsAccount}</Text>
     </View>
   )
 }
@@ -229,10 +252,11 @@ function CodeStep({
   onSignedIn: () => void
   onChangeAddress: () => void
 }) {
+  const messages = useMessages()
   const queryClient = useQueryClient()
   const [resent, setResent] = useState(false)
   const form = useForm<CodeValues>({
-    resolver: zodResolver(codeSchema),
+    resolver: zodResolver(codeSchemaOf(messages)),
     mode: 'onTouched',
     defaultValues: { code: '' },
   })
@@ -242,7 +266,7 @@ function CodeStep({
     try {
       await signIn(auth, sent.channel, sent.to, values.code)
     } catch (error) {
-      applyServerError(error, ['code'], form.setError)
+      applyServerError(error, ['code'], form.setError, messages)
       return
     }
 
@@ -256,14 +280,16 @@ function CodeStep({
 
   return (
     <View className="gap-6">
-      <Text className="text-sm text-neutral-500">We sent a 6-digit code to {sent.to}.</Text>
+      <Text className="text-sm text-neutral-500">
+        {format(messages.auth.code.sentTo, { to: sent.to })}
+      </Text>
       <FormError errors={errors} />
       <Controller
         control={form.control}
         name="code"
         render={({ field }) => (
           <Field
-            label="Code"
+            label={messages.forms.code}
             keyboardType="number-pad"
             autoComplete="one-time-code"
             textContentType="oneTimeCode"
@@ -274,22 +300,27 @@ function CodeStep({
           />
         )}
       />
-      <Button label="Sign in" disabled={isSubmitting} onPress={form.handleSubmit(onSubmit)} />
       <Button
-        label={wait > 0 ? `Send a new code in ${wait}s` : 'Send a new code'}
+        label={messages.auth.signIn.submit}
+        disabled={isSubmitting}
+        onPress={form.handleSubmit(onSubmit)}
+      />
+      <Button
+        label={
+          wait > 0
+            ? format(messages.forms.sendNewCodeIn, { seconds: wait })
+            : messages.forms.sendNewCode
+        }
         variant="outline"
         disabled={wait > 0}
         onPress={sendAgain}
       />
       {resent ? (
         <Text accessibilityRole="text" className="text-sm text-neutral-500">
-          A new code is on its way. The previous one no longer works.
+          {messages.forms.newCodeSent}
         </Text>
       ) : null}
-      <Link
-        label={sent.channel === 'phone' ? 'Use another number' : 'Use another email'}
-        onPress={onChangeAddress}
-      />
+      <Link label={anotherAddress(sent.channel, messages)} onPress={onChangeAddress} />
     </View>
   )
 }

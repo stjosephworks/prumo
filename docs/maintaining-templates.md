@@ -59,6 +59,28 @@ node cli/scripts/verify-dev.mjs ./scratch
 other four, and `cli/test/ports.spec.ts` runs against them. So do `.githooks/pre-commit`, `.github/workflows/flow.yml`
 and `.github/rulesets/`, and `cli/test/compose.spec.ts` fails when a copy drifts.
 
+## One language or several
+
+Every template is written for several languages: each word a person reads comes from `src/i18n/messages/`. A project
+of one language is written from the same template by `cli/src/inline.ts`, which writes the project's language's
+messages where they are read and takes the languages' machinery out. So a template reads its words only in the forms
+the inliner knows, and marks the rest:
+
+- A message is read whole, from `messages`, `useMessages()`, `messagesFor(…)` or `(await messagesOfPage(params))`,
+  by its keys: `messages.auth.signIn.title`, or `messages.scopes['profile:read']` for a key written out. One read by a
+  key computed at runtime cannot be written in place.
+- A value fills a placeholder through `format(messages.x, { code })`, and an element one through
+  `rich(messages.x, { to: <strong>{to}</strong> })` between tags.
+- A function that only needed the messages takes them last, `(…, messages: Messages)`, and one built from them alone
+  is `const nameOf = (messages: Messages) =>`, used as `nameOf(messages)`.
+- What a project of one language does not have is marked `// prumo:multi-language`, a line or a block, as a feature
+  is. What it has instead is written commented out in a `// prumo:single-language` block, `// line` in code and
+  `{/* line */}` between tags, so the template still compiles; such a project receives it uncommented.
+
+A file left reaching the messages, `src/i18n/` or a language passed along fails generation, naming the file and the
+line. Prove a change in both modes: generate with `--single-language` in each of the three languages and with
+`--multi-language`, as CI does.
+
 ## Regenerating `templates/mobile`
 
 Expo's `create-expo-app` writes `AGENTS.md`, `CLAUDE.md` and `.claude/settings.json` from the

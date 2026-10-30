@@ -4,8 +4,5 @@ import { DomainError } from '@/domain/shared/errors/domain-error'
 // signing out.
 export class SupersededTokenError extends DomainError {
   readonly kind = 'conflict'
-
-  constructor() {
-    super('Refresh token was just rotated; retry with the current one')
-  }
+  override readonly text = 'supersededToken'
 }

@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { AuthClient } from '@/api-contract'
 import { Button } from '@/components/ui/button'
 import { clearUserData } from '@/features/storage/storage'
+import { useMessages } from '@/i18n/i18n'
 
 export type SignOutAuth = Pick<AuthClient, 'signOut'>
 
@@ -12,6 +13,7 @@ export function SignOutButton({
   auth: SignOutAuth
   onSignedOut: () => void
 }) {
+  const messages = useMessages()
   const queryClient = useQueryClient()
 
   async function signOut() {
@@ -29,5 +31,5 @@ export function SignOutButton({
     onSignedOut()
   }
 
-  return <Button label="Sign out" variant="outline" onPress={signOut} />
+  return <Button label={messages.auth.signOut} variant="outline" onPress={signOut} />
 }

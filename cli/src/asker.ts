@@ -15,6 +15,7 @@ import {
   SOCIAL_PROVIDERS,
   type SocialProvider,
 } from './features.ts'
+import { LANGUAGE_NAMES, LANGUAGES, type Language } from './languages.ts'
 
 export type Asker = {
   name: () => Promise<string>
@@ -23,6 +24,9 @@ export type Asker = {
   apps: (defaults: App[], project: string) => Promise<App[]>
   framework: (app: string) => Promise<WebFramework>
   multiTenant: () => Promise<boolean>
+  multiLanguage: () => Promise<boolean>
+  language: () => Promise<Language>
+  languages: () => Promise<Language[]>
   mcp: () => Promise<boolean>
   signIn: () => Promise<SignInMethod[]>
   email: () => Promise<boolean>
@@ -152,6 +156,58 @@ export function terminalAsker(validateName: (name: string) => string | undefined
       ),
     multiTenant: async () =>
       answered(await prompt.confirm({ message: 'Is it multi-tenant?', initialValue: false })),
+    multiLanguage: async () =>
+      answered(
+        await prompt.select<boolean>({
+          message: 'One language, or several?',
+          options: [
+            { value: false, label: 'One', hint: 'its words written where they are shown' },
+            {
+              value: true,
+              label: 'Several',
+              hint: 'its words in messages, one file per language, a base the others follow',
+            },
+          ],
+          initialValue: false,
+        }),
+      ),
+    language: async () =>
+      answered(
+        await prompt.select<Language>({
+          message: 'Language',
+          options: LANGUAGES.map((language) => ({
+            value: language,
+            label: LANGUAGE_NAMES[language],
+          })),
+          initialValue: 'en',
+        }),
+      ),
+    languages: async () => {
+      const base = answered(
+        await prompt.select<Language>({
+          message:
+            'Base language: what every other one is checked against, and spoken when none fits',
+          options: LANGUAGES.map((language) => ({
+            value: language,
+            label: LANGUAGE_NAMES[language],
+          })),
+          initialValue: 'en',
+        }),
+      )
+      const others = answered(
+        await prompt.multiselect<Language>({
+          message:
+            'Other languages from the start? Leave all unselected for none; more can be added later',
+          options: LANGUAGES.filter((language) => language !== base).map((language) => ({
+            value: language,
+            label: LANGUAGE_NAMES[language],
+          })),
+          required: false,
+        }),
+      )
+
+      return [base, ...others]
+    },
     mcp: async () =>
       answered(
         await prompt.confirm({

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { ApiError, type AuthClient, sessionQuery } from '@/api-contract'
@@ -11,10 +11,14 @@ import { Input } from '@/components/ui/input'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
 import { useCooldown } from '@/features/forms/use-cooldown'
+import { rich, useMessages } from '@/i18n/i18n'
+import { format } from '@/i18n/locales'
+import type { Messages } from '@/i18n/messages'
 
-const schema = z.object({ code: z.string().regex(/^\d{6}$/, 'Enter the 6 digits from the email') })
+const schemaOf = (messages: Messages) =>
+  z.object({ code: z.string().regex(/^\d{6}$/, messages.auth.verifyEmail.sixDigits) })
 
-type VerifyEmailValues = z.infer<typeof schema>
+type VerifyEmailValues = z.infer<ReturnType<typeof schemaOf>>
 
 export function VerifyEmailForm({
   auth,
@@ -23,10 +27,12 @@ export function VerifyEmailForm({
   auth: Pick<AuthClient, 'verifyEmail' | 'requestEmailVerification' | 'getSession'>
   email: string
 }) {
+  const messages = useMessages()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [resent, setResent] = useState(false)
   const [wait, startWait] = useCooldown()
+  const schema = useMemo(() => schemaOf(messages), [messages])
   const form = useForm<VerifyEmailValues>({
     resolver: zodResolver(schema),
     mode: 'onTouched',
@@ -38,7 +44,7 @@ export function VerifyEmailForm({
     try {
       await auth.verifyEmail({ email, code: values.code })
     } catch (error) {
-      applyServerError(error, ['code'], form.setError)
+      applyServerError(error, ['code'], form.setError, messages)
       return
     }
 
@@ -67,12 +73,12 @@ export function VerifyEmailForm({
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6">
       <p className="text-sm text-muted-foreground">
-        We sent a 6-digit code to <strong>{email}</strong>.
+        {rich(messages.auth.verifyEmail.sentTo, { email: <strong>{email}</strong> })}
       </p>
       <FormError errors={errors} />
       <FieldGroup>
         <Field data-invalid={errors.code !== undefined}>
-          <FieldLabel htmlFor="code">Code</FieldLabel>
+          <FieldLabel htmlFor="code">{messages.forms.code}</FieldLabel>
           <Input
             id="code"
             inputMode="numeric"
@@ -83,14 +89,16 @@ export function VerifyEmailForm({
         </Field>
       </FieldGroup>
       <Button type="submit" disabled={isSubmitting}>
-        Confirm email
+        {messages.auth.verifyEmail.submit}
       </Button>
       <Button type="button" variant="outline" onClick={resend} disabled={wait > 0}>
-        {wait > 0 ? `Send a new code in ${wait}s` : 'Send a new code'}
+        {wait > 0
+          ? format(messages.forms.sendNewCodeIn, { seconds: wait })
+          : messages.forms.sendNewCode}
       </Button>
       {resent && (
         <p role="status" className="text-sm text-muted-foreground">
-          A new code is on its way. The previous one no longer works.
+          {messages.forms.newCodeSent}
         </p>
       )}
     </form>

@@ -1,23 +1,48 @@
 ---
 import '@/styles/global.css'
+import { config } from '@/config'
+import { pathIn } from '@/i18n/choice'
+import { LOCALE_INFO, LOCALES, type Locale } from '@/i18n/locales'
 
 type Props = {
   title: string
   // What a search result shows under the title; a page left out of search needs none.
   description?: string
   index?: boolean
+  locale: Locale
 }
 
-const { title, description, index = true } = Astro.props
+const { title, description, index = true, locale } = Astro.props
 ---
 
-<html lang="en">
+<html lang={locale}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
     {!index && <meta name="robots" content="noindex" />}
+    {/* prumo:multi-language */}
+    {
+      // A page a search engine reads names its address in every language, whole, so each person is shown theirs.
+      index && [
+        <link rel="canonical" href={new URL(pathIn(locale, Astro.url.pathname), config.PUBLIC_SITE_URL)} />,
+        ...LOCALES.map((each) => (
+          <link
+            rel="alternate"
+            hreflang={LOCALE_INFO[each].hreflang}
+            href={new URL(pathIn(each, Astro.url.pathname), config.PUBLIC_SITE_URL)}
+          />
+        )),
+      ]
+    }
+    {/* prumo:end-multi-language */}
+    {/* prumo:single-language */}
+    {/* { */}
+    {/*   // A page a search engine reads names its address, whole. */}
+    {/*   index && <link rel="canonical" href={new URL(Astro.url.pathname, config.PUBLIC_SITE_URL)} /> */}
+    {/* } */}
+    {/* prumo:end-single-language */}
   </head>
   <body>
     <slot />

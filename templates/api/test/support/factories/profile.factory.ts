@@ -1,6 +1,7 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
 import { createUser } from '@test/support/factories/user.factory'
-import { type Locale, Profile } from '@/domain/users/entities/profile.entity'
+import { Profile } from '@/domain/users/entities/profile.entity'
+import { BASE_LOCALE, type Locale } from '@/i18n/locales'
 
 type ProfileOverrides = Partial<{
   userId: string
@@ -18,7 +19,7 @@ export async function createProfile(
     overrides.displayName ?? 'Test Person',
   )
 
-  profile.update({ locale: overrides.locale ?? 'en', timezone: overrides.timezone ?? 'UTC' })
+  profile.update({ locale: overrides.locale ?? BASE_LOCALE, timezone: overrides.timezone ?? 'UTC' })
   await em.persist(profile).flush()
 
   return profile

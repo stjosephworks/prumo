@@ -5,6 +5,7 @@ import { SignOutButton } from '@/features/auth/sign-out-button'
 import { ContactForm } from '@/features/profile/contact-form' // prumo:contact
 import { DeleteAccount } from '@/features/profile/delete-account'
 import { ProfileForm } from '@/features/profile/profile-form'
+import { useMessages } from '@/i18n/i18n'
 
 export const Route = createFileRoute('/_authenticated/')({
   loader: ({ context }) => context.queryClient.ensureQueryData(profileQuery(context.api)),
@@ -12,12 +13,13 @@ export const Route = createFileRoute('/_authenticated/')({
 })
 
 function ProfilePage() {
+  const messages = useMessages()
   const { api, auth } = Route.useRouteContext()
   const { data: profile } = useSuspenseQuery(profileQuery(api))
 
   return (
     <>
-      <h1 className="text-2xl font-semibold">Your profile</h1>
+      <h1 className="text-2xl font-semibold">{messages.profile.title}</h1>
       <ProfileForm api={api} profile={profile} />
       {/* prumo:contact */}
       <ContactForm api={api} auth={auth} />

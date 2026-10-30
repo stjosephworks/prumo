@@ -1,10 +1,12 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
 import { memoryTokenStore } from '@test/support/memory-token-store'
+import { messages } from '@test/support/messages'
 import { createTestQueryClient } from '@test/support/query-client'
 import { render, screen, userEvent } from '@testing-library/react-native'
 import { createAuthClient, createClient } from '@/api-contract'
 import { ContactForm } from '@/features/profile/contact-form'
+import { format } from '@/i18n/locales'
 
 // MMKV is native; signing out clears what it holds, which a test only needs to see asked for.
 jest.mock('@/features/storage/storage', () => ({ clearUserData: jest.fn() }))
@@ -54,13 +56,22 @@ describe('ContactForm', () => {
       },
     }))
 
-    await visitor.press(await screen.findByRole('button', { name: 'Change your email' }))
-    await visitor.type(screen.getByLabelText('New email'), 'new@example.com')
-    await visitor.press(screen.getByRole('button', { name: 'Send a code there' }))
-    await visitor.type(await screen.findByLabelText('Code'), '123456')
-    await visitor.press(screen.getByRole('button', { name: 'Confirm' }))
+    await visitor.press(
+      await screen.findByRole('button', { name: messages.profile.contact.changeEmail }),
+    )
+    await visitor.type(screen.getByLabelText(messages.profile.contact.newEmail), 'new@example.com')
+    await visitor.press(screen.getByRole('button', { name: messages.profile.contact.send }))
+    await visitor.type(await screen.findByLabelText(messages.forms.code), '123456')
+    await visitor.press(screen.getByRole('button', { name: messages.profile.contact.confirm }))
 
-    expect(await screen.findByText('Email: new@example.com')).toBeOnTheScreen()
+    expect(
+      await screen.findByText(
+        format(messages.profile.contact.current, {
+          channel: messages.profile.contact.email,
+          address: 'new@example.com',
+        }),
+      ),
+    ).toBeOnTheScreen()
   })
 
   it('signs out to sign in again when the last sign-in is too old', async () => {
@@ -75,10 +86,12 @@ describe('ContactForm', () => {
       'POST /api/auth/sign-out': () => empty(204),
     }))
 
-    await visitor.press(await screen.findByRole('button', { name: 'Change your email' }))
-    await visitor.type(screen.getByLabelText('New email'), 'new@example.com')
-    await visitor.press(screen.getByRole('button', { name: 'Send a code there' }))
-    await visitor.press(await screen.findByRole('button', { name: 'Sign in again' }))
+    await visitor.press(
+      await screen.findByRole('button', { name: messages.profile.contact.changeEmail }),
+    )
+    await visitor.type(screen.getByLabelText(messages.profile.contact.newEmail), 'new@example.com')
+    await visitor.press(screen.getByRole('button', { name: messages.profile.contact.send }))
+    await visitor.press(await screen.findByRole('button', { name: messages.forms.signInAgain }))
 
     expect(onSignedOut).toHaveBeenCalled()
   })
@@ -96,13 +109,22 @@ describe('ContactForm', () => {
       },
     }))
 
-    await visitor.press(await screen.findByRole('button', { name: 'Add a phone number' }))
-    await visitor.type(screen.getByLabelText('New phone number'), '+1 415 555 2671')
-    await visitor.press(screen.getByRole('button', { name: 'Send a code there' }))
-    await visitor.type(await screen.findByLabelText('Code'), '123456')
-    await visitor.press(screen.getByRole('button', { name: 'Confirm' }))
+    await visitor.press(
+      await screen.findByRole('button', { name: messages.profile.contact.addPhone }),
+    )
+    await visitor.type(screen.getByLabelText(messages.profile.contact.newPhone), '+1 415 555 2671')
+    await visitor.press(screen.getByRole('button', { name: messages.profile.contact.send }))
+    await visitor.type(await screen.findByLabelText(messages.forms.code), '123456')
+    await visitor.press(screen.getByRole('button', { name: messages.profile.contact.confirm }))
 
-    expect(await screen.findByText('Phone number: +14155552671')).toBeOnTheScreen()
+    expect(
+      await screen.findByText(
+        format(messages.profile.contact.current, {
+          channel: messages.profile.contact.phone,
+          address: '+14155552671',
+        }),
+      ),
+    ).toBeOnTheScreen()
   })
   // prumo:end-sms
 })

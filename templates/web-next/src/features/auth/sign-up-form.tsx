@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { useClients } from '@/features/clients/clients'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { useLocalePath, useMessages } from '@/i18n/i18n'
 
 const schema = z.object({
   name: z.string().min(1).max(80),
@@ -23,6 +24,8 @@ const schema = z.object({
 type SignUpValues = z.infer<typeof schema>
 
 export function SignUpForm({ auth }: { auth: Pick<AuthClient, 'signUp' | 'getSession'> }) {
+  const messages = useMessages()
+  const localePath = useLocalePath()
   const queryClient = useQueryClient()
   const router = useRouter()
   const form = useForm<SignUpValues>({
@@ -35,7 +38,7 @@ export function SignUpForm({ auth }: { auth: Pick<AuthClient, 'signUp' | 'getSes
 
   async function onSubmit(values: SignUpValues) {
     const result = await auth.signUp(values).catch((error: unknown) => {
-      applyServerError(error, ['name', 'email', 'password'], form.setError)
+      applyServerError(error, ['name', 'email', 'password'], form.setError, messages)
       return undefined
     })
 
@@ -45,7 +48,7 @@ export function SignUpForm({ auth }: { auth: Pick<AuthClient, 'signUp' | 'getSes
 
     // prumo:email
     if (result.verificationRequired) {
-      router.push(`/verify-email?${new URLSearchParams({ email: values.email })}`)
+      router.push(`${localePath('/verify-email')}?${new URLSearchParams({ email: values.email })}`)
       return
     }
 
@@ -54,7 +57,7 @@ export function SignUpForm({ auth }: { auth: Pick<AuthClient, 'signUp' | 'getSes
     // Invalidating is not enough: nothing observes the session here, and the signed-in area's guard would read the
     // cached null and send the user straight back. Refetching replaces it before the guard reads it.
     await queryClient.refetchQueries({ queryKey: sessionQuery(auth).queryKey })
-    router.push('/account')
+    router.push(localePath('/account'))
   }
 
   return (
@@ -62,17 +65,17 @@ export function SignUpForm({ auth }: { auth: Pick<AuthClient, 'signUp' | 'getSes
       <FormError errors={errors} />
       <FieldGroup>
         <Field data-invalid={errors.name !== undefined}>
-          <FieldLabel htmlFor="name">Name</FieldLabel>
+          <FieldLabel htmlFor="name">{messages.auth.signUp.name}</FieldLabel>
           <Input id="name" autoComplete="name" {...form.register('name')} />
           <FieldError errors={[errors.name]} />
         </Field>
         <Field data-invalid={errors.email !== undefined}>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <FieldLabel htmlFor="email">{messages.auth.email}</FieldLabel>
           <Input id="email" type="email" autoComplete="email" {...form.register('email')} />
           <FieldError errors={[errors.email]} />
         </Field>
         <Field data-invalid={errors.password !== undefined}>
-          <FieldLabel htmlFor="password">Password</FieldLabel>
+          <FieldLabel htmlFor="password">{messages.auth.signIn.password}</FieldLabel>
           <Input
             id="password"
             type="password"
@@ -83,10 +86,11 @@ export function SignUpForm({ auth }: { auth: Pick<AuthClient, 'signUp' | 'getSes
         </Field>
       </FieldGroup>
       <Button type="submit" disabled={isSubmitting}>
-        Create account
+        {messages.auth.signUp.submit}
       </Button>
       <p className="text-sm text-muted-foreground">
-        Already registered? <Link href="/sign-in">Sign in</Link>
+        {messages.auth.signUp.registered}{' '}
+        <Link href={localePath('/sign-in')}>{messages.auth.signUp.signIn}</Link>
       </p>
     </form>
   )

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import {
@@ -20,6 +20,8 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 import { Input } from '@/components/ui/input'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { rich, useMessages } from '@/i18n/i18n'
+import type { Messages } from '@/i18n/messages'
 
 type Channel = 'email' | 'phone'
 
@@ -29,7 +31,36 @@ const CHANNELS: Channel[] = [
   'phone', // prumo:sms
 ]
 
-const NOUN: Record<Channel, string> = { email: 'email', phone: 'phone number' }
+type Words = { label: string; add: string; change: string; newLabel: string }
+
+// How the profile names each address, and what it offers to do with it.
+function wordsOf(channel: Channel, messages: Messages): Words {
+  const words = messages.profile.contact
+
+  // prumo:mail
+  if (channel === 'email') {
+    return {
+      label: words.email,
+      add: words.addEmail,
+      change: words.changeEmail,
+      newLabel: words.newEmail,
+    }
+  }
+
+  // prumo:end-mail
+  // prumo:sms
+  if (channel === 'phone') {
+    return {
+      label: words.phone,
+      add: words.addPhone,
+      change: words.changePhone,
+      newLabel: words.newPhone,
+    }
+  }
+
+  // prumo:end-sms
+  throw new Error(`Nothing changes by ${channel}`)
+}
 
 function currentOf(user: Session['user'], channel: Channel): string | null {
   // prumo:mail
@@ -83,6 +114,7 @@ async function confirmChange(api: ApiClient, channel: Channel, to: string, code:
 
 // How the signed-in person is reached, and so signs in: each address, and a way to change it with a code sent there.
 export function ContactForm({ api, auth }: { api: ApiClient; auth: AuthClient }) {
+  const messages = useMessages()
   const { data: session } = useQuery(sessionQuery(auth))
   const [editing, setEditing] = useState<Channel>()
 
@@ -92,15 +124,18 @@ export function ContactForm({ api, auth }: { api: ApiClient; auth: AuthClient })
 
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold">How you sign in</h2>
+      <h2 className="text-lg font-semibold">{messages.profile.contact.title}</h2>
       {CHANNELS.map((channel) => {
         const current = currentOf(session.user, channel)
+        const words = wordsOf(channel, messages)
 
         return (
           <div key={channel} className="flex flex-col gap-3">
             <p className="text-sm">
-              {NOUN[channel][0]?.toUpperCase()}
-              {NOUN[channel].slice(1)}: <strong>{current ?? 'none yet'}</strong>
+              {rich(messages.profile.contact.current, {
+                channel: words.label,
+                address: <strong>{current ?? messages.profile.contact.none}</strong>,
+              })}
             </p>
             {editing === channel ? (
               <ChangeAddress
@@ -111,7 +146,7 @@ export function ContactForm({ api, auth }: { api: ApiClient; auth: AuthClient })
               />
             ) : (
               <Button type="button" variant="outline" onClick={() => setEditing(channel)}>
-                {current === null ? `Add a ${NOUN[channel]}` : `Change your ${NOUN[channel]}`}
+                {current === null ? words.add : words.change}
               </Button>
             )}
           </div>
@@ -121,7 +156,8 @@ export function ContactForm({ api, auth }: { api: ApiClient; auth: AuthClient })
   )
 }
 
-const codeSchema = z.object({ code: z.string().regex(/^\d{6}$/, 'Enter the 6 digits we sent') })
+const codeSchemaOf = (messages: Messages) =>
+  z.object({ code: z.string().regex(/^\d{6}$/, messages.forms.sixDigits) })
 
 function ChangeAddress({
   api,
@@ -134,8 +170,10 @@ function ChangeAddress({
   channel: Channel
   onDone: () => void
 }) {
+  const messages = useMessages()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const codeSchema = useMemo(() => codeSchemaOf(messages), [messages])
   const [to, setTo] = useState<string>()
   const [stale, setStale] = useState(false)
   const addressForm = useForm<{ to: string }>({
@@ -165,7 +203,7 @@ function ChangeAddress({
         return
       }
 
-      applyServerError(error, ['to'], addressForm.setError)
+      applyServerError(error, ['to'], addressForm.setError, messages)
       return
     }
 
@@ -180,7 +218,7 @@ function ChangeAddress({
     try {
       await confirmChange(api, channel, to, code)
     } catch (error) {
-      applyServerError(error, ['code'], codeForm.setError)
+      applyServerError(error, ['code'], codeForm.setError, messages)
       return
     }
 
@@ -192,10 +230,10 @@ function ChangeAddress({
     return (
       <div className="flex flex-col gap-3">
         <p role="status" className="text-sm text-muted-foreground">
-          To change how you sign in, sign in again first.
+          {messages.profile.contact.stale}
         </p>
         <Button type="button" onClick={signInAgain}>
-          Sign in again
+          {messages.forms.signInAgain}
         </Button>
       </div>
     )
@@ -213,7 +251,9 @@ function ChangeAddress({
         <FormError errors={errors} />
         <FieldGroup>
           <Field data-invalid={errors.to !== undefined}>
-            <FieldLabel htmlFor={`new-${channel}`}>New {NOUN[channel]}</FieldLabel>
+            <FieldLabel htmlFor={`new-${channel}`}>
+              {wordsOf(channel, messages).newLabel}
+            </FieldLabel>
             <Input
               id={`new-${channel}`}
               type={channel === 'email' ? 'email' : 'tel'}
@@ -224,10 +264,10 @@ function ChangeAddress({
           </Field>
         </FieldGroup>
         <Button type="submit" disabled={isSubmitting}>
-          Send a code there
+          {messages.profile.contact.send}
         </Button>
         <Button type="button" variant="link" onClick={onDone}>
-          Cancel
+          {messages.forms.cancel}
         </Button>
       </form>
     )
@@ -238,12 +278,12 @@ function ChangeAddress({
   return (
     <form onSubmit={codeForm.handleSubmit(confirm)} noValidate className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        If <strong>{to}</strong> is free, a 6-digit code is on its way there.
+        {rich(messages.profile.contact.sentTo, { to: <strong>{to}</strong> })}
       </p>
       <FormError errors={errors} />
       <FieldGroup>
         <Field data-invalid={errors.code !== undefined}>
-          <FieldLabel htmlFor={`code-${channel}`}>Code</FieldLabel>
+          <FieldLabel htmlFor={`code-${channel}`}>{messages.forms.code}</FieldLabel>
           <Input
             id={`code-${channel}`}
             inputMode="numeric"
@@ -254,10 +294,10 @@ function ChangeAddress({
         </Field>
       </FieldGroup>
       <Button type="submit" disabled={isSubmitting}>
-        Confirm
+        {messages.profile.contact.confirm}
       </Button>
       <Button type="button" variant="link" onClick={onDone}>
-        Cancel
+        {messages.forms.cancel}
       </Button>
     </form>
   )

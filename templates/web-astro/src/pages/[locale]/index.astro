@@ -1,0 +1,26 @@
+---
+import { buttonVariants } from '@/components/ui/button'
+import LanguageSwitcher from '@/features/i18n/language-switcher.astro'
+import { type Locale, segmentOf } from '@/i18n/locales'
+import { messagesFor } from '@/i18n/messages'
+import { localePaths } from '@/i18n/pages'
+import Page from '@/layouts/page.astro'
+
+export function getStaticPaths() {
+  return localePaths()
+}
+
+const { locale } = Astro.props as { locale: Locale }
+const messages = messagesFor(locale)
+---
+
+<Page title={messages.home.title} description={messages.home.description} locale={locale}>
+  <main class="mx-auto flex min-h-svh max-w-2xl flex-col justify-center gap-4 p-6">
+    <LanguageSwitcher locale={locale} />
+    <h1 class="text-4xl font-semibold tracking-tight">{messages.home.title}</h1>
+    <p class="text-lg text-muted-foreground">{messages.home.body}</p>
+    <a href={`/${segmentOf(locale)}/account`} class={buttonVariants({ className: 'self-start' })}>
+      {messages.home.signIn}
+    </a>
+  </main>
+</Page>

@@ -17,6 +17,7 @@ import {
   SOCIAL_PROVIDERS,
   type SocialProvider,
 } from './features.ts'
+import { type Language, parseLanguages } from './languages.ts'
 import { projectAt, targetProblem, validateProjectName } from './names.ts'
 import { CliError } from './output.ts'
 
@@ -28,6 +29,9 @@ export type Flags = {
   monorepo: boolean
   multiTenant: boolean
   singleTenant: boolean
+  multiLanguage: boolean
+  singleLanguage: boolean
+  languages: string | undefined
   mcp: boolean
   noMcp: boolean
   signIn: string | undefined
@@ -140,6 +144,10 @@ export async function resolveAnswers(
     throw new CliError('invalid_input', 'Choose --multi-tenant or --single-tenant, not both.')
   }
 
+  if (flags.multiLanguage && flags.singleLanguage) {
+    throw new CliError('invalid_input', 'Choose --multi-language or --single-language, not both.')
+  }
+
   const input: string =
     flags.name ?? (asker === undefined ? missing('the project name') : await asker.name())
   const { name, target } = projectAt(input, cwd)
@@ -230,6 +238,35 @@ export async function resolveAnswers(
     multiTenant = await asker.multiTenant()
   } else {
     missing('--multi-tenant or --single-tenant')
+  }
+
+  // Every project speaks at least one language, whatever its types: the API's mail and errors, each client's screens.
+  // It speaks them from messages, or speaks one, written where it is shown.
+  let multiLanguage: boolean
+
+  if (flags.multiLanguage || flags.singleLanguage) {
+    multiLanguage = flags.multiLanguage
+  } else if (asker !== undefined) {
+    multiLanguage = await asker.multiLanguage()
+  } else {
+    missing('--single-language or --multi-language')
+  }
+
+  let languages: Language[]
+
+  if (flags.languages !== undefined) {
+    languages = parseLanguages(flags.languages)
+  } else if (asker !== undefined) {
+    languages = multiLanguage ? await asker.languages() : [await asker.language()]
+  } else {
+    missing('--languages <list>')
+  }
+
+  if (!multiLanguage && languages.length > 1) {
+    throw new CliError(
+      'invalid_input',
+      `--single-language speaks one language; --languages names ${languages.length}. Choose one, or --multi-language.`,
+    )
   }
 
   // MCP authorizes through a sign-in and a consent page, which only a web app can serve.
@@ -339,6 +376,8 @@ export async function resolveAnswers(
     apps,
     architecture,
     multiTenant,
+    multiLanguage,
+    languages,
     mcp,
     signIn,
     email,

@@ -18,6 +18,12 @@ Those three places are where the answer is no:
 Do not comment what the code says. Do not leave commented-out code. Do not write a file header, an author
 tag or a change log; git holds all three.
 
+<!-- prumo:single-language -->
+Write every word a person reads where it is shown, in the project's language, the one `languages` names in
+`.prumo/config.json`: a screen's in its component, an error's in its constructor, a mail's in the use case that
+sends it. The project speaks that language and no other.
+<!-- prumo:end-single-language -->
+
 ## Rationale
 
 kebab-case is what shadcn's CLI emits, so anything else adds a rename step after every generation, and a

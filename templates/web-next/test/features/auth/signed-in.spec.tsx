@@ -1,4 +1,5 @@
 import { fakeTransport, json } from '@test/support/fake-transport'
+import { at } from '@test/support/messages'
 import { router } from '@test/support/navigation'
 import { renderAt } from '@test/support/render'
 import { screen, waitFor } from '@testing-library/react'
@@ -17,7 +18,7 @@ describe('SignedIn', () => {
 
     await waitFor(() =>
       expect(router.replace).toHaveBeenCalledWith(
-        `/sign-in?${new URLSearchParams({ redirect: '/consent?request=abc' })}`,
+        `${at('/sign-in')}?${new URLSearchParams({ redirect: '/consent?request=abc' })}`,
       ),
     )
     expect(screen.queryByText('secret')).not.toBeInTheDocument()

@@ -1,0 +1,19 @@
+---
+import { VerifyEmail } from '@/features/auth/verify-email-form'
+import type { Locale } from '@/i18n/locales'
+import { messagesFor } from '@/i18n/messages'
+import { localePaths } from '@/i18n/pages'
+import Narrow from '@/layouts/narrow.astro'
+
+export function getStaticPaths() {
+  return localePaths()
+}
+
+const { locale } = Astro.props as { locale: Locale }
+const messages = messagesFor(locale)
+---
+
+<Narrow title={messages.auth.verifyEmail.title} locale={locale}>
+  <h1 class="text-2xl font-semibold">{messages.auth.verifyEmail.title}</h1>
+  <VerifyEmail client:only="react" locale={locale} />
+</Narrow>

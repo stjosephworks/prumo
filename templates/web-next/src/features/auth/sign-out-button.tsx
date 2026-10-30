@@ -4,8 +4,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import type { AuthClient } from '@/api-contract'
 import { Button } from '@/components/ui/button'
+import { useLocalePath, useMessages } from '@/i18n/i18n'
 
 export function SignOutButton({ auth }: { auth: Pick<AuthClient, 'signOut'> }) {
+  const messages = useMessages()
+  const localePath = useLocalePath()
   const queryClient = useQueryClient()
   const router = useRouter()
 
@@ -19,12 +22,12 @@ export function SignOutButton({ auth }: { auth: Pick<AuthClient, 'signOut'> }) {
 
     // The whole cache, not only the session: a query about "me" belongs to whoever was signed in.
     queryClient.clear()
-    router.push('/sign-in')
+    router.push(localePath('/sign-in'))
   }
 
   return (
     <Button type="button" variant="outline" onClick={signOut}>
-      Sign out
+      {messages.auth.signOut}
     </Button>
   )
 }

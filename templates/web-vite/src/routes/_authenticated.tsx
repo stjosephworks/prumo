@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 import { sessionQuery } from '@/api-contract'
+import { useAccountLanguage } from '@/features/i18n/account-language'
 
 export const Route = createFileRoute('/_authenticated')({
   beforeLoad: async ({ context, location }) => {
@@ -11,5 +12,13 @@ export const Route = createFileRoute('/_authenticated')({
 
     return { session }
   },
-  component: Outlet,
+  component: SignedIn,
 })
+
+function SignedIn() {
+  const { api } = Route.useRouteContext()
+
+  useAccountLanguage(api)
+
+  return <Outlet />
+}

@@ -4,8 +4,5 @@ import { DomainError } from '@/domain/shared/errors/domain-error'
 export class ProviderEmailUnverifiedError extends DomainError {
   readonly kind = 'forbidden'
   override readonly code = 'provider_email_unverified'
-
-  constructor() {
-    super('The provider has not verified this email address')
-  }
+  override readonly text = 'providerEmailUnverified'
 }

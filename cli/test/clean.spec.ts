@@ -19,7 +19,10 @@ describe('clean', () => {
   })
 
   async function project(
-    answers: Omit<Answers, 'name' | 'multiTenant' | 'mcp' | 'signIn' | 'email' | 'social'>,
+    answers: Omit<
+      Answers,
+      'name' | 'multiTenant' | 'multiLanguage' | 'languages' | 'mcp' | 'signIn' | 'email' | 'social'
+    >,
     databaseUrl = URL,
   ) {
     root = await mkdtemp(join(tmpdir(), 'prumo-clean-'))
@@ -33,6 +36,8 @@ describe('clean', () => {
       answers: {
         name: 'acme',
         multiTenant: false,
+        multiLanguage: true,
+        languages: ['en'],
         mcp: false,
         signIn: ['password'],
         email: false,
@@ -177,6 +182,8 @@ describe('clean', () => {
         apps: [{ name: 'web', type: 'web', framework: 'next' }],
         architecture: 'alone',
         multiTenant: false,
+        multiLanguage: true,
+        languages: ['en'],
         mcp: false,
         signIn: ['password'],
         email: false,

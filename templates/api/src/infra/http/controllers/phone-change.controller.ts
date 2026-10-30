@@ -23,7 +23,12 @@ export async function phoneChangeController(fastify: FastifyInstance): Promise<v
     async (request, reply) => {
       await app.container
         .resolve(RequestPhoneChangeUseCase)
-        .execute(currentUser(request).id, currentSession(request), request.body.phone)
+        .execute(
+          currentUser(request).id,
+          currentSession(request),
+          request.body.phone,
+          request.locale,
+        )
 
       return reply.code(204).send(null)
     },

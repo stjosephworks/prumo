@@ -38,9 +38,7 @@ export class ResumeAccountDeletionUseCase {
         !signIn.isStarted(new Date()) ||
         signIn.browserHash !== this.opaque.digest(parsed.secret)
       ) {
-        throw new SocialSignInFailedError(
-          'This link to delete the account has expired. Start again.',
-        )
+        throw new SocialSignInFailedError('deletionLinkExpired')
       }
 
       const redirect = await this.providers.redirect(signIn.provider, signIn.id)

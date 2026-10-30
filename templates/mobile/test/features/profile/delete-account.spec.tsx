@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
 import { memoryTokenStore } from '@test/support/memory-token-store'
+import { messages } from '@test/support/messages'
 import { createTestQueryClient } from '@test/support/query-client'
 import { render, screen, userEvent, waitFor } from '@testing-library/react-native'
 import * as AppleAuthentication from 'expo-apple-authentication' // prumo:apple
@@ -60,8 +61,8 @@ describe('DeleteAccount', () => {
     const user = userEvent.setup()
     const { onSignedOut, tokens } = await renderDelete(() => new Response(null, { status: 204 }))
 
-    await user.press(screen.getByRole('button', { name: 'Delete account' }))
-    await user.press(screen.getByRole('button', { name: 'Delete my account' }))
+    await user.press(screen.getByRole('button', { name: messages.profile.deletion.delete }))
+    await user.press(screen.getByRole('button', { name: messages.profile.deletion.confirm }))
 
     expect(onSignedOut).toHaveBeenCalled()
     expect(clearUserData).toHaveBeenCalled()
@@ -79,10 +80,12 @@ describe('DeleteAccount', () => {
       ),
     )
 
-    await user.press(screen.getByRole('button', { name: 'Delete account' }))
-    await user.press(screen.getByRole('button', { name: 'Delete my account' }))
+    await user.press(screen.getByRole('button', { name: messages.profile.deletion.delete }))
+    await user.press(screen.getByRole('button', { name: messages.profile.deletion.confirm }))
 
-    expect(await screen.findByRole('button', { name: 'Sign in again' })).toBeOnTheScreen()
+    expect(
+      await screen.findByRole('button', { name: messages.forms.signInAgain }),
+    ).toBeOnTheScreen()
   })
 
   // prumo:apple
@@ -113,9 +116,11 @@ describe('DeleteAccount', () => {
       },
     )
 
-    await user.press(screen.getByRole('button', { name: 'Delete account' }))
-    await user.press(screen.getByRole('button', { name: 'Delete my account' }))
-    await user.press(await screen.findByRole('button', { name: 'Continue with Apple' }))
+    await user.press(screen.getByRole('button', { name: messages.profile.deletion.delete }))
+    await user.press(screen.getByRole('button', { name: messages.profile.deletion.confirm }))
+    await user.press(
+      await screen.findByRole('button', { name: messages.profile.deletion.continueWithApple }),
+    )
 
     await waitFor(() => expect(onSignedOut).toHaveBeenCalled())
     expect(asked).toEqual(['mobile'])
@@ -154,9 +159,11 @@ describe('DeleteAccount', () => {
       },
     )
 
-    await user.press(screen.getByRole('button', { name: 'Delete account' }))
-    await user.press(screen.getByRole('button', { name: 'Delete my account' }))
-    await user.press(await screen.findByRole('button', { name: 'Continue with Apple' }))
+    await user.press(screen.getByRole('button', { name: messages.profile.deletion.delete }))
+    await user.press(screen.getByRole('button', { name: messages.profile.deletion.confirm }))
+    await user.press(
+      await screen.findByRole('button', { name: messages.profile.deletion.continueWithApple }),
+    )
 
     await waitFor(() => expect(onSignedOut).toHaveBeenCalled())
     expect(AppleAuthentication.signInAsync).toHaveBeenCalledWith(

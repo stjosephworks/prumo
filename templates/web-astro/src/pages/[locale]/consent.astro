@@ -1,0 +1,19 @@
+---
+import { Consent } from '@/features/oauth/consent-form'
+import type { Locale } from '@/i18n/locales'
+import { messagesFor } from '@/i18n/messages'
+import { localePaths } from '@/i18n/pages'
+import Narrow from '@/layouts/narrow.astro'
+
+export function getStaticPaths() {
+  return localePaths()
+}
+
+const { locale } = Astro.props as { locale: Locale }
+const messages = messagesFor(locale)
+---
+
+<Narrow title={messages.consent.title} locale={locale}>
+  <h1 class="text-2xl font-semibold">{messages.consent.title}</h1>
+  <Consent client:only="react" locale={locale} />
+</Narrow>

@@ -32,7 +32,7 @@ const [signIn] = [
 
 describe('createAuthClient on the web', () => {
   // prumo:email-code
-  it("sends the device's language and timezone with a code, for the account it may create", async () => {
+  it("sends the device's timezone with a code, for the account it may create", async () => {
     let body: unknown
     const auth = createAuthClient({
       baseUrl: API_URL,
@@ -46,15 +46,14 @@ describe('createAuthClient on the web', () => {
 
     await auth.signInWithCode({ email: 'ana@example.com', code: '123456' })
 
-    expect(body).toMatchObject({
-      locale: Intl.DateTimeFormat().resolvedOptions().locale,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    })
+    // The language goes as Accept-Language, the screen's, which the transport adds to every request. // prumo:multi-language
+    expect(body).toMatchObject({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })
+    expect(body).not.toHaveProperty('locale') // prumo:multi-language
   })
   // prumo:end-email-code
 
   // prumo:phone-code
-  it("sends the device's language and timezone with a texted code, for the account it may create", async () => {
+  it("sends the device's timezone with a texted code, for the account it may create", async () => {
     let body: unknown
     const auth = createAuthClient({
       baseUrl: API_URL,
@@ -70,14 +69,14 @@ describe('createAuthClient on the web', () => {
 
     expect(body).toMatchObject({
       phone: '+14155552671',
-      locale: Intl.DateTimeFormat().resolvedOptions().locale,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     })
+    expect(body).not.toHaveProperty('locale') // prumo:multi-language
   })
   // prumo:end-phone-code
 
   // prumo:password
-  it("sends the device's language and timezone with a sign-up, for the new profile", async () => {
+  it("sends the device's timezone with a sign-up, for the new profile", async () => {
     let body: unknown
     const auth = createAuthClient({
       baseUrl: API_URL,
@@ -91,10 +90,9 @@ describe('createAuthClient on the web', () => {
 
     await auth.signUp({ name: 'Ana', email: 'ana@example.com', password: 'correct-horse-battery' })
 
-    expect(body).toMatchObject({
-      locale: Intl.DateTimeFormat().resolvedOptions().locale,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    })
+    // The language goes as Accept-Language, the screen's, which the transport adds to every request. // prumo:multi-language
+    expect(body).toMatchObject({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })
+    expect(body).not.toHaveProperty('locale') // prumo:multi-language
   })
   // prumo:end-password
 
