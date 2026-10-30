@@ -13,10 +13,12 @@ import {
   TRANSACTION_MANAGER,
   type TransactionManager,
 } from '@/domain/shared/transactions/transaction-manager'
+// prumo:multi-language
 import {
   PROFILE_REPOSITORY,
   type ProfileRepository,
 } from '@/domain/users/repositories/profile.repository'
+// prumo:end-multi-language
 import { BASE_LOCALE } from '@/i18n/locales'
 import { messagesFor } from '@/i18n/messages'
 
@@ -28,7 +30,7 @@ export class ChangeEmailUseCase {
     @inject(ONE_TIME_CODES) private readonly oneTimeCodes: OneTimeCodes,
     @inject(MAILER) private readonly mailer: Mailer,
     @inject(TRANSACTION_MANAGER) private readonly transactions: TransactionManager,
-    @inject(PROFILE_REPOSITORY) private readonly profiles: ProfileRepository,
+    @inject(PROFILE_REPOSITORY) private readonly profiles: ProfileRepository, // prumo:multi-language
   ) {}
 
   // The code came back from the new address to the account that asked: it becomes the account's email, confirmed.
@@ -71,13 +73,22 @@ export class ChangeEmailUseCase {
       throw new InvalidCodeError()
     }
 
-    // The previous address learns of it without learning the new one, so a change its owner did not make is noticed,
-    // in the account's language.
+    // The previous address learns of it without learning the new one, so a change its owner did not make is noticed.
+    // It is written in the account's language. // prumo:multi-language
     if (changed.previous !== null) {
+      // prumo:multi-language
       const profile = await this.profiles.findByUserId(userId)
       const { subject, text } = messagesFor(profile?.locale ?? BASE_LOCALE).mail.emailChanged
 
       await this.mailer.send({ to: changed.previous, subject, text })
+      // prumo:end-multi-language
+      // prumo:single-language
+      // await this.mailer.send({
+      //   to: changed.previous,
+      //   subject: messages.mail.emailChanged.subject,
+      //   text: messages.mail.emailChanged.text,
+      // })
+      // prumo:end-single-language
     }
 
     return changed.user

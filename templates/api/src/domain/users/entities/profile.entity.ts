@@ -4,8 +4,7 @@ export const DISPLAY_NAME_MAX = 80
 
 export type ProfileChanges = Partial<Pick<Profile, 'displayName' | 'locale' | 'timezone'>>
 
-// What a device says about its user when an account is created there, in the device's own words: the language its
-// screen speaks and its timezone.
+// What a device says about its user when an account is created there, in the device's own words.
 export type DevicePreferences = { locale?: string; timezone?: string }
 
 export class Profile {
@@ -20,7 +19,7 @@ export class Profile {
   constructor(userId: string, displayName: string, preferences: DevicePreferences = {}) {
     this.userId = userId
     this.displayName = displayName
-    // The language the screen speaks, as the project speaks it, else the project's base.
+    // The language the screen speaks, as the project speaks it, else the project's base. // prumo:multi-language
     this.locale = negotiateLocale([preferences.locale])
     this.timezone = preferences.timezone ?? 'UTC'
   }

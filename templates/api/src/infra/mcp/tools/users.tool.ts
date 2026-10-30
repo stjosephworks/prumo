@@ -36,7 +36,10 @@ export function registerUserTools(
   server.registerTool(
     'update_profile',
     {
-      description: "Change the signed-in user's display name, locale or timezone.",
+      description: "Change the signed-in user's display name, locale or timezone.", // prumo:multi-language
+      // prumo:single-language
+      // description: "Change the signed-in user's display name or timezone.",
+      // prumo:end-single-language
       inputSchema: updateProfileSchema,
     },
     async (changes) =>

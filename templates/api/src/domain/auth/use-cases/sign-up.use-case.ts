@@ -59,7 +59,7 @@ export class SignUpUseCase {
     if (user.emailVerifiedAt === null) {
       await this.issueCode.execute({ channel: 'email', destination: address }, 'verify-email', {
         deliver: true,
-        account: user.id,
+        account: user.id, // prumo:multi-language
         locale: negotiateLocale([locale]),
       })
       return null

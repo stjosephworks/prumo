@@ -24,6 +24,10 @@ import { mcpResource } from '@/infra/mcp/mcp.server'
 
 const PUBLIC = { public: true, rateLimit: { max: 30, timeWindow: '1 minute' } }
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]'])
+// prumo:single-language
+// // How the consent page words each scope it is asked for.
+// const SCOPE_WORDS: Record<string, string> = messages.scopes
+// prumo:end-single-language
 
 const authorizeQuerySchema = z.object({
   response_type: z.string().optional(),
@@ -170,11 +174,16 @@ export async function oauthController(fastify: FastifyInstance): Promise<void> {
         clientHost: new URL(authorization.clientId).host,
         redirectHost: redirect.host,
         redirectsToThisDevice: LOOPBACK.has(redirect.hostname),
-        // Worded in the language the request asks for, as everything the consent page shows.
+        // Worded in the language the request asks for, as everything the consent page shows. // prumo:multi-language
         scopes: authorization.scope.split(' ').map((scope) => ({
           scope,
+          // prumo:multi-language
           description:
             (messagesFor(request.locale).scopes as Record<string, string>)[scope] ?? scope,
+          // prumo:end-multi-language
+          // prumo:single-language
+          // description: SCOPE_WORDS[scope] ?? scope,
+          // prumo:end-single-language
         })),
       }
     },

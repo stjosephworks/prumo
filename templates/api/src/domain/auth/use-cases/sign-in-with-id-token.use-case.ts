@@ -28,8 +28,10 @@ export type IdTokenSignIn = {
   // The trip whose nonce went into the token, where the provider took one.
   trip: string | null
   name: string | null
+  // prumo:multi-language
   // The language the app asked in, which an account created here starts in.
   locale: Locale
+  // prumo:end-multi-language
 }
 
 // A provider's own sheet on the phone signed the person in: the token it gave the app is checked, the identity is

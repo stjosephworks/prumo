@@ -4,11 +4,14 @@ import { DomainError } from '@/domain/shared/errors/domain-error'
 export class TooManyCodesError extends DomainError {
   readonly kind = 'throttled'
   override readonly code = 'too_many_codes'
-  override readonly text = 'tooManyCodes'
+  override readonly text = 'tooManyCodes' // prumo:multi-language
   override readonly retryAfter: number
 
   constructor(retryAfter: number) {
-    super()
+    super() // prumo:multi-language
+    // prumo:single-language
+    // super(messages.errors.tooManyCodes)
+    // prumo:end-single-language
     this.retryAfter = retryAfter
   }
 }

@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { type App, appsOf, templateOf } from './apps.ts'
 import type { AppType } from './compose.ts'
@@ -14,7 +14,10 @@ export type Answers = {
   apps?: App[]
   architecture: 'alone' | 'monorepo'
   multiTenant: boolean
-  // The languages the project speaks, its base first; from 0.10.0. Before it, English, written in each component.
+  // Whether the project speaks its languages from messages, or one language written where it is shown; from 0.10.0.
+  // Before it, one: English, written in each component.
+  multiLanguage: boolean
+  // The languages the project speaks, its base first: one, when it speaks one. From 0.10.0; before it, English.
   languages: Language[]
   mcp: boolean
   // How a person signs in; from 0.9.0. Before it, a password and only that.
@@ -35,8 +38,8 @@ export function areasFor(answers: Answers): string[] {
 
   return [
     'core',
-    // Every project speaks its languages from messages, whatever its types.
-    'i18n',
+    // A project that speaks its languages from messages does so whatever its types.
+    ...(answers.multiLanguage ? ['i18n'] : []),
     ...(has('api') ? ['api', 'database'] : []),
     ...(CLIENTS.some(has) ? ['client'] : []),
     ...(has('web') ? ['web'] : []),
@@ -56,6 +59,11 @@ async function copyArea(knowledge: string, prumo: string, area: string, answers:
   const enabled = enabledFor(answers)
 
   await cp(join(knowledge, area), join(prumo, area), { recursive: true })
+
+  // What each type adds to the languages' area is its `languages.md`, which a project of one language has no use for.
+  if (!answers.multiLanguage) {
+    await rm(join(prumo, area, 'languages.md'), { force: true })
+  }
 
   for (const file of (await readdir(join(prumo, area))).filter((f) => f.endsWith('.md'))) {
     const path = join(prumo, area, file)
@@ -96,6 +104,7 @@ async function writeConfig(prumo: string, answers: Answers): Promise<void> {
     apps: appsOf(answers),
     architecture: answers.architecture,
     multiTenant: answers.multiTenant,
+    multiLanguage: answers.multiLanguage,
     languages: answers.languages,
     mcp: answers.mcp,
     signIn: answers.signIn,

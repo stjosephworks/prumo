@@ -11,15 +11,15 @@ export class RequestSignInCodeUseCase {
     private readonly issueCode: IssueCodeUseCase,
   ) {}
 
-  // Every address gets its code, with an account or not: entering it signs in, or creates the account. An account's
-  // code is written in its language; anyone else's in the one they asked in.
+  // Every address gets its code, with an account or not: entering it signs in, or creates the account.
+  // An account's code is written in its language; anyone else's in the one they asked in. // prumo:multi-language
   async execute(email: string, locale: Locale): Promise<void> {
     const address = User.normalizeEmail(email)
     const user = await this.users.findByEmail(address)
 
     await this.issueCode.execute({ channel: 'email', destination: address }, 'sign-in', {
       deliver: true,
-      account: user?.id ?? null,
+      account: user?.id ?? null, // prumo:multi-language
       locale,
     })
   }

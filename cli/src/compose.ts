@@ -446,6 +446,7 @@ export async function composeWorkspace({
   apps,
   features = NONE,
   languages = [...LANGUAGES],
+  multiLanguage = true,
 }: {
   templates: string
   target: string
@@ -453,6 +454,7 @@ export async function composeWorkspace({
   features?: Enabled
   // The project's languages, its base first; a template as it is speaks all of Prumo's, English first.
   languages?: Language[]
+  multiLanguage?: boolean
 }): Promise<void> {
   await mkdir(target, { recursive: true })
   await copyTemplate(join(templates, 'workspace'), target)
@@ -471,7 +473,7 @@ export async function composeWorkspace({
 
     // Before the catalog is collected, so a dependency that leaves never reaches it.
     await applyFeatures(directory, templateOf(app), features)
-    await applyLanguages(directory, languages)
+    await applyLanguages(directory, languages, multiLanguage)
     directories.push(directory)
   }
 

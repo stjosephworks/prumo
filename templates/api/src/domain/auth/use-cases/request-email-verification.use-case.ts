@@ -18,7 +18,7 @@ export class RequestEmailVerificationUseCase {
 
     await this.issueCode.execute({ channel: 'email', destination: address }, 'verify-email', {
       deliver: user !== null && user.emailVerifiedAt === null,
-      account: user?.id ?? null,
+      account: user?.id ?? null, // prumo:multi-language
       locale,
     })
   }

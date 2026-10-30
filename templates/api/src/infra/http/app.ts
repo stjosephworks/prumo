@@ -12,6 +12,9 @@ import {
   validatorCompiler,
 } from 'fastify-type-provider-zod'
 import type { DependencyContainer } from 'tsyringe'
+// prumo:single-language
+// import { z } from 'zod'
+// prumo:end-single-language
 import { ENV, type Env } from '@/infra/config/env'
 import { authController } from '@/infra/http/controllers/auth.controller'
 import { authEmailController } from '@/infra/http/controllers/auth-email.controller' // prumo:email
@@ -27,7 +30,7 @@ import { socialController } from '@/infra/http/controllers/social.controller' //
 import { usersController } from '@/infra/http/controllers/users.controller'
 import { registerErrorHandler } from '@/infra/http/errors/error-handler'
 import { registerAuthHook } from '@/infra/http/hooks/auth.hook'
-import { registerLocale } from '@/infra/http/hooks/locale.hook'
+import { registerLocale } from '@/infra/http/hooks/locale.hook' // prumo:multi-language
 import { registerOriginCheck } from '@/infra/http/hooks/origin.hook'
 import { registerRequestContext } from '@/infra/http/hooks/request-context.hook'
 
@@ -86,8 +89,16 @@ export async function buildApp(container: DependencyContainer): Promise<FastifyI
   registerErrorHandler(app)
   requireResponseSchemas(app)
   registerRequestContext(app, container.resolve(EntityManager))
+  // prumo:multi-language
   // Before anything that may refuse the request, so the refusal is written in its language.
   registerLocale(app)
+  // prumo:end-multi-language
+  // prumo:single-language
+  // // zod writes its own messages, for what a request's body or query is refused, in the project's language.
+  // z.config(z.locales.en()) // prumo:en
+  // z.config(z.locales.pt()) // prumo:pt-BR
+  // z.config(z.locales.es()) // prumo:es-419
+  // prumo:end-single-language
 
   await app.register(cors, {
     origin: env.WEB_ORIGIN,

@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { cutFeature } from './features.ts'
+import { inlineMessages } from './inline.ts'
 import { CliError } from './output.ts'
 
 // The languages Prumo translates every template into and keeps translated. A project speaks one or more of them, its
@@ -78,10 +79,18 @@ const MESSAGES_TYPE = /^export type Messages = typeof \w+$/m
 // The column every profile's language starts from, in the migration that creates it.
 const LOCALE_COLUMN = /"locale" text not null default '[^']*'/
 
+// A project of one language keeps no language per account.
+const LOCALE_COLUMN_WHOLE = /"locale" text not null default '[^']*', /
+
 // A template speaks every language Prumo offers, English as its base. An app leaves with the project's: the others'
 // messages deleted and every line or block marked `// prumo:<language>` cut, the list in the project's order, and
-// every language checked against the base's messages.
-export async function applyLanguages(app: string, languages: Language[]): Promise<void> {
+// every language checked against the base's messages. An app of a project of one language goes further: its words are
+// written where they are shown, and the messages go (inline.ts).
+export async function applyLanguages(
+  app: string,
+  languages: Language[],
+  multiLanguage = true,
+): Promise<void> {
   const [base] = languages
 
   if (base === undefined) {
@@ -138,7 +147,16 @@ export async function applyLanguages(app: string, languages: Language[]): Promis
     const text = await readFile(path, 'utf8')
 
     if (LOCALE_COLUMN.test(text)) {
-      await writeFile(path, text.replace(LOCALE_COLUMN, `"locale" text not null default '${base}'`))
+      await writeFile(
+        path,
+        multiLanguage
+          ? text.replace(LOCALE_COLUMN, `"locale" text not null default '${base}'`)
+          : text.replace(LOCALE_COLUMN_WHOLE, ''),
+      )
     }
+  }
+
+  if (!multiLanguage) {
+    await inlineMessages(app, base)
   }
 }

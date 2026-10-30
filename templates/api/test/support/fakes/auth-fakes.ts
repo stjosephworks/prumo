@@ -72,7 +72,7 @@ export function authFakes() {
     codes,
     oneTimeCodes,
     transactions,
-    profiles,
+    profiles, // prumo:multi-language
     mailer, // prumo:mail
     texts, // prumo:sms
   )

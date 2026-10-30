@@ -35,8 +35,10 @@ export type SocialCallback = {
   browserToken: string | undefined
   callbackUrl: URL
   name: string | null
+  // prumo:multi-language
   // The language the browser asked in, which an account created here starts in.
   locale: Locale
+  // prumo:end-multi-language
 }
 
 // biome-ignore format: one member a line, so cutting a feature cuts its own
