@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { type HTMLInputAutoCompleteAttribute, useState } from 'react'
+import { type HTMLInputAutoCompleteAttribute, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { ApiError, type AuthClient, sessionQuery } from '@/api-contract'
@@ -14,6 +14,9 @@ import { useClients } from '@/features/clients/clients'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
 import { useCooldown } from '@/features/forms/use-cooldown'
+import { rich, useLocalePath, useMessages } from '@/i18n/i18n'
+import { format } from '@/i18n/locales'
+import type { Messages } from '@/i18n/messages'
 
 type Channel = 'email' | 'phone'
 
@@ -32,15 +35,15 @@ type Address = {
   switchTo: string
 }
 
-function addressOf(channel: Channel): Address {
+function addressOf(channel: Channel, messages: Messages): Address {
   // prumo:email-code
   if (channel === 'email') {
     return {
-      label: 'Email',
+      label: messages.auth.email,
       type: 'email',
       autoComplete: 'email',
       schema: z.email(),
-      switchTo: 'Use email instead',
+      switchTo: messages.auth.code.useEmail,
     }
   }
 
@@ -48,12 +51,12 @@ function addressOf(channel: Channel): Address {
   // prumo:phone-code
   if (channel === 'phone') {
     return {
-      label: 'Phone number',
+      label: messages.auth.code.phone,
       type: 'tel',
       autoComplete: 'tel',
-      schema: z.string().trim().min(1, 'Enter your mobile number'),
-      hint: 'A mobile number, with its country code, as +1 415 555 2671.',
-      switchTo: 'Use a phone number instead',
+      schema: z.string().trim().min(1, messages.auth.code.phoneRequired),
+      hint: messages.auth.code.phoneHint,
+      switchTo: messages.auth.code.usePhone,
     }
   }
 
@@ -93,9 +96,27 @@ function signIn(auth: AuthClient, channel: Channel, to: string, code: string): P
   throw new Error(`No sign-in code goes by ${channel}`)
 }
 
-const codeSchema = z.object({ code: z.string().regex(/^\d{6}$/, 'Enter the 6 digits we sent') })
+// The link back to the first step, worded for the channel the code went by.
+function anotherAddress(channel: Channel, messages: Messages): string {
+  // prumo:email-code
+  if (channel === 'email') {
+    return messages.auth.code.anotherEmail
+  }
 
-type CodeValues = z.infer<typeof codeSchema>
+  // prumo:end-email-code
+  // prumo:phone-code
+  if (channel === 'phone') {
+    return messages.auth.code.anotherNumber
+  }
+
+  // prumo:end-phone-code
+  throw new Error(`No sign-in code goes by ${channel}`)
+}
+
+const codeSchemaOf = (messages: Messages) =>
+  z.object({ code: z.string().regex(/^\d{6}$/, messages.forms.sixDigits) })
+
+type CodeValues = z.infer<ReturnType<typeof codeSchemaOf>>
 
 type Sent = { channel: Channel; to: string }
 
@@ -107,6 +128,7 @@ export function CodeSignInForm({
   auth: AuthClient
   redirect: string | undefined
 }) {
+  const messages = useMessages()
   const [channel, setChannel] = useState<Channel>(CHANNELS[0] ?? 'email')
   const [sent, setSent] = useState<Sent>()
   const [wait, startWait] = useCooldown()
@@ -146,13 +168,13 @@ export function CodeSignInForm({
     <>
       <AddressStep
         key={channel}
-        address={addressOf(channel)}
+        address={addressOf(channel, messages)}
         send={(to) => send(to, channel)}
         onSent={(to) => setSent({ channel, to })}
       />
       {other !== undefined && (
         <Button type="button" variant="link" onClick={() => setChannel(other)}>
-          {addressOf(other).switchTo}
+          {addressOf(other, messages).switchTo}
         </Button>
       )}
     </>
@@ -168,6 +190,7 @@ function AddressStep({
   send: (to: string) => Promise<boolean>
   onSent: (to: string) => void
 }) {
+  const messages = useMessages()
   const schema = z.object({ to: address.schema })
   const form = useForm<{ to: string }>({
     resolver: zodResolver(schema),
@@ -180,7 +203,7 @@ function AddressStep({
     try {
       await send(to)
     } catch (error) {
-      applyServerError(error, ['to'], form.setError)
+      applyServerError(error, ['to'], form.setError, messages)
       return
     }
 
@@ -204,9 +227,9 @@ function AddressStep({
         </Field>
       </FieldGroup>
       <Button type="submit" disabled={isSubmitting}>
-        Send me a code
+        {messages.auth.code.send}
       </Button>
-      <p className="text-sm text-muted-foreground">No account yet? The code creates one.</p>
+      <p className="text-sm text-muted-foreground">{messages.auth.code.createsAccount}</p>
     </form>
   )
 }
@@ -226,9 +249,12 @@ function CodeStep({
   resend: () => Promise<boolean>
   onChangeAddress: () => void
 }) {
+  const messages = useMessages()
+  const localePath = useLocalePath()
   const queryClient = useQueryClient()
   const router = useRouter()
   const [resent, setResent] = useState(false)
+  const codeSchema = useMemo(() => codeSchemaOf(messages), [messages])
   const form = useForm<CodeValues>({
     resolver: zodResolver(codeSchema),
     mode: 'onTouched',
@@ -240,13 +266,13 @@ function CodeStep({
     try {
       await signIn(auth, sent.channel, sent.to, values.code)
     } catch (error) {
-      applyServerError(error, ['code'], form.setError)
+      applyServerError(error, ['code'], form.setError, messages)
       return
     }
 
     // Refetching replaces the cached null before the signed-in area's guard reads it.
     await queryClient.refetchQueries({ queryKey: sessionQuery(auth).queryKey })
-    router.push(redirect ?? '/account')
+    router.push(redirect ?? localePath('/account'))
   }
 
   async function sendAgain() {
@@ -256,12 +282,12 @@ function CodeStep({
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6">
       <p className="text-sm text-muted-foreground">
-        We sent a 6-digit code to <strong>{sent.to}</strong>.
+        {rich(messages.auth.code.sentTo, { to: <strong>{sent.to}</strong> })}
       </p>
       <FormError errors={errors} />
       <FieldGroup>
         <Field data-invalid={errors.code !== undefined}>
-          <FieldLabel htmlFor="code">Code</FieldLabel>
+          <FieldLabel htmlFor="code">{messages.forms.code}</FieldLabel>
           <Input
             id="code"
             inputMode="numeric"
@@ -272,18 +298,20 @@ function CodeStep({
         </Field>
       </FieldGroup>
       <Button type="submit" disabled={isSubmitting}>
-        Sign in
+        {messages.auth.signIn.submit}
       </Button>
       <Button type="button" variant="outline" onClick={sendAgain} disabled={wait > 0}>
-        {wait > 0 ? `Send a new code in ${wait}s` : 'Send a new code'}
+        {wait > 0
+          ? format(messages.forms.sendNewCodeIn, { seconds: wait })
+          : messages.forms.sendNewCode}
       </Button>
       {resent && (
         <p role="status" className="text-sm text-muted-foreground">
-          A new code is on its way. The previous one no longer works.
+          {messages.forms.newCodeSent}
         </p>
       )}
       <Button type="button" variant="link" onClick={onChangeAddress}>
-        {sent.channel === 'phone' ? 'Use another number' : 'Use another email'}
+        {anotherAddress(sent.channel, messages)}
       </Button>
     </form>
   )

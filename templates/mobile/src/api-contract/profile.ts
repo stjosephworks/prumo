@@ -1,9 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
+import type { Locale } from '@/i18n/locales'
 import type { ApiClient } from './client'
-
-export const LOCALES = ['en', 'pt-BR'] as const
-
-export type Locale = (typeof LOCALES)[number]
 
 export type Profile = {
   id: string

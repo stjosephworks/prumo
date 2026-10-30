@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
 import { memoryTokenStore } from '@test/support/memory-token-store'
+import { messages } from '@test/support/messages'
 import { createTestQueryClient } from '@test/support/query-client'
 import { userEvent } from '@testing-library/react-native'
 import { renderRouter, screen } from 'expo-router/testing-library'
@@ -9,6 +10,7 @@ import { Text } from 'react-native'
 import { createAuthClient, createClient } from '@/api-contract'
 import SignInScreen from '@/app/(auth)/sign-in'
 import { ClientsProvider } from '@/features/clients/clients-context'
+import { format } from '@/i18n/locales'
 
 const TOKENS = { accessToken: 'access-1', refreshToken: 'refresh-1', expiresIn: 900 }
 
@@ -36,7 +38,7 @@ async function renderAt(initialUrl: string, routes: Parameters<typeof fakeTransp
   }
 
   await renderRouter(
-    { index: () => <Text>Your profile</Text>, '(auth)/sign-in': SignInScreen },
+    { index: () => <Text>{messages.profile.title}</Text>, '(auth)/sign-in': SignInScreen },
     { initialUrl, wrapper: Providers },
   )
 }
@@ -44,7 +46,7 @@ async function renderAt(initialUrl: string, routes: Parameters<typeof fakeTransp
 // prumo:phone-code
 // With email beside it, the phone waits behind a switch; alone, it is already there.
 async function byPhone(user: ReturnType<typeof userEvent.setup>) {
-  const toPhone = screen.queryByRole('button', { name: 'Use a phone number instead' })
+  const toPhone = screen.queryByRole('button', { name: messages.auth.code.usePhone })
 
   if (toPhone !== null) {
     await user.press(toPhone)
@@ -62,12 +64,12 @@ describe('signing in with a code on mobile', () => {
       'POST /api/auth/email/sign-in': () => json(200, TOKENS),
     })
 
-    await user.type(screen.getByLabelText('Email'), 'ana@example.com')
-    await user.press(screen.getByRole('button', { name: 'Send me a code' }))
-    await user.type(await screen.findByLabelText('Code'), '123456')
-    await user.press(screen.getByRole('button', { name: 'Sign in' }))
+    await user.type(screen.getByLabelText(messages.auth.email), 'ana@example.com')
+    await user.press(screen.getByRole('button', { name: messages.auth.code.send }))
+    await user.type(await screen.findByLabelText(messages.forms.code), '123456')
+    await user.press(screen.getByRole('button', { name: messages.auth.signIn.submit }))
 
-    expect(await screen.findByText('Your profile')).toBeOnTheScreen()
+    expect(await screen.findByText(messages.profile.title)).toBeOnTheScreen()
   })
 
   it('goes on to the code when one was sent moments ago, counting down to the next', async () => {
@@ -75,11 +77,13 @@ describe('signing in with a code on mobile', () => {
 
     await renderAt('/sign-in', { 'POST /api/auth/email/code': throttled })
 
-    await user.type(screen.getByLabelText('Email'), 'ana@example.com')
-    await user.press(screen.getByRole('button', { name: 'Send me a code' }))
+    await user.type(screen.getByLabelText(messages.auth.email), 'ana@example.com')
+    await user.press(screen.getByRole('button', { name: messages.auth.code.send }))
 
-    expect(await screen.findByLabelText('Code')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Send a new code in 42s' })).toBeDisabled()
+    expect(await screen.findByLabelText(messages.forms.code)).toBeOnTheScreen()
+    expect(
+      screen.getByRole('button', { name: format(messages.forms.sendNewCodeIn, { seconds: 42 }) }),
+    ).toBeDisabled()
   })
   // prumo:end-email-code
 
@@ -93,12 +97,12 @@ describe('signing in with a code on mobile', () => {
     })
 
     await byPhone(user)
-    await user.type(screen.getByLabelText('Phone number'), '+1 415 555 2671')
-    await user.press(screen.getByRole('button', { name: 'Send me a code' }))
-    await user.type(await screen.findByLabelText('Code'), '123456')
-    await user.press(screen.getByRole('button', { name: 'Sign in' }))
+    await user.type(screen.getByLabelText(messages.auth.code.phone), '+1 415 555 2671')
+    await user.press(screen.getByRole('button', { name: messages.auth.code.send }))
+    await user.type(await screen.findByLabelText(messages.forms.code), '123456')
+    await user.press(screen.getByRole('button', { name: messages.auth.signIn.submit }))
 
-    expect(await screen.findByText('Your profile')).toBeOnTheScreen()
+    expect(await screen.findByText(messages.profile.title)).toBeOnTheScreen()
   })
   // prumo:end-phone-code
 
@@ -108,11 +112,11 @@ describe('signing in with a code on mobile', () => {
 
     await renderAt('/sign-in', {})
 
-    expect(screen.queryByLabelText('Password')).toBeNull()
+    expect(screen.queryByLabelText(messages.auth.signIn.password)).toBeNull()
 
-    await user.press(screen.getByRole('button', { name: 'Sign in with a password' }))
+    await user.press(screen.getByRole('button', { name: messages.auth.signIn.withPassword }))
 
-    expect(await screen.findByLabelText('Password')).toBeOnTheScreen()
+    expect(await screen.findByLabelText(messages.auth.signIn.password)).toBeOnTheScreen()
   })
   // prumo:end-password
 })

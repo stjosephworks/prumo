@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { DISPLAY_NAME_MAX, LOCALES } from '@/domain/users/entities/profile.entity'
+import { DISPLAY_NAME_MAX } from '@/domain/users/entities/profile.entity'
+import { LOCALES } from '@/i18n/locales'
 
 export const updateProfileSchema = z.strictObject({
   displayName: z.string().min(1).max(DISPLAY_NAME_MAX).optional(),

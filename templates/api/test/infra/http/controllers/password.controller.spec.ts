@@ -1,6 +1,8 @@
 import { PASSWORD, testApp } from '@test/support/test-app'
 import type { FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { BASE_LOCALE } from '@/i18n/locales'
+import { messagesFor } from '@/i18n/messages'
 
 const BEARER = { 'x-auth-transport': 'bearer' }
 
@@ -33,7 +35,9 @@ describe('password routes, refusing', () => {
     })
 
     expect(wrong.statusCode).toBe(401)
-    expect(wrong.json()).toMatchObject({ detail: 'Invalid email or password' })
+    expect(wrong.json()).toMatchObject({
+      detail: messagesFor(BASE_LOCALE).errors.invalidCredentials,
+    })
     expect(taken.statusCode).toBe(409)
     expect(taken.headers['content-type']).toContain('application/problem+json')
   })

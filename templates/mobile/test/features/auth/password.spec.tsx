@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { API_URL, fakeTransport, json } from '@test/support/fake-transport'
 import { memoryTokenStore } from '@test/support/memory-token-store'
+import { messages } from '@test/support/messages'
 import { createTestQueryClient } from '@test/support/query-client'
 import { render, screen, userEvent } from '@testing-library/react-native'
 import { createAuthClient } from '@/api-contract'
@@ -29,9 +30,9 @@ describe('SignInForm', () => {
       </QueryClientProvider>,
     )
 
-    await user.type(screen.getByLabelText('Email'), 'ana@example.com')
-    await user.type(screen.getByLabelText('Password'), 'wrong-password')
-    await user.press(screen.getByRole('button', { name: 'Sign in' }))
+    await user.type(screen.getByLabelText(messages.auth.email), 'ana@example.com')
+    await user.type(screen.getByLabelText(messages.auth.signIn.password), 'wrong-password')
+    await user.press(screen.getByRole('button', { name: messages.auth.signIn.submit }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid email or password')
     expect(onSignedIn).not.toHaveBeenCalled()

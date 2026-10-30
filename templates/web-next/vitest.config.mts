@@ -15,6 +15,6 @@ export default defineConfig({
     // CI among them, that crossed Vitest's 5s default while the same suite passed alone. The budget is the machine's
     // slowness, not the test's.
     testTimeout: 15_000,
-    env: { NEXT_PUBLIC_API_URL: 'http://api.test' },
+    env: { NEXT_PUBLIC_API_URL: 'http://api.test', NEXT_PUBLIC_SITE_URL: 'http://web.test' },
   },
 })

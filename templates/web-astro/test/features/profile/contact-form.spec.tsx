@@ -1,16 +1,18 @@
 import { fakeTransport, json } from '@test/support/fake-transport'
+import { messages } from '@test/support/messages'
 import { renderIsland } from '@test/support/render'
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { Profile } from '@/api-contract'
 import { Account } from '@/features/profile/account'
+import { BASE_LOCALE } from '@/i18n/locales'
 
 const profile: Profile = {
   id: 'profile-1',
   userId: 'user-1',
   displayName: 'Ana',
-  locale: 'en',
+  locale: BASE_LOCALE,
   timezone: 'UTC',
   createdAt: '2026-09-14T12:57:24.057Z',
   updatedAt: '2026-09-14T12:57:24.057Z',
@@ -52,11 +54,13 @@ describe('the contact form', () => {
 
     renderIsland('/account', Account, transport)
 
-    await visitor.click(await screen.findByRole('button', { name: 'Change your email' }))
-    await visitor.type(screen.getByLabelText('New email'), 'new@example.com')
-    await visitor.click(screen.getByRole('button', { name: 'Send a code there' }))
-    await visitor.type(await screen.findByLabelText('Code'), '123456')
-    await visitor.click(screen.getByRole('button', { name: 'Confirm' }))
+    await visitor.click(
+      await screen.findByRole('button', { name: messages.profile.contact.changeEmail }),
+    )
+    await visitor.type(screen.getByLabelText(messages.profile.contact.newEmail), 'new@example.com')
+    await visitor.click(screen.getByRole('button', { name: messages.profile.contact.send }))
+    await visitor.type(await screen.findByLabelText(messages.forms.code), '123456')
+    await visitor.click(screen.getByRole('button', { name: messages.profile.contact.confirm }))
 
     expect(await screen.findByText('new@example.com')).toBeInTheDocument()
   })
@@ -74,11 +78,15 @@ describe('the contact form', () => {
 
     renderIsland('/account', Account, transport)
 
-    await visitor.click(await screen.findByRole('button', { name: 'Change your email' }))
-    await visitor.type(screen.getByLabelText('New email'), 'new@example.com')
-    await visitor.click(screen.getByRole('button', { name: 'Send a code there' }))
+    await visitor.click(
+      await screen.findByRole('button', { name: messages.profile.contact.changeEmail }),
+    )
+    await visitor.type(screen.getByLabelText(messages.profile.contact.newEmail), 'new@example.com')
+    await visitor.click(screen.getByRole('button', { name: messages.profile.contact.send }))
 
-    expect(await screen.findByRole('button', { name: 'Sign in again' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('button', { name: messages.forms.signInAgain }),
+    ).toBeInTheDocument()
   })
   // prumo:end-mail
 
@@ -97,11 +105,13 @@ describe('the contact form', () => {
 
     renderIsland('/account', Account, transport)
 
-    await visitor.click(await screen.findByRole('button', { name: 'Add a phone number' }))
-    await visitor.type(screen.getByLabelText('New phone number'), '+1 415 555 2671')
-    await visitor.click(screen.getByRole('button', { name: 'Send a code there' }))
-    await visitor.type(await screen.findByLabelText('Code'), '123456')
-    await visitor.click(screen.getByRole('button', { name: 'Confirm' }))
+    await visitor.click(
+      await screen.findByRole('button', { name: messages.profile.contact.addPhone }),
+    )
+    await visitor.type(screen.getByLabelText(messages.profile.contact.newPhone), '+1 415 555 2671')
+    await visitor.click(screen.getByRole('button', { name: messages.profile.contact.send }))
+    await visitor.type(await screen.findByLabelText(messages.forms.code), '123456')
+    await visitor.click(screen.getByRole('button', { name: messages.profile.contact.confirm }))
 
     expect(await screen.findByText('+14155552671')).toBeInTheDocument()
   })

@@ -21,7 +21,10 @@ older one and your project is what your team changed.
    | `apps` | `--app <name>=<type>` for each app whose name is not its type, in order; those types leave `--types`. A web app with a `framework` other than `vite` is `web:<framework>`, in `--types` or `--app` |
    | `architecture` | `--alone` or `--monorepo` |
    | `multiTenant` | `--multi-tenant` or `--single-tenant` |
+   | `multiLanguage` | `--multi-language` or `--single-language` |
+   | `languages` | `--languages pt-BR,en`, the base first |
    | `mcp` | `--mcp` or `--no-mcp` |
+   | `signIn` | `--sign-in password,email-code` |
    | `email` | `--email` or `--no-email` |
    | `social` | `--social google,apple`, or `--no-social` when it is empty |
 
@@ -29,7 +32,9 @@ older one and your project is what your team changed.
    app's `framework`. Before 0.8.0 every web app was Vite's. A `site` in `types` became `web:next` in 0.8.0: see below.
 
    `email` and `social` exist from 0.4.0. A project generated before has neither, so its reference at the old
-   version leaves both flags out, and its reference at the new one passes `--no-email --no-social`.
+   version leaves both flags out, and its reference at the new one passes `--no-email --no-social`. `signIn`
+   exists from 0.9.0, and a project before it signed in with `--sign-in password`. `multiLanguage` and `languages`
+   exist from 0.10.0, and a project before it spoke one language: `--single-language --languages en`.
 
 2. Generate both, under the project's own name so that nothing differs by name alone:
 
@@ -65,6 +70,55 @@ A path below is given as the project sees it when generated `alone`. In a worksp
 three of its own.
 
 ## What changed, release by release
+
+### 0.10.0
+
+A project now speaks one language or several (`--single-language`, `--multi-language`). Every row below that names
+messages, `src/i18n/`, `[locale]` or the request's language is a project of several languages; a project of one has
+none of it, and its rows say so.
+
+| File | Types | Change |
+|---|---|---|
+| `.context/INDEX.md`, `AGENTS.md`, `.prumo/core/context.md` | every type | New: the project's own rules, in `.context/`, which win over `.prumo/`. An existing project creates `.context/INDEX.md`, copies `core/context.md` from the package's `.prumo-templates/`, and points `AGENTS.md` at both indexes, saying `.context/` wins |
+| `.prumo/config.json` | every type | `multiLanguage`, and `languages`, the project's, its base first. A config without them was generated speaking one language, English, with its words in each component: `false` and `["en"]` |
+| `.prumo/core/conventions.md` | every type, one language | Its words are written where they are shown, in its language |
+| `src/domain/users/entities/profile.entity.ts`, `profile.schema.ts`, `migrations/…_create_user_profile_session.ts`, the DTOs, `src/api-contract/profile.ts` | api, web, mobile, one language | No `locale` on a profile, nor in a sign-up's body: the project speaks one. An existing project keeps its column, or drops it in a migration of its own |
+| `src/infra/http/app.ts`, and each client's entry: `src/main.tsx`, `src/features/clients/clients.tsx` on Next, `src/features/clients/island.tsx` on Astro, `src/app/_layout.tsx` on mobile | every type, one language | `z.config(z.locales.<language>())`, so zod's own messages are in the project's language; English needs it too, written the same way |
+| `issue-code.use-case.ts`, `change-email.use-case.ts`, `change-phone.use-case.ts`, every error a person reads | api, one language | The mails and texts are functions of the code, written in the project's language; no profile is read for a language; an error's words are its constructor's |
+| `.prumo/i18n/languages.md` | every type, several languages | New, in an area every project of several languages receives: the messages, the base, and how a language is added |
+| `src/i18n/locales.ts`, or `packages/i18n` in a workspace | api | New. `LOCALES`, `LOCALE_INFO`, `negotiateLocale`, `parseAcceptLanguage` and `format`. In a workspace the API imports `@app/i18n`, its TypeScript stripped by Node at runtime |
+| `src/i18n/messages/` | api | New. The API's words, one file per language: every error a person reads, every mail and every text |
+| `src/domain/shared/errors/domain-error.ts`, every error a person reads, `error-handler.ts` | api | A `DomainError` names its message in `text`, with `values`; `detail` is written in the request's language. An error without `text` keeps its message |
+| `src/infra/http/hooks/locale.hook.ts`, `app.ts`, `fastify.d.ts` | api | New. `request.locale` from `Accept-Language`; zod writes field messages in it through `z.locales` |
+| `issue-code.use-case.ts`, every use case that asks for a code, `change-email.use-case.ts`, `change-phone.use-case.ts` | api with codes | Mail and texts in the account's language, else the request's: `execute(target, purpose, { deliver, account, locale })` |
+| `profile.entity.ts`, `profile.schema.ts`, `migrations/…_create_user_profile_session.ts`, `update-profile.dto.ts`, `profile-response.dto.ts` | api | `LOCALES` comes from `src/i18n/locales.ts`; a new profile speaks the device's language as the project speaks it, else the base, which is also the column's default. `Profile.localeFor` is gone |
+| `link-identity.use-case.ts`, `complete-social-sign-in.use-case.ts`, `sign-in-with-id-token.use-case.ts` | api with social | An account created by a provider starts in the request's language |
+| `.prumo/api/languages.md` | api | New. The request's language, the errors, mail and texts, and the deploy the package needs |
+| `src/infra/mcp/mcp.scopes.ts`, `oauth.controller.ts`, `mcp.controller.ts` | api with MCP | `SCOPES` lists the scopes; how the consent page words each moves to `scopes` in the messages, in the request's language |
+| `src/api-contract/auth.ts`, `profile.ts`, `index.ts`, `src/i18n/locales.ts` | web, mobile | The new account's language goes as `Accept-Language`, no longer in the body; `Locale` comes from `src/i18n/locales.ts` (`@app/i18n` in a workspace, which the contract package now depends on), and the contract no longer exports `LOCALES` |
+| `src/i18n/`, `src/app.tsx`, `src/main.tsx`, `src/routes/__root.tsx`, `src/routes/_authenticated.tsx`, `src/features/i18n/`, every route and component | web on Vite | New. `I18nProvider`, `useMessages`, `rich` and `withLanguage`; every word from the messages; the switcher in the root layout; `useAccountLanguage` in the signed-in area |
+| `src/features/forms/server-errors.ts` | web on Vite | `applyServerError(error, fields, setError, messages)`, for the wait it adds |
+| `src/features/profile/profile-form.tsx` | web on Vite | No Locale field: the switcher sets the language, and the account follows |
+| `test/support/messages.ts`, `test/support/setup.ts`, every spec | web on Vite | Tests run in the base language and find elements by its messages |
+| `.prumo/client/languages.md`, `.prumo/web-vite/languages.md` | web | New |
+| `src/app/[locale]/`, the root layout, every page | web on Next | Every page moves under `[locale]`, built once per language; `generateMetadata` reads `messagesOfPage(params)`; the home page names its alternates. `src/app/layout.tsx` becomes `src/app/[locale]/layout.tsx` |
+| `src/proxy.ts` | web on Next | New. An address without a language goes to the chosen one (`locale` cookie), else `Accept-Language`, else the base |
+| `src/i18n/`, `src/features/i18n/`, `src/features/clients/clients.tsx`, every component | web on Next | New. `I18nProvider` takes the address's language; `useMessages`, `useLocalePath`, `rich` and `withLanguage`; every link and navigation through `useLocalePath` |
+| `.prumo/web-next/languages.md`, `.prumo/web-next/rendering.md`, `.prumo/web-next/structure.md` | web on Next | The routes under `[locale]`, the proxy, and the alternates |
+| `.env.example`, `src/config.ts`, the root layout | web on Next | `NEXT_PUBLIC_SITE_URL`, the app's own address, which `metadataBase` resolves the alternates and canonical against |
+| `src/pages/[locale]/`, `src/pages/index.astro`, `sign-in.astro`, `consent.astro`, `src/layouts/` | web on Astro | Every page moves under `[locale]`, built once per language; `/`, `/sign-in` and `/consent` become `language-redirect.astro` pages that send the browser to a language; the layout takes `locale`, sets `<html lang>`, and names the canonical and alternates whole |
+| `src/i18n/`, `src/features/i18n/`, `src/features/clients/`, every island and component | web on Astro | New. `I18nProvider` takes the page's language through `island()`'s `locale`; `useMessages`, `useLocalePath`, `rich`, `withLanguage`; `choice.ts` keeps the choice; the switcher is an Astro component, no island |
+| `.env.example`, `src/config.ts` | web on Astro | `PUBLIC_SITE_URL`, the app's own address |
+| `.prumo/web-astro/languages.md`, `rendering.md`, `structure.md` | web on Astro | The pages under `[locale]`, the redirect pages, the switcher |
+| `src/i18n/`, `src/features/i18n/`, `src/app/_layout.tsx`, `src/app/(app)/_layout.tsx`, every screen and component | mobile | New. `I18nProvider` (the app's choice, the account's, the phone's, the base), `useMessages`, `rich`, `withLanguage`; the switcher on sign-in and the profile; `useAccountLanguage` once signed in |
+| `package.json`, `app.config.ts` | mobile | `expo-localization` 57.0.2, and its plugin with the project's `supportedLocales`, for the per-app language of iOS and Android 13+ |
+| `src/features/forms/server-errors.ts`, `src/features/profile/profile-form.tsx` | mobile | `applyServerError(…, messages)`; no Locale field |
+| `jest.config.js`, `test/support/localization.ts`, `test/support/mmkv.ts`, `test/support/messages.ts`, every spec | mobile | Tests run in the base language, with the phone naming none and MMKV in memory |
+| `.prumo/mobile/languages.md` | mobile | New |
+
+Why: making an app speak a second language means finding every word written into its code. A project that will speak
+several starts with its words in messages, so a language is added as a file and its translation; one that speaks one
+keeps its words where they are shown, as before, and an assistant converts it the day it needs a second.
 
 ### 0.9.0
 

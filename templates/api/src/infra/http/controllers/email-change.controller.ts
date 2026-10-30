@@ -23,7 +23,12 @@ export async function emailChangeController(fastify: FastifyInstance): Promise<v
     async (request, reply) => {
       await app.container
         .resolve(RequestEmailChangeUseCase)
-        .execute(currentUser(request).id, currentSession(request), request.body.email)
+        .execute(
+          currentUser(request).id,
+          currentSession(request),
+          request.body.email,
+          request.locale,
+        )
 
       return reply.code(204).send(null)
     },

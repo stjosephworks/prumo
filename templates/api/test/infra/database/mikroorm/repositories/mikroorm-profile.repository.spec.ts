@@ -3,6 +3,7 @@ import { createUser } from '@test/support/factories/user.factory'
 import { testOrm } from '@test/support/setup'
 import { describe, expect, it } from 'vitest'
 import { Profile } from '@/domain/users/entities/profile.entity'
+import { BASE_LOCALE } from '@/i18n/locales'
 import { MikroOrmProfileRepository } from '@/infra/database/mikroorm/repositories/mikroorm-profile.repository'
 
 describe('MikroOrmProfileRepository', () => {
@@ -28,7 +29,7 @@ describe('MikroOrmProfileRepository', () => {
 
     const stored = await new MikroOrmProfileRepository(testOrm().em.fork()).findByUserId(userId)
 
-    expect(stored).toMatchObject({ locale: 'en', timezone: 'UTC' })
+    expect(stored).toMatchObject({ locale: BASE_LOCALE, timezone: 'UTC' })
     // uuidv7() puts the version nibble at the start of the third group.
     expect(stored?.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7/)
     expect(stored?.createdAt).toBeInstanceOf(Date)

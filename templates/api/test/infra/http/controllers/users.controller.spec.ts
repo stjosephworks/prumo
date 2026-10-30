@@ -1,6 +1,8 @@
 import { cookieHeader, ORIGIN, testApp } from '@test/support/test-app'
 import type { FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { BASE_LOCALE } from '@/i18n/locales'
+import { messagesFor } from '@/i18n/messages'
 
 let app: FastifyInstance
 let signIn: Awaited<ReturnType<typeof testApp>>['signIn']
@@ -37,7 +39,7 @@ describe('users controller', () => {
     )
     expect(response.json()).toMatchObject({
       displayName: expect.any(String),
-      locale: 'en',
+      locale: BASE_LOCALE,
     })
   })
 
@@ -67,7 +69,10 @@ describe('users controller', () => {
     expect(response.statusCode).toBe(400)
     expect(response.json()).toMatchObject({
       status: 400,
-      errors: { displayName: [expect.any(String)], role: ['Unrecognized key'] },
+      errors: {
+        displayName: [expect.any(String)],
+        role: [messagesFor(BASE_LOCALE).errors.unrecognizedKey],
+      },
     })
   })
 

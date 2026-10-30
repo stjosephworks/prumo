@@ -13,10 +13,14 @@ This document describes **where files live and what they are called**. What goes
 <project>/
   AGENTS.md          ← the pointer. Written once, then the team's territory
   CLAUDE.md          ← "@AGENTS.md" plus anything Claude-specific
+  .context/
+    INDEX.md         ← written empty once. The project's own rules, one line per file
+    <subject>/…      ← the team's and its assistant's, never the tool's
   .prumo/
     INDEX.md         ← generated. One line per file. The tool's territory
     config.json      ← what the project answered, and the Prumo version that wrote it
     core/            ← always present
+    i18n/            ← a project of several languages: its languages and how one is added
     api/             ← type api
     database/        ← type api
     client/          ← any client type
@@ -35,26 +39,35 @@ This document describes **where files live and what they are called**. What goes
 ```
 
 **`.prumo/` holds two natures, and the split is deliberate.** `INDEX.md` and `config.json` are
-written by the tool and never hand-edited. Everything else is prose the team owns and maintains.
-Regenerating the first pair is always safe; regenerating the rest is not.
+written by the tool and never hand-edited, except `languages` in `config.json`: a language the project adds goes
+there too, so that `prumo add` gives a new app every language the others speak (`i18n/languages.md`). Everything else
+is prose the team owns and maintains. Regenerating the first pair is always safe; regenerating the rest is not.
 
 ---
 
-## Why `.prumo/` and not `.context/`
+## `.prumo/` and `.context/`
 
-`context` is a generic word, and a developer may reasonably create a `context/` of their own. There
-is no established *directory* convention to align with either, since `AGENTS.md` uses nesting rather than
-a folder, and `.cursor/`, `.claude/` and `.github/` are all vendor-namespaced. A namespaced folder
-cannot collide with anything, now or with a future standard.
+**`.prumo/` is what Prumo ships; `.context/` is what the project decides for itself** (2026-10-30). Both
+are read through `AGENTS.md`, and where they disagree `.context/` wins, because it was written for this project and
+`.prumo/` for every project of its kind.
 
-The dot is accurate here: the folder is maintained by tooling. `prumo new` writes it; commands that add to
-it or refresh it are planned after V1.
+`.prumo/` is namespaced because it is the tool's. There is no established *directory* convention to align with,
+since `AGENTS.md` uses nesting rather than a folder, and `.cursor/`, `.claude/` and `.github/` are all
+vendor-namespaced. A namespaced folder cannot collide with anything, now or with a future standard. `prumo new`
+writes it, and `prumo add` brings the areas a new app needs.
+
+`.context/` is named for what it holds rather than for the tool, because nothing of the tool's goes in it after the
+first day: `prumo new` writes its empty `INDEX.md`, and no command touches it again. Its files take the shape of
+every document here, filed in folders by subject. `core/context.md` tells the assistant when to write one: when
+the developer states a rule that outlasts the task, without asking; when it only inferred one, once the developer
+agrees.
 
 ---
 
 ## Areas
 
-Areas do not mirror types. Thirteen of the sixteen are not types at all: `core/` ships always, `database/` follows a
+Areas do not mirror types. Fourteen of the seventeen are not types at all: `core/` ships always, `i18n/` follows whether
+the project speaks several languages, `database/` follows a
 type, `client/` follows either client type, `web-vite/`, `web-next/` and `web-astro/` follow a web app's framework,
 `monorepo/` follows the architecture, `multi-tenancy/` follows a third axis of its own, `mcp/` a fourth, asked only
 when there is an api and a web, `codes/`, `email/` and `phone/` follow how people sign in and whether emails are
@@ -68,6 +81,7 @@ sign-in by code, so no project reads about a flow it does not have.
 | Area | Holds | Ships when |
 |---|---|---|
 | `core/` | What crosses every type: TypeScript config, Biome and the pre-commit hook, Vitest, file naming, code style, the branch flow | **always** |
+| `i18n/` | The project's languages: the messages every word comes from, the base they are checked against, and how a language is added | the project answered `--multi-language` |
 | `api/` | Fastify rules and the domain/infra structure: ports, use cases, DTOs, the HTTP edge | type is `api` |
 | `database/` | Database rules and performance. Separate from `api/` so a future worker or lambda can take it without being an API | type is `api` |
 | `client/` | What every client shares: calling the API, the error type, queries, forms | type is `web` or `mobile` |
@@ -93,9 +107,12 @@ rules on the client side, and two copies drifting would mean one of them quietly
 app's public pages use the wire-contract half, and its signed-in area all of it; the document says which half is
 Query-specific.
 
-**`core/` is the only unconditional area, so it is always-loaded context.** The bar for entering it
-is *crossing every type in fact*, not seeming general. If it bloats, every project pays on every
-session.
+**`core/` is the only unconditional area, so it is always-loaded context.** The bar for entering it is *crossing
+every type in fact*, not seeming general. If it bloats, every project pays on every session. `i18n/` is its own area
+rather than a file of `core/` because a project of several languages speaks them from messages whatever its types
+(2026-10-29), and what each type adds to it is that type's `languages.md`: the API's in `api/`. A project of one
+language (2026-10-30) receives neither: one paragraph of `core/conventions.md` says its words are written where they
+are shown, in its language.
 
 **One type, one area per framework.** Since 2026-10-27 `web` is one type whatever it is built with, because a
 public site is often the whole web app and needs the same sign-in. Its frameworks share React, Tailwind, shadcn and,
@@ -124,7 +141,8 @@ path-scoped rules exist, every glob that names a file.
 ## The index
 
 `.prumo/INDEX.md` is generated at scaffold time and lists one line per file across the areas the
-project actually received. `AGENTS.md` points at it in a single line.
+project actually received. `.context/INDEX.md` lists the project's own rules in the same form, kept by whoever writes
+one. `AGENTS.md` points at both, a line each.
 
 **The split is about ownership, not size.** `AGENTS.md` is where the team writes *our deploy works
 like this* and *do not touch X*. If `prumo add` had to rewrite it to update a list, it would be

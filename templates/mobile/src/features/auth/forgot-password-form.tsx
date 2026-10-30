@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { useMessages } from '@/i18n/i18n'
 
 const schema = z.object({ email: z.email() })
 
@@ -19,6 +20,7 @@ export function ForgotPasswordForm({
   auth: Pick<AuthClient, 'requestPasswordReset'>
   onSent: (email: string) => void
 }) {
+  const messages = useMessages()
   const form = useForm<ForgotPasswordValues>({
     resolver: zodResolver(schema),
     mode: 'onTouched',
@@ -30,7 +32,7 @@ export function ForgotPasswordForm({
     try {
       await auth.requestPasswordReset(values.email)
     } catch (error) {
-      applyServerError(error, ['email'], form.setError)
+      applyServerError(error, ['email'], form.setError, messages)
       return
     }
 
@@ -46,7 +48,7 @@ export function ForgotPasswordForm({
         name="email"
         render={({ field }) => (
           <Field
-            label="Email"
+            label={messages.auth.email}
             autoCapitalize="none"
             autoComplete="email"
             keyboardType="email-address"
@@ -58,7 +60,7 @@ export function ForgotPasswordForm({
         )}
       />
       <Button
-        label="Send a reset code"
+        label={messages.auth.forgotPassword.submit}
         disabled={isSubmitting}
         onPress={form.handleSubmit(onSubmit)}
       />

@@ -3,6 +3,7 @@ import { ApiError, type AuthClient } from '@/api-contract'
 import { Button } from '@/components/ui/button'
 import { useClients } from '@/features/clients/clients'
 import { island } from '@/features/clients/island'
+import { rich, useMessages } from '@/i18n/i18n'
 import { navigate } from '@/lib/navigate'
 
 type AuthorizationView = {
@@ -36,6 +37,7 @@ export function ConsentForm({
   requestId: string
   leave: (url: string) => void
 }) {
+  const messages = useMessages()
   const view = useQuery({
     queryKey: ['oauth-authorization', requestId],
     queryFn: () => call<AuthorizationView>(auth, `/authorizations/${requestId}`),
@@ -59,7 +61,7 @@ export function ConsentForm({
   if (view.isError) {
     return (
       <p role="alert" className="text-sm text-destructive">
-        This request has expired or was already answered. Start again from the application.
+        {messages.consent.expired}
       </p>
     )
   }
@@ -69,33 +71,32 @@ export function ConsentForm({
   return (
     <div className="flex flex-col gap-6">
       <p>
-        <strong>{clientName}</strong> ({clientHost}) wants to act on your behalf.
+        {rich(messages.consent.wants, { client: <strong>{clientName}</strong>, host: clientHost })}
       </p>
-      <ul aria-label="What it will be able to do" className="list-disc pl-6 text-sm">
+      <ul aria-label={messages.consent.abilities} className="list-disc pl-6 text-sm">
         {scopes.map(({ scope, description }) => (
           <li key={scope}>{description}</li>
         ))}
       </ul>
       <p className="text-sm text-muted-foreground">
-        If you allow it, you will be sent to <strong>{redirectHost}</strong>.
+        {rich(messages.consent.sentTo, { host: <strong>{redirectHost}</strong> })}
       </p>
       {redirectsToThisDevice && (
         <p role="note" className="text-sm text-destructive">
-          It returns to a program on this device. Allow it only if you started this from a program
-          you trust.
+          {messages.consent.device}
         </p>
       )}
       {answer.isError && (
         <p role="alert" className="text-sm text-destructive">
-          The authorization could not be completed. Start again from the application.
+          {messages.consent.failed}
         </p>
       )}
       <div className="flex gap-3">
         <Button onClick={() => answer.mutate(true)} disabled={answer.isPending}>
-          Allow
+          {messages.consent.allow}
         </Button>
         <Button variant="outline" onClick={() => answer.mutate(false)} disabled={answer.isPending}>
-          Deny
+          {messages.consent.deny}
         </Button>
       </div>
     </div>

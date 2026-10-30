@@ -1,12 +1,17 @@
 ---
+import LanguageSwitcher from '@/features/i18n/language-switcher.astro'
+import type { Locale } from '@/i18n/locales'
 import Page from '@/layouts/page.astro'
 
 // Sign-in, its neighbours and the signed-in area: one column, and nothing a search result should show.
-type Props = { title: string }
+type Props = { title: string; locale: Locale }
+
+const { title, locale } = Astro.props
 ---
 
-<Page title={Astro.props.title} index={false}>
+<Page title={title} index={false} locale={locale}>
   <main class="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center gap-6 p-6">
+    <LanguageSwitcher locale={locale} />
     <slot />
   </main>
 </Page>

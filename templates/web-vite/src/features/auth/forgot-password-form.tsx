@@ -8,12 +8,14 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 import { Input } from '@/components/ui/input'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { useMessages } from '@/i18n/i18n'
 
 const schema = z.object({ email: z.email() })
 
 type ForgotPasswordValues = z.infer<typeof schema>
 
 export function ForgotPasswordForm({ auth }: { auth: Pick<AuthClient, 'requestPasswordReset'> }) {
+  const messages = useMessages()
   const navigate = useNavigate()
   const form = useForm<ForgotPasswordValues>({
     resolver: zodResolver(schema),
@@ -26,7 +28,7 @@ export function ForgotPasswordForm({ auth }: { auth: Pick<AuthClient, 'requestPa
     try {
       await auth.requestPasswordReset(values.email)
     } catch (error) {
-      applyServerError(error, ['email'], form.setError)
+      applyServerError(error, ['email'], form.setError, messages)
       return
     }
 
@@ -39,13 +41,13 @@ export function ForgotPasswordForm({ auth }: { auth: Pick<AuthClient, 'requestPa
       <FormError errors={errors} />
       <FieldGroup>
         <Field data-invalid={errors.email !== undefined}>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <FieldLabel htmlFor="email">{messages.auth.email}</FieldLabel>
           <Input id="email" type="email" autoComplete="email" {...form.register('email')} />
           <FieldError errors={[errors.email]} />
         </Field>
       </FieldGroup>
       <Button type="submit" disabled={isSubmitting}>
-        Send a reset code
+        {messages.auth.forgotPassword.submit}
       </Button>
     </form>
   )

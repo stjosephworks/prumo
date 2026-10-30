@@ -8,13 +8,16 @@ import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
 import { FormError } from '@/features/forms/form-error'
 import { applyServerError } from '@/features/forms/server-errors'
+import { useMessages } from '@/i18n/i18n'
+import type { Messages } from '@/i18n/messages'
 
-const schema = z.object({
-  code: z.string().regex(/^\d{6}$/, 'Enter the 6 digits from the email'),
-  password: z.string().min(8).max(128),
-})
+const schemaOf = (messages: Messages) =>
+  z.object({
+    code: z.string().regex(/^\d{6}$/, messages.auth.verifyEmail.sixDigits),
+    password: z.string().min(8).max(128),
+  })
 
-type ResetPasswordValues = z.infer<typeof schema>
+type ResetPasswordValues = z.infer<ReturnType<typeof schemaOf>>
 
 export function ResetPasswordForm({
   auth,
@@ -25,9 +28,10 @@ export function ResetPasswordForm({
   email: string
   onReset: () => void
 }) {
+  const messages = useMessages()
   const queryClient = useQueryClient()
   const form = useForm<ResetPasswordValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schemaOf(messages)),
     mode: 'onTouched',
     defaultValues: { code: '', password: '' },
   })
@@ -37,7 +41,7 @@ export function ResetPasswordForm({
     try {
       await auth.resetPassword({ email, ...values })
     } catch (error) {
-      applyServerError(error, ['code', 'password'], form.setError)
+      applyServerError(error, ['code', 'password'], form.setError, messages)
       return
     }
 
@@ -57,7 +61,7 @@ export function ResetPasswordForm({
         name="code"
         render={({ field }) => (
           <Field
-            label="Code"
+            label={messages.forms.code}
             keyboardType="number-pad"
             autoComplete="one-time-code"
             textContentType="oneTimeCode"
@@ -73,7 +77,7 @@ export function ResetPasswordForm({
         name="password"
         render={({ field }) => (
           <Field
-            label="New password"
+            label={messages.auth.resetPassword.password}
             secureTextEntry
             autoComplete="new-password"
             value={field.value}
@@ -84,7 +88,7 @@ export function ResetPasswordForm({
         )}
       />
       <Button
-        label="Set the new password"
+        label={messages.auth.resetPassword.submit}
         disabled={isSubmitting}
         onPress={form.handleSubmit(onSubmit)}
       />

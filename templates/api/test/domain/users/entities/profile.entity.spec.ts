@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { Profile } from '@/domain/users/entities/profile.entity'
+import { BASE_LOCALE, LOCALES } from '@/i18n/locales'
 
-describe('Profile.localeFor', () => {
-  it('keeps a supported tag, and finds one in the same language for any other', () => {
-    expect(Profile.localeFor('pt-BR')).toBe('pt-BR')
-    expect(Profile.localeFor('pt')).toBe('pt-BR')
-    expect(Profile.localeFor('pt-PT')).toBe('pt-BR')
-    expect(Profile.localeFor('en-US')).toBe('en')
+describe('a new Profile', () => {
+  it('speaks the language its device asked for, as the project speaks it', () => {
+    for (const locale of LOCALES) {
+      expect(new Profile('user', 'Ana', { locale }).locale).toBe(locale)
+      expect(new Profile('user', 'Ana', { locale: locale.toLowerCase() }).locale).toBe(locale)
+    }
   })
 
-  it('falls back to English for a language it does not have, or none', () => {
-    expect(Profile.localeFor('ja-JP')).toBe('en')
-    expect(Profile.localeFor(undefined)).toBe('en')
+  it('speaks the base for a language the project lacks, or none', () => {
+    expect(new Profile('user', 'Ana', { locale: 'x-none' }).locale).toBe(BASE_LOCALE)
+    expect(new Profile('user', 'Ana').locale).toBe(BASE_LOCALE)
   })
 })

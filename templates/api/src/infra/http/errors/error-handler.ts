@@ -1,6 +1,8 @@
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod'
 import { DomainError, type DomainErrorKind } from '@/domain/shared/errors/domain-error'
+import { format } from '@/i18n/locales'
+import { type Messages, messagesFor } from '@/i18n/messages'
 
 type FieldErrors = Record<string, string[]>
 
@@ -42,7 +44,8 @@ function fieldOf(instancePath: string, key?: string): string {
   return [...instancePath.split('/').filter(Boolean), ...(key === undefined ? [] : [key])].join('.')
 }
 
-function fieldErrors(error: FastifyError): FieldErrors | undefined {
+// zod wrote each message; only a key it refused is named here.
+function fieldErrors(error: FastifyError, messages: Messages): FieldErrors | undefined {
   if (!hasZodFastifySchemaValidationErrors(error)) {
     return undefined
   }
@@ -55,10 +58,10 @@ function fieldErrors(error: FastifyError): FieldErrors | undefined {
   for (const issue of error.validation) {
     if (issue.keyword === 'unrecognized_keys') {
       for (const key of (issue.params as { keys: string[] }).keys) {
-        add(fieldOf(issue.instancePath, key), 'Unrecognized key')
+        add(fieldOf(issue.instancePath, key), messages.errors.unrecognizedKey)
       }
     } else {
-      add(fieldOf(issue.instancePath), issue.message ?? 'Invalid value')
+      add(fieldOf(issue.instancePath), issue.message ?? messages.errors.invalidValue)
     }
   }
 
@@ -73,12 +76,34 @@ export function statusOf(error: FastifyError): number {
   return typeof error.statusCode === 'number' ? error.statusCode : 500
 }
 
-function detailOf(error: FastifyError, status: number, errors: FieldErrors | undefined): string {
+// prumo:multi-language
+// What a person is told, in the request's language. An error that names no message of the API's is a developer's,
+// and keeps its words.
+// prumo:end-multi-language
+// prumo:single-language
+// // What a person is told: an error's own words, unless the API failed.
+// prumo:end-single-language
+function detailOf(
+  error: FastifyError,
+  status: number,
+  errors: FieldErrors | undefined,
+  messages: Messages,
+): string {
   if (errors !== undefined) {
-    return 'Validation failed'
+    return messages.errors.validationFailed
   }
 
-  return status < 500 ? error.message : 'An unexpected error occurred.'
+  if (status >= 500) {
+    return messages.errors.unexpected
+  }
+
+  // prumo:multi-language
+  if (error instanceof DomainError && error.text !== undefined) {
+    return format(messages.errors[error.text], error.values)
+  }
+
+  // prumo:end-multi-language
+  return error.message
 }
 
 function send(
@@ -100,7 +125,8 @@ function send(
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error: FastifyError, request, reply) => {
     const status = statusOf(error)
-    const errors = fieldErrors(error)
+    const messages = messagesFor(request.locale)
+    const errors = fieldErrors(error, messages)
 
     if (status >= 500) {
       request.log.error(error)
@@ -114,7 +140,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
 
     return send(request, reply, {
       status,
-      detail: detailOf(error, status, errors),
+      detail: detailOf(error, status, errors, messages),
       ...(code === undefined ? {} : { code }),
       ...(errors === undefined ? {} : { errors }),
     })

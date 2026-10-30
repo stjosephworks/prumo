@@ -49,7 +49,7 @@ types, the `ApiError`) in a page's frontmatter too.
 Where a fetch happens:
 
 ```
-✅  // src/pages/posts.astro, frontmatter: public data, at build time
+✅  // src/pages/[locale]/posts.astro, frontmatter: public data, at build time
     const posts = await api.get<Post[]>('/posts')
 ✅  // an island: what belongs to the signed-in user
     const { data } = useQuery(ordersQuery(api))

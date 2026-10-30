@@ -1,6 +1,12 @@
 import { authFakes } from '@test/support/fakes/auth-fakes'
 import { describe, expect, it } from 'vitest'
 import { EmailTakenError } from '@/domain/auth/errors/email-taken.error'
+import { BASE_LOCALE, LOCALES } from '@/i18n/locales'
+
+// prumo:multi-language
+// A language of the project's that a device names in lowercase: whichever, as long as the project speaks it.
+const DEVICE_LOCALE = LOCALES.at(-1) ?? BASE_LOCALE
+// prumo:end-multi-language
 
 const ANA = { name: 'Ana', email: ' Ana@Example.com', password: 'correct-horse-battery' }
 
@@ -18,26 +24,35 @@ describe('SignUpUseCase', () => {
     expect(profiles.rows.get(user?.id ?? '')).toMatchObject({ displayName: 'Ana' })
   })
 
-  it("starts the profile in the device's language and timezone", async () => {
+  it('starts the profile with what its device says', async () => {
     const { signUp, users, profiles } = authFakes()
 
-    await signUp.execute({ ...ANA, locale: 'pt', timezone: 'America/Sao_Paulo' })
+    await signUp.execute({
+      ...ANA,
+      locale: DEVICE_LOCALE.toLowerCase(),
+      timezone: 'America/Sao_Paulo',
+    })
     const [user] = [...users.rows.values()]
 
     expect(profiles.rows.get(user?.id ?? '')).toMatchObject({
-      locale: 'pt-BR',
+      locale: DEVICE_LOCALE,
       timezone: 'America/Sao_Paulo',
     })
   })
 
-  it('starts in English and UTC when the device says nothing it supports', async () => {
+  // prumo:multi-language
+  it('starts in the base language and UTC when the device says nothing the project speaks', async () => {
     const { signUp, users, profiles } = authFakes()
 
     await signUp.execute({ ...ANA, locale: 'ja-JP' })
     const [user] = [...users.rows.values()]
 
-    expect(profiles.rows.get(user?.id ?? '')).toMatchObject({ locale: 'en', timezone: 'UTC' })
+    expect(profiles.rows.get(user?.id ?? '')).toMatchObject({
+      locale: BASE_LOCALE,
+      timezone: 'UTC',
+    })
   })
+  // prumo:end-multi-language
 
   it('refuses an email already taken, whatever its case', async () => {
     const { signUp, profiles } = authFakes()

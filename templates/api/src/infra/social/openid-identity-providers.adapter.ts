@@ -211,7 +211,7 @@ export class OpenIdIdentityProviders implements IdentityProviders {
     const settings = this.settings(provider)
 
     if (settings === null) {
-      throw new SocialSignInFailedError(`Sign-in with ${provider} is not configured`)
+      throw new SocialSignInFailedError('providerNotConfigured', { provider })
     }
 
     const configuration = await this.configuration(provider, settings)
@@ -247,7 +247,7 @@ export class OpenIdIdentityProviders implements IdentityProviders {
     const settings = this.nativeSettings(provider)
 
     if (settings === null) {
-      throw new SocialSignInFailedError(`Sign-in with ${provider} in the app is not configured`)
+      throw new SocialSignInFailedError('providerNotConfiguredInApp', { provider })
     }
 
     try {
@@ -285,7 +285,7 @@ export class OpenIdIdentityProviders implements IdentityProviders {
     const settings = this.nativeSettings(provider)
 
     if (settings === null) {
-      throw new SocialSignInFailedError(`Sign-in with ${provider} in the app is not configured`)
+      throw new SocialSignInFailedError('providerNotConfiguredInApp', { provider })
     }
 
     if (!settings.revokesOnDeletion) {
@@ -317,7 +317,7 @@ export class OpenIdIdentityProviders implements IdentityProviders {
     const settings = this.settings(provider)
 
     if (settings === null) {
-      throw new SocialSignInFailedError(`Sign-in with ${provider} is not configured`)
+      throw new SocialSignInFailedError('providerNotConfigured', { provider })
     }
 
     try {
@@ -355,7 +355,7 @@ export class OpenIdIdentityProviders implements IdentityProviders {
 // What a verified ID token says about the person.
 function profileOf(claims: jose.JWTPayload, name: string | null): ProviderProfile {
   if (typeof claims.sub !== 'string' || typeof claims.email !== 'string') {
-    throw new SocialSignInFailedError('The provider did not share an email address')
+    throw new SocialSignInFailedError('providerSharedNoEmail')
   }
 
   return {

@@ -14,6 +14,14 @@ import {
   TRANSACTION_MANAGER,
   type TransactionManager,
 } from '@/domain/shared/transactions/transaction-manager'
+// prumo:multi-language
+import {
+  PROFILE_REPOSITORY,
+  type ProfileRepository,
+} from '@/domain/users/repositories/profile.repository'
+// prumo:end-multi-language
+import { BASE_LOCALE } from '@/i18n/locales'
+import { messagesFor } from '@/i18n/messages'
 
 @injectable()
 export class ChangePhoneUseCase {
@@ -24,6 +32,7 @@ export class ChangePhoneUseCase {
     @inject(PHONE_NUMBERS) private readonly phones: PhoneNumbers,
     @inject(TEXT_MESSAGES) private readonly texts: TextMessages,
     @inject(TRANSACTION_MANAGER) private readonly transactions: TransactionManager,
+    @inject(PROFILE_REPOSITORY) private readonly profiles: ProfileRepository, // prumo:multi-language
   ) {}
 
   // The code came back from the new number to the account that asked: it becomes the account's phone, confirmed.
@@ -72,10 +81,13 @@ export class ChangePhoneUseCase {
     }
 
     // The previous number learns of it without learning the new one.
+    // It is written in the account's language. // prumo:multi-language
     if (changed.previous !== null) {
+      const profile = await this.profiles.findByUserId(userId) // prumo:multi-language
+
       await this.texts.send({
         to: changed.previous,
-        text: 'This number is no longer the phone of your account. If you did not change it, contact the people who run this service.',
+        text: messagesFor(profile?.locale ?? BASE_LOCALE).texts.phoneChanged,
       })
     }
 

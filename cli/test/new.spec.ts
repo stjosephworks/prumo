@@ -19,6 +19,9 @@ const flags = (overrides: Partial<Flags>): Flags => ({
   monorepo: false,
   multiTenant: false,
   singleTenant: false,
+  multiLanguage: true,
+  singleLanguage: false,
+  languages: 'en',
   mcp: false,
   noMcp: false,
   signIn: undefined,
@@ -353,6 +356,18 @@ describe('resolveAnswers in a terminal', () => {
         asked.push('multiTenant')
         return true
       },
+      multiLanguage: async () => {
+        asked.push('multiLanguage')
+        return true
+      },
+      language: async () => {
+        asked.push('language')
+        return 'pt-BR'
+      },
+      languages: async () => {
+        asked.push('languages')
+        return ['pt-BR', 'en']
+      },
       mcp: async () => {
         asked.push('mcp')
         return true
@@ -395,6 +410,8 @@ describe('resolveAnswers in a terminal', () => {
       apps: [{ name: 'api', type: 'api' }],
       architecture: 'monorepo',
       multiTenant: true,
+      multiLanguage: true,
+      languages: ['en'],
       mcp: false,
       signIn: ['password'],
       email: true,
@@ -545,6 +562,8 @@ describe('generate', () => {
         types: ['mobile'],
         architecture: 'alone',
         multiTenant: false,
+        multiLanguage: true,
+        languages: ['en'],
         mcp: false,
         signIn: ['password'],
         email: false,
@@ -565,6 +584,8 @@ describe('generate', () => {
       apps: [{ name: 'mobile', type: 'mobile' }],
       architecture: 'alone',
       multiTenant: false,
+      multiLanguage: true,
+      languages: ['en'],
       mcp: false,
       signIn: ['password'],
       email: false,
@@ -574,6 +595,12 @@ describe('generate', () => {
     expect(index).toContain('[client/data.md](client/data.md)')
     expect(existsSync(join(target, '.prumo/api'))).toBe(false)
     expect(await readFile(join(target, 'CLAUDE.md'), 'utf8')).toBe('@AGENTS.md\n')
+    // The project's own rules have a place from the start, and the pointer says they win.
+    expect(await readFile(join(target, '.context/INDEX.md'), 'utf8')).toMatch(/^# Project rules\n/)
+    expect(await readFile(join(target, 'AGENTS.md'), 'utf8')).toContain(
+      '**They win wherever they disagree with `.prumo/`.**',
+    )
+    expect(index).toContain('[core/context.md](core/context.md)')
     expect(existsSync(join(target, '.git'))).toBe(true)
     expect(await readFile(join(target, '.git/HEAD'), 'utf8')).toBe('ref: refs/heads/main\n')
     expect(existsSync(join(target, '.githooks/install.mjs'))).toBe(true)
@@ -603,6 +630,8 @@ describe('generate', () => {
           types: ['api'],
           architecture: 'alone',
           multiTenant: false,
+          multiLanguage: true,
+          languages: ['en'],
           mcp: false,
           signIn: ['password'],
           email: false,
@@ -635,6 +664,8 @@ describe('generate', () => {
         types: ['api', 'mobile'],
         architecture: 'monorepo',
         multiTenant: true,
+        multiLanguage: true,
+        languages: ['en'],
         mcp: false,
         signIn: ['password'],
         email: false,
@@ -697,6 +728,8 @@ describe('generate', () => {
         apps: [...apps],
         architecture: 'monorepo',
         multiTenant: false,
+        multiLanguage: true,
+        languages: ['en'],
         mcp: true,
         signIn: ['password'],
         email: false,
@@ -735,6 +768,8 @@ describe('generate', () => {
         apps: [{ name: 'web', type: 'web', framework: 'next' }],
         architecture: 'alone',
         multiTenant: false,
+        multiLanguage: true,
+        languages: ['en'],
         mcp: false,
         signIn: ['password'],
         email: false,
@@ -766,6 +801,8 @@ describe('generate', () => {
           types: ['web'],
           architecture: 'alone',
           multiTenant: false,
+          multiLanguage: true,
+          languages: ['en'],
           mcp: false,
           signIn: ['password'],
           email: false,
@@ -798,6 +835,8 @@ describe('generate when it fails', () => {
     types: ['web' as const],
     architecture: 'alone' as const,
     multiTenant: false,
+    multiLanguage: true,
+    languages: ['en' as const],
     mcp: false,
     signIn: ['password' as const],
     email: false,

@@ -1,0 +1,45 @@
+---
+import { pathIn } from '@/i18n/choice'
+import { LOCALE_INFO, LOCALES, type Locale } from '@/i18n/locales'
+import { messagesFor } from '@/i18n/messages'
+
+// The language of the page, as links to this same page in each of the project's languages. No island: a public page
+// stays free of React, and a line of script keeps the choice and the page's query. Signed in, the account follows it
+// (account-language.ts). A project that speaks one language has nothing to choose.
+type Props = { locale: Locale }
+
+const { locale } = Astro.props
+---
+
+{
+  LOCALES.length > 1 && (
+    <nav aria-label={messagesFor(locale).language} class="flex gap-3 self-end text-sm text-muted-foreground">
+      {LOCALES.map((each) => (
+        <a
+          href={pathIn(each, Astro.url.pathname)}
+          lang={each}
+          data-locale={each}
+          aria-current={each === locale ? 'page' : undefined}
+        >
+          {LOCALE_INFO[each].nativeName}
+        </a>
+      ))}
+    </nav>
+  )
+}
+
+<script>
+  import { keepChoice } from '@/i18n/choice'
+  import { isLocale } from '@/i18n/locales'
+
+  for (const link of document.querySelectorAll<HTMLAnchorElement>('a[data-locale]')) {
+    link.search = window.location.search
+    link.addEventListener('click', () => {
+      const locale = link.dataset.locale ?? ''
+
+      if (isLocale(locale)) {
+        keepChoice(locale)
+      }
+    })
+  }
+</script>

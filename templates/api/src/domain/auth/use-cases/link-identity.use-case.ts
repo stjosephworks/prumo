@@ -16,6 +16,7 @@ import {
   TRANSACTION_MANAGER,
   type TransactionManager,
 } from '@/domain/shared/transactions/transaction-manager'
+import type { DevicePreferences } from '@/domain/users/entities/profile.entity'
 import { DISPLAY_NAME_MAX, Profile } from '@/domain/users/entities/profile.entity'
 import { CreateProfileUseCase } from '@/domain/users/use-cases/create-profile.use-case'
 
@@ -30,7 +31,12 @@ export class LinkIdentityUseCase {
   ) {}
 
   // Returns the id of the user the provider's account belongs to, creating or linking it as the rules say.
-  execute(provider: ProviderName, profile: ProviderProfile): Promise<string> {
+  // An account created here speaks the language the sign-in was asked in. // prumo:multi-language
+  execute(
+    provider: ProviderName,
+    profile: ProviderProfile,
+    preferences: DevicePreferences = {},
+  ): Promise<string> {
     return this.transactions.run(async () => {
       const known = await this.identities.findBySubject(provider, profile.subject)
 
@@ -65,6 +71,7 @@ export class LinkIdentityUseCase {
       await this.createProfile.execute(
         user.id,
         (profile.name ?? Profile.nameFor(profile.email)).slice(0, DISPLAY_NAME_MAX),
+        preferences,
       )
       await this.identities.save(new Identity(user.id, provider, profile.subject))
 

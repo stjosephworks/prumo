@@ -1,6 +1,4 @@
-export const LOCALES = ['en', 'pt-BR'] as const
-
-export type Locale = (typeof LOCALES)[number]
+import { type Locale, negotiateLocale } from '@/i18n/locales'
 
 export const DISPLAY_NAME_MAX = 80
 
@@ -21,7 +19,8 @@ export class Profile {
   constructor(userId: string, displayName: string, preferences: DevicePreferences = {}) {
     this.userId = userId
     this.displayName = displayName
-    this.locale = Profile.localeFor(preferences.locale)
+    // The language the screen speaks, as the project speaks it, else the project's base. // prumo:multi-language
+    this.locale = negotiateLocale([preferences.locale])
     this.timezone = preferences.timezone ?? 'UTC'
   }
 
@@ -37,18 +36,6 @@ export class Profile {
   }
 
   // prumo:end-phone-code
-  // A device names its language as it likes (`pt`, `en-US`): the same tag when supported, else the first supported
-  // one in the same language, else English.
-  static localeFor(requested: string | undefined): Locale {
-    const language = requested?.split('-')[0]?.toLowerCase()
-
-    return (
-      LOCALES.find((locale) => locale === requested) ??
-      LOCALES.find((locale) => locale.split('-')[0] === language) ??
-      'en'
-    )
-  }
-
   update(changes: ProfileChanges): void {
     this.displayName = changes.displayName ?? this.displayName
     this.locale = changes.locale ?? this.locale

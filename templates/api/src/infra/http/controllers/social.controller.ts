@@ -171,6 +171,7 @@ export async function socialController(fastify: FastifyInstance): Promise<void> 
           browserToken: browserToken === '' ? undefined : browserToken,
           callbackUrl: new URL(request.url, env.API_URL),
           name: appleName(request.query.user),
+          locale: request.locale,
         })
 
         // prumo:apple
@@ -351,6 +352,7 @@ export async function socialController(fastify: FastifyInstance): Promise<void> 
           idToken,
           trip: trip ?? null,
           name: name ?? null,
+          locale: request.locale,
         }),
         200,
       )

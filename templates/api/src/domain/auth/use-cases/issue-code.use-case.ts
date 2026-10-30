@@ -5,15 +5,9 @@ import {
   OneTimeCode,
 } from '@/domain/auth/entities/one-time-code.entity'
 import { TooManyCodesError } from '@/domain/auth/errors/too-many-codes.error'
-import { MAILER, type Mail, type Mailer } from '@/domain/auth/ports/mailer.port' // prumo:mail
+import { MAILER, type Mailer } from '@/domain/auth/ports/mailer.port' // prumo:mail
 import { ONE_TIME_CODES, type OneTimeCodes } from '@/domain/auth/ports/one-time-codes.port'
-// prumo:sms
-import {
-  TEXT_MESSAGES,
-  type TextMessage,
-  type TextMessages,
-} from '@/domain/auth/ports/text-messages.port'
-// prumo:end-sms
+import { TEXT_MESSAGES, type TextMessages } from '@/domain/auth/ports/text-messages.port' // prumo:sms
 import {
   ONE_TIME_CODE_REPOSITORY,
   type OneTimeCodeRepository,
@@ -22,6 +16,14 @@ import {
   TRANSACTION_MANAGER,
   type TransactionManager,
 } from '@/domain/shared/transactions/transaction-manager'
+// prumo:multi-language
+import {
+  PROFILE_REPOSITORY,
+  type ProfileRepository,
+} from '@/domain/users/repositories/profile.repository'
+// prumo:end-multi-language
+import { format, type Locale } from '@/i18n/locales'
+import { type Messages, messagesFor } from '@/i18n/messages'
 
 // Enough that the table keeps up with what it receives, few enough that no request waits on it.
 const SWEEP_LIMIT = 100
@@ -30,46 +32,60 @@ const SWEEP_LIMIT = 100
 export type CodeTarget = { channel: CodeChannel; destination: string }
 
 // prumo:mail
-const MAILS: Partial<Record<CodePurpose, (to: string, code: string) => Mail>> = {
+// prumo:multi-language
+// Which of the messages' mails each purpose sends.
+const MAILS: Partial<
+  Record<CodePurpose, (messages: Messages) => { subject: string; text: string }>
+> = {
   // prumo:email
-  'verify-email': (to, code) => ({
-    to,
-    subject: `${code} is your verification code`,
-    text: `Enter ${code} to confirm this email address. The code expires in 15 minutes.`,
-  }),
-  'reset-password': (to, code) => ({
-    to,
-    subject: `${code} is your password reset code`,
-    text: `Enter ${code} to choose a new password. The code expires in 15 minutes. If you did not ask for it, ignore this email: your password stays as it is.`,
-  }),
+  'verify-email': (messages) => messages.mail.verifyEmail,
+  'reset-password': (messages) => messages.mail.resetPassword,
   // prumo:end-email
-  // prumo:email-code
-  'sign-in': (to, code) => ({
-    to,
-    subject: `${code} is your sign-in code`,
-    text: `Enter ${code} to sign in. The code expires in 15 minutes. If you did not ask for it, ignore this email: nobody can sign in without it.`,
-  }),
-  // prumo:end-email-code
-  'change-email': (to, code) => ({
-    to,
-    subject: `${code} is your code to change your email`,
-    text: `Enter ${code} to make this the email of your account. The code expires in 15 minutes. If you did not ask for it, ignore this email: nothing changes without it.`,
-  }),
+  'sign-in': (messages) => messages.mail.signIn, // prumo:email-code
+  'change-email': (messages) => messages.mail.changeEmail,
 }
+// prumo:end-multi-language
+// prumo:single-language
+// // The mail each purpose sends, around its code.
+// const MAILS: Partial<Record<CodePurpose, (code: string) => { subject: string; text: string }>> = {
+// prumo:email
+//   'verify-email': (code) => ({
+//     subject: format(messages.mail.verifyEmail.subject, { code }),
+//     text: format(messages.mail.verifyEmail.text, { code }),
+//   }),
+//   'reset-password': (code) => ({
+//     subject: format(messages.mail.resetPassword.subject, { code }),
+//     text: format(messages.mail.resetPassword.text, { code }),
+//   }),
+// prumo:end-email
+// prumo:email-code
+//   'sign-in': (code) => ({
+//     subject: format(messages.mail.signIn.subject, { code }),
+//     text: format(messages.mail.signIn.text, { code }),
+//   }),
+// prumo:end-email-code
+//   'change-email': (code) => ({
+//     subject: format(messages.mail.changeEmail.subject, { code }),
+//     text: format(messages.mail.changeEmail.text, { code }),
+//   }),
+// }
+// prumo:end-single-language
 
 // prumo:end-mail
 // prumo:sms
 // Plain text: a line naming the web's domain would bind the code to it, and the app could no longer fill it in.
-const TEXTS: Partial<Record<CodePurpose, (to: string, code: string) => TextMessage>> = {
-  'sign-in': (to, code) => ({
-    to,
-    text: `${code} is your sign-in code. It expires in 15 minutes. Never share it.`,
-  }),
-  'change-phone': (to, code) => ({
-    to,
-    text: `${code} is your code to make this the phone of your account. It expires in 15 minutes. Never share it.`,
-  }),
+// prumo:multi-language
+const TEXTS: Partial<Record<CodePurpose, (messages: Messages) => string>> = {
+  'sign-in': (messages) => messages.texts.signIn,
+  'change-phone': (messages) => messages.texts.changePhone,
 }
+// prumo:end-multi-language
+// prumo:single-language
+// const TEXTS: Partial<Record<CodePurpose, (code: string) => string>> = {
+//   'sign-in': (code) => format(messages.texts.signIn, { code }),
+//   'change-phone': (code) => format(messages.texts.changePhone, { code }),
+// }
+// prumo:end-single-language
 
 // prumo:end-sms
 @injectable()
@@ -78,6 +94,7 @@ export class IssueCodeUseCase {
     @inject(ONE_TIME_CODE_REPOSITORY) private readonly codes: OneTimeCodeRepository,
     @inject(ONE_TIME_CODES) private readonly oneTimeCodes: OneTimeCodes,
     @inject(TRANSACTION_MANAGER) private readonly transactions: TransactionManager,
+    @inject(PROFILE_REPOSITORY) private readonly profiles: ProfileRepository, // prumo:multi-language
     @inject(MAILER) private readonly mailer: Mailer, // prumo:mail
     @inject(TEXT_MESSAGES) private readonly texts: TextMessages, // prumo:sms
   ) {}
@@ -85,11 +102,27 @@ export class IssueCodeUseCase {
   // Writes the destination's code whether or not it is sent, so the limits answer alike for an address with an
   // account and one without. `deliver` is false when nobody there may receive it; `userId` binds a code that changes
   // an account's address to that account.
+  // prumo:multi-language
+  // It is written in the language of `account`'s profile, which is read wherever its owner reads mail, else in
+  // `locale`, the one the request asked in.
   async execute(
     { channel, destination }: CodeTarget,
     purpose: CodePurpose,
-    { deliver, userId = null }: { deliver: boolean; userId?: string | null },
+    {
+      deliver,
+      userId = null,
+      account = userId,
+      locale,
+    }: { deliver: boolean; userId?: string | null; account?: string | null; locale: Locale },
   ): Promise<void> {
+    // prumo:end-multi-language
+    // prumo:single-language
+    // async execute(
+    //   { channel, destination }: CodeTarget,
+    //   purpose: CodePurpose,
+    //   { deliver, userId = null }: { deliver: boolean; userId?: string | null },
+    // ): Promise<void> {
+    // prumo:end-single-language
     const code = this.oneTimeCodes.create()
     const codeHash = this.oneTimeCodes.digest(code)
 
@@ -123,20 +156,47 @@ export class IssueCodeUseCase {
       return
     }
 
+    // prumo:multi-language
+    const profile = account === null ? null : await this.profiles.findByUserId(account)
+    const messages = messagesFor(profile?.locale ?? locale)
+
+    // prumo:end-multi-language
     // prumo:mail
-    const mail = channel === 'email' ? MAILS[purpose] : undefined
+    // prumo:multi-language
+    const mail = channel === 'email' ? MAILS[purpose]?.(messages) : undefined
 
     if (mail !== undefined) {
-      await this.mailer.send(mail(destination, code))
+      await this.mailer.send({
+        to: destination,
+        subject: format(mail.subject, { code }),
+        text: format(mail.text, { code }),
+      })
     }
+    // prumo:end-multi-language
+    // prumo:single-language
+    // const mail = channel === 'email' ? MAILS[purpose]?.(code) : undefined
+    //
+    // if (mail !== undefined) {
+    //   await this.mailer.send({ to: destination, ...mail })
+    // }
+    // prumo:end-single-language
 
     // prumo:end-mail
     // prumo:sms
-    const text = channel === 'phone' ? TEXTS[purpose] : undefined
+    // prumo:multi-language
+    const text = channel === 'phone' ? TEXTS[purpose]?.(messages) : undefined
 
     if (text !== undefined) {
-      await this.texts.send(text(destination, code))
+      await this.texts.send({ to: destination, text: format(text, { code }) })
     }
+    // prumo:end-multi-language
+    // prumo:single-language
+    // const text = channel === 'phone' ? TEXTS[purpose]?.(code) : undefined
+    //
+    // if (text !== undefined) {
+    //   await this.texts.send({ to: destination, text })
+    // }
+    // prumo:end-single-language
     // prumo:end-sms
   }
 }

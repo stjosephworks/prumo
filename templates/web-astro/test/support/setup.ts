@@ -13,6 +13,15 @@ beforeEach(() => {
   vi.spyOn(navigate, 'replace').mockImplementation(() => {})
 })
 
+// prumo:multi-language
+// Every test starts with nothing chosen and a browser asking for no language, so the app speaks the project's base,
+// whichever it is, and the words a test looks for come from its messages (support/messages.ts).
+beforeEach(() => {
+  localStorage.clear()
+  Object.defineProperty(navigator, 'languages', { value: [], configurable: true })
+})
+// prumo:end-multi-language
+
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()

@@ -1,5 +1,6 @@
 import { EntitySchema } from '@mikro-orm/core'
 import { Profile } from '@/domain/users/entities/profile.entity'
+import { BASE_LOCALE } from '@/i18n/locales'
 
 export const ProfileSchema = new EntitySchema({
   class: Profile,
@@ -15,7 +16,10 @@ export const ProfileSchema = new EntitySchema({
       deleteRule: 'restrict',
     },
     displayName: { type: 'text' },
-    locale: { type: 'text', default: 'en' },
+    // prumo:multi-language
+    // The project's base language; `prumo new` writes the same default into the migration that creates the column.
+    locale: { type: 'text', default: BASE_LOCALE },
+    // prumo:end-multi-language
     timezone: { type: 'text', default: 'UTC' },
     createdAt: { type: 'datetime', onCreate: () => new Date(), defaultRaw: 'now()' },
     updatedAt: {

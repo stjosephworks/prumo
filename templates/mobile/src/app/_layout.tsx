@@ -4,16 +4,32 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect, useState } from 'react'
+// prumo:single-language
+// import { z } from 'zod'
+// prumo:end-single-language
 import { createAuthClient, createClient, sessionQuery } from '@/api-contract'
 import { config } from '@/config'
 import { secureTokenStore } from '@/features/auth/token-store'
 import { ClientsProvider, useClients } from '@/features/clients/clients-context'
 import { QUERY_CACHE_MAX_AGE, queryPersister } from '@/features/storage/query-persister'
+import { I18nProvider, withLanguage } from '@/i18n/i18n'
 
+// prumo:single-language
+// // zod's own messages, for what a form refuses before it is sent, in the project's language.
+// z.config(z.locales.en()) // prumo:en
+// z.config(z.locales.pt()) // prumo:pt-BR
+// z.config(z.locales.es()) // prumo:es-419
+//
+// prumo:end-single-language
 SplashScreen.preventAutoHideAsync()
 
 function createClients() {
-  const auth = createAuthClient({ baseUrl: config.apiUrl, fetch, tokens: secureTokenStore })
+  // Every request names the language the screen speaks (withLanguage). // prumo:multi-language
+  const auth = createAuthClient({
+    baseUrl: config.apiUrl,
+    fetch: withLanguage(fetch),
+    tokens: secureTokenStore,
+  })
   // Through the auth client, so every request carries the bearer and an expired one is refreshed and repeated.
   const api = createClient({ baseUrl: config.apiUrl, fetch: auth.fetch })
 
@@ -47,7 +63,9 @@ export default function RootLayout() {
       persistOptions={{ persister: queryPersister, maxAge: QUERY_CACHE_MAX_AGE }}
     >
       <ClientsProvider clients={clients}>
-        <Navigation />
+        <I18nProvider>
+          <Navigation />
+        </I18nProvider>
       </ClientsProvider>
     </PersistQueryClientProvider>
   )
